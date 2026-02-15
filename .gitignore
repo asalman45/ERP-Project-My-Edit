@@ -1,0 +1,33 @@
+# Backups and database dumps (commented out to allow upload)
+# backups/
+# *.sql
+# *.backup
+# *.dump
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node modules (if any in root)
+node_modules/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
