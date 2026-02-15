@@ -1,0 +1,229 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ERP Enterprise Design System - All colors MUST be HSL */
+
+@layer base {
+  :root {
+    /* Enterprise Color Palette */
+    --background: 0 0% 100%;
+    --foreground: 213 31% 19%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 213 31% 19%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 213 31% 19%;
+
+    /* Professional Blue Primary */
+    --primary: 211 100% 44%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 211 100% 38%;
+    --primary-light: 211 100% 95%;
+
+    /* Enterprise Grays */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 213 31% 19%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 211 100% 96%;
+    --accent-foreground: 211 100% 44%;
+
+    /* Status Colors */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Borders & Inputs */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 211 100% 44%;
+
+    /* Table & Enterprise Specific */
+    --table-header: 220 14% 96%;
+    --table-border: 220 13% 91%;
+    --table-hover: 220 14% 98%;
+    
+    /* Sidebar */
+    --sidebar-background: 213 31% 19%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-muted: 213 20% 35%;
+    --sidebar-accent: 211 100% 44%;
+
+    --radius: 0.375rem;
+
+    /* Enterprise Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+
+    /* Transitions */
+    --transition-base: all 0.2s ease-in-out;
+
+  }
+
+  .dark {
+    /* Enterprise Dark Mode */
+    --background: 213 31% 8%;
+    --foreground: 0 0% 95%;
+
+    --card: 213 31% 10%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 213 31% 10%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 211 100% 55%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 211 100% 50%;
+
+    --secondary: 213 20% 15%;
+    --secondary-foreground: 0 0% 90%;
+
+    --muted: 213 20% 15%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 211 100% 15%;
+    --accent-foreground: 211 100% 55%;
+
+    --border: 213 20% 20%;
+    --input: 213 20% 20%;
+    --ring: 211 100% 55%;
+
+    --table-header: 213 20% 15%;
+    --table-border: 213 20% 20%;
+    --table-hover: 213 20% 18%;
+
+    --sidebar-background: 213 31% 8%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-muted: 213 20% 25%;
+    --sidebar-accent: 211 100% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* Enterprise Table Styles */
+  .table-enterprise {
+    @apply w-full border-collapse;
+  }
+  
+  .table-enterprise thead {
+    @apply bg-table-header;
+  }
+  
+  .table-enterprise th {
+    @apply px-4 py-3 text-left text-sm font-semibold text-foreground border-b border-table-border;
+  }
+  
+  .table-enterprise td {
+    @apply px-4 py-3 text-sm text-foreground border-b border-table-border;
+  }
+  
+  .table-enterprise tbody tr {
+    @apply transition-colors hover:bg-table-hover;
+  }
+
+  /* Enterprise Card Styles */
+  .card-enterprise {
+    @apply bg-card border border-border rounded-lg shadow-sm;
+  }
+
+  /* Modern Glass Card */
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-xl border border-white/30 rounded-2xl shadow-lg;
+  }
+
+  .glass-card:hover {
+    @apply bg-white/80 shadow-xl scale-[1.01];
+  }
+
+  /* Enterprise Button Variants */
+  .btn-enterprise {
+    @apply px-4 py-2 rounded-md font-medium transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-ring hover:scale-105;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary-hover;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80;
+  }
+
+  /* Modern Animations */
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.6s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.4s ease-out;
+  }
+
+  /* Custom scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-gray-100 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full hover:bg-gray-400;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

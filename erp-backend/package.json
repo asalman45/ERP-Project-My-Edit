@@ -1,0 +1,52 @@
+{
+  "name": "erp-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "cross-env NODE_ENV=development nodemon --watch src --exec node src/index.js",
+    "start": "cross-env NODE_ENV=production node src/index.js",
+    "migrate": "node migrations/run-migrations.js",
+    "seed": "node migrations/run-migrations.js --seed",
+    "lint": "eslint . --ext .js"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.16.1",
+    "cors": "^2.8.5",
+    "cross-env": "^10.0.0",
+    "csv-parser": "^3.2.0",
+    "dotenv": "^16.3.1",
+    "exceljs": "^4.4.0",
+    "express": "^4.18.2",
+    "express-async-errors": "^3.1.1",
+    "handlebars": "^4.7.8",
+    "helmet": "^7.0.0",
+    "html-pdf-node": "^1.0.8",
+    "html2canvas": "^1.4.1",
+    "joi": "^17.9.2",
+    "jsonwebtoken": "^9.0.2",
+    "jspdf": "^3.0.3",
+    "jspdf-autotable": "^5.0.2",
+    "multer": "^2.0.2",
+    "node-fetch": "^3.3.2",
+    "nodemailer": "^7.0.9",
+    "pg": "^8.11.0",
+    "pino": "^8.16.0",
+    "prisma": "^6.16.1",
+    "puppeteer": "^24.24.0",
+    "socket.io": "^4.8.1",
+    "uuid": "^13.0.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "eslint": "^8.48.0",
+    "nodemon": "^3.0.1",
+    "pino-pretty": "^13.1.1"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  }
+}

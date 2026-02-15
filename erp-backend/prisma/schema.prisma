@@ -1,0 +1,1890 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//
+// ──────────────────────────────────────────────────────────────
+// MASTER DATA (existing + additions)
+// ──────────────────────────────────────────────────────────────
+//
+
+model OEM {
+  oem_id     String    @id @default(uuid())
+  oem_name   String    @unique
+  created_at DateTime  @default(now())
+  models     Model[]
+  products   Product[]
+
+  @@map("oem")
+}
+
+model Model {
+  model_id   String    @id @default(uuid())
+  oem_id     String
+  model_name String
+  model_year String?
+  created_at DateTime  @default(now())
+  oem        OEM       @relation(fields: [oem_id], references: [oem_id], onDelete: Cascade)
+  products   Product[]
+
+  @@unique([oem_id, model_name])
+  @@map("model")
+}
+
+model UOM {
+  uom_id                   String                    @id @default(uuid())
+  code                     String                    @unique
+  name                     String
+  products                 Product[]
+  materials                Material[]
+  inventories              Inventory[]
+  workOrders               WorkOrder[]
+  po_items                 PurchaseOrderItem[]
+  requisitionItems         PurchaseRequisitionItem[]
+  wastages                 Wastage[]
+  goodsReceiptItems        GoodsReceiptItem[]
+  salesOrderItems          SalesOrderItem[]
+  dispatchItems            DispatchItem[]
+  productionOrders         ProductionOrder[]
+  productionMaterialUsages ProductionMaterialUsage[]
+  rawMaterials             RawMaterial[]
+  bomItems                 BOM[]
+
+  @@map("uom")
+}
+
+model Product {
+  product_id    String   @id @default(uuid())
+  product_code  String   @unique
+  part_name     String
+  description   String?
+  standard_cost Float?
+  category      Category @default(FINISHED_GOOD)
+  created_at    DateTime @default(now())
+  oem_id        String?
+  model_id      String?
+  uom_id        String?
+
+  min_stock   Float? // reorder min
+  max_stock   Float? // max stock
+  reorder_qty Float? // suggested reorder qty
+
+  model Model? @relation(fields: [model_id], references: [model_id])
+  oem   OEM?   @relation(fields: [oem_id], references: [oem_id])
+  uom   UOM?   @relation(fields: [uom_id], references: [uom_id])
+
+  bom                            BOM[]
+  routings                       Routing[]
+  inventories                    Inventory[]
+  wo_items                       WorkOrderItem[]
+  po_items                       PurchaseOrderItem[]
+  workOrders                     WorkOrder[]
+  inventory_txns                 InventoryTxn[]
+  blankSpecs                     BlankSpec[]
+  materialConsumptions           MaterialConsumption[]
+  productionMaterialConsumptions ProductionMaterialConsumption[]
+  requisitionItems               PurchaseRequisitionItem[]
+  goodsReceiptItems              GoodsReceiptItem[]
+  invoiceItems                   InvoiceItem[]
+  salesOrderItems                SalesOrderItem[]
+  dispatchItems                  DispatchItem[]
+  productionOrders               ProductionOrder[]
+  productionMaterialUsages       ProductionMaterialUsage[]
+  stockLedgers                   StockLedger[]
+  scrapOrigins                   ScrapOrigin[]
+  qaRejections                   QARejection[]
+  nreLedgers                     NRELedger[]
+
+  @@index([product_code])
+  @@map("product")
+}
+
+model Material {
+  material_id                    String                          @id @default(uuid())
+  material_code                  String                          @unique
+  name                           String
+  description                    String?
+  category                       Category                        @default(RAW_MATERIAL)
+  uom_id                         String?
+  uom                            UOM?                            @relation(fields: [uom_id], references: [uom_id])
+  inventories                    Inventory[]
+  bomItems                       BOM[]
+  po_items                       PurchaseOrderItem[]
+  wastages                       Wastage[] // wastage records referencing this material
+  requisitionItems               PurchaseRequisitionItem[]
+  min_stock                      Float?
+  max_stock                      Float?
+  goodsReceiptItems              GoodsReceiptItem[]
+  productionMaterialUsages       ProductionMaterialUsage[]
+  scrapInventories               ScrapInventory[]
+  stockLedgers                   StockLedger[]
+  rawMaterial                    RawMaterial? // one-to-one relation
+  procurementRequests            ProcurementRequest[]
+  productionMaterialConsumptions ProductionMaterialConsumption[]
+  materialReservations           MaterialReservation[]
+  materialConsumptions           MaterialConsumption[]
+  invoiceItems                   InvoiceItem[]
+
+  @@index([material_code])
+  @@map("material")
+}
+
+model RawMaterial {
+  raw_material_id String   @id @default(uuid())
+  material_code   String   @unique // links to Material.material_code
+  name            String
+  description     String?
+  uom_id          String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  // Relations
+  material Material @relation(fields: [material_code], references: [material_code], onDelete: Cascade)
+  uom      UOM?     @relation(fields: [uom_id], references: [uom_id])
+
+  @@index([material_code])
+  @@map("raw_material")
+}
+
+model BOM {
+  bom_id            String   @id @default(uuid())
+  product_id        String
+  material_id       String
+  quantity          Float
+  sub_assembly_name String? // e.g., "Main", "Sides", "Rubber", "Strip", "Clamp1", "Clamp2"
+  step_sequence     Int? // Order of operations
+  is_optional       Boolean  @default(false)
+  uom_id            String?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  product  Product  @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
+  material Material @relation(fields: [material_id], references: [material_id])
+  uom      UOM?     @relation(fields: [uom_id], references: [uom_id])
+
+  @@unique([product_id, material_id, sub_assembly_name])
+  @@map("bom")
+}
+
+model Routing {
+  routing_id          String   @id @default(uuid())
+  product_id          String
+  step_no             Int
+  operation           String
+  work_center         String?
+  duration            Int?
+  cost_rate           Float?
+  is_primary_path     Boolean  @default(true)
+  alternative_path_id String?
+  description         String?
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  product          Product         @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
+  steps            WorkOrderStep[]
+  alternativePath  Routing?        @relation("AlternativePaths", fields: [alternative_path_id], references: [routing_id])
+  alternativePaths Routing[]       @relation("AlternativePaths")
+
+  @@unique([product_id, step_no])
+  @@map("routing")
+}
+
+//
+// ──────────────────────────────────────────────────────────────
+// INVENTORY & TRANSACTIONS
+// ──────────────────────────────────────────────────────────────
+//
+
+model Inventory {
+  inventory_id String          @id @default(uuid())
+  product_id   String?
+  material_id  String?
+  quantity     Float
+  location_id  String?
+  batch_no     String?
+  uom_id       String?
+  status       InventoryStatus @default(AVAILABLE)
+  updated_at   DateTime        @updatedAt
+  created_at   DateTime        @default(now())
+
+  product         Product?         @relation(fields: [product_id], references: [product_id])
+  material        Material?        @relation(fields: [material_id], references: [material_id])
+  location        Location?        @relation(fields: [location_id], references: [location_id])
+  uom             UOM?             @relation(fields: [uom_id], references: [uom_id])
+  txns            InventoryTxn[]
+  productionOrder ProductionOrder?
+  batches         Batch[]
+  qaRejections    QARejection[]
+
+  @@index([product_id])
+  @@index([material_id])
+  @@index([location_id])
+  @@map("inventory")
+}
+
+model QARejection {
+  rejection_id      String    @id @default(uuid())
+  inventory_id      String
+  product_id        String
+  quantity          Decimal?  @db.Decimal(10, 2) // Quantity rejected (for partial QA)
+  rejection_reason  String    // Required reason for rejection
+  disposition       String    // REWORK, SCRAP, DISPOSAL
+  rejected_by       String?
+  rejected_at       DateTime  @default(now())
+  root_cause        String?   // Root cause analysis
+  corrective_action String?   // Corrective actions taken
+  rework_wo_id      String?   // If disposition is REWORK, link to rework work order
+  scrap_id          String?   // If disposition is SCRAP, link to scrap inventory
+  disposal_date     DateTime? // If disposition is DISPOSAL
+  notes             String?   // Additional notes
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  inventory Inventory @relation(fields: [inventory_id], references: [inventory_id])
+  product   Product   @relation(fields: [product_id], references: [product_id])
+  reworkWO  WorkOrder? @relation("ReworkWorkOrder", fields: [rework_wo_id], references: [wo_id])
+  scrap     ScrapInventory? @relation(fields: [scrap_id], references: [scrap_id])
+
+  @@index([inventory_id])
+  @@index([product_id])
+  @@index([disposition])
+  @@map("qa_rejection")
+}
+
+model InventoryTxn {
+  txn_id                 String   @id @default(uuid())
+  inventory_id           String?
+  product_id             String?
+  wastage_id             String? // moved up before relation
+  material_id            String?
+  wo_id                  String?
+  po_id                  String?
+  procurement_request_id String?
+  txn_type               TxnType
+  quantity               Float
+  unit_cost              Float?
+  location_id            String?
+  batch_no               String?
+  reference              String?
+  created_by             String?
+  created_at             DateTime @default(now())
+
+  product            Product?            @relation(fields: [product_id], references: [product_id])
+  inventory          Inventory?          @relation(fields: [inventory_id], references: [inventory_id])
+  workOrder          WorkOrder?          @relation(fields: [wo_id], references: [wo_id])
+  purchaseOrder      PurchaseOrder?      @relation(fields: [po_id], references: [po_id])
+  procurementRequest ProcurementRequest? @relation(fields: [procurement_request_id], references: [id])
+  location           Location?           @relation(fields: [location_id], references: [location_id])
+  wastage            Wastage?            @relation("TxnWastage")
+
+  @@index([product_id, material_id, po_id, wo_id])
+  @@map("inventory_txn")
+}
+
+//
+// ──────────────────────────────────────────────────────────────
+// PROCUREMENT & PURCHASE
+// ──────────────────────────────────────────────────────────────
+//
+
+model Supplier {
+  supplier_id    String   @id @default(uuid())
+  code           String   @unique
+  name           String
+  contact        String?
+  phone          String?
+  email          String?
+  address        String?
+  lead_time_days Int?
+  created_at     DateTime @default(now())
+
+  purchaseOrders PurchaseOrder[]
+  goodsReceipts  GoodsReceipt[]
+  batches        Batch[]
+  invoices       Invoice[]
+
+  @@map("supplier")
+}
+
+model PurchaseRequisition {
+  pr_id          String                    @id @default(uuid())
+  pr_no          String                    @unique
+  requested_by   String?
+  created_at     DateTime                  @default(now())
+  status         PRStatus                  @default(OPEN)
+  items          PurchaseRequisitionItem[]
+  notes          String?
+  purchaseOrders PurchaseOrder[]
+
+  @@map("purchase_requisition")
+}
+
+model PurchaseRequisitionItem {
+  id            String  @id @default(uuid())
+  pr_id         String
+  product_id    String?
+  material_id   String?
+  uom_id        String?
+  qty_requested Float
+  qty_approved  Float?
+
+  purchaseOrders      PurchaseOrder[] // opposite relation added
+  purchaseRequisition PurchaseRequisition @relation(fields: [pr_id], references: [pr_id], onDelete: Cascade)
+  product             Product?            @relation(fields: [product_id], references: [product_id])
+  material            Material?           @relation(fields: [material_id], references: [material_id])
+  uom                 UOM?                @relation(fields: [uom_id], references: [uom_id])
+
+  @@map("purchase_requisition_item")
+}
+
+model PurchaseOrder {
+  po_id          String              @id @default(uuid())
+  po_no          String              @unique
+  supplier_id    String
+  pr_id          String? // optional link to requisition
+  order_date     DateTime            @default(now())
+  expected_date  DateTime?
+  status         POStatus            @default(OPEN)
+  created_by     String?
+  created_at     DateTime            @default(now())
+  items          PurchaseOrderItem[]
+  inventory_txns InventoryTxn[]
+  goodsReceipts  GoodsReceipt[]
+
+  supplier                  Supplier                 @relation(fields: [supplier_id], references: [supplier_id])
+  purchaseRequisition       PurchaseRequisition?     @relation(fields: [pr_id], references: [pr_id])
+  threeWayMatches           ThreeWayMatch[]
+  invoices                  Invoice[]
+  PurchaseRequisitionItem   PurchaseRequisitionItem? @relation(fields: [purchaseRequisitionItemId], references: [id])
+  purchaseRequisitionItemId String?
+
+  @@index([supplier_id])
+  @@map("purchase_order")
+}
+
+model PurchaseOrderItem {
+  po_item_id   String   @id @default(uuid())
+  po_id        String
+  product_id   String? // optional product reference
+  material_id  String? // optional material reference
+  uom_id       String?
+  quantity     Float // ordered qty
+  received_qty Float    @default(0) // received so far
+  unit_price   Float?
+  created_at   DateTime @default(now())
+
+  grnItems      GoodsReceiptItem[] // opposite relation added
+  purchaseOrder PurchaseOrder      @relation(fields: [po_id], references: [po_id], onDelete: Cascade)
+  uom           UOM?               @relation(fields: [uom_id], references: [uom_id])
+  product       Product?           @relation(fields: [product_id], references: [product_id])
+  material      Material?          @relation(fields: [material_id], references: [material_id])
+
+  @@index([product_id, material_id])
+  @@map("purchase_order_item")
+}
+
+model GoodsReceipt {
+  grn_id        String             @id @default(uuid())
+  grn_no        String             @unique
+  po_id         String?
+  supplier_id   String?
+  received_date DateTime           @default(now())
+  received_by   String?
+  location_id   String?
+  created_at    DateTime           @default(now())
+  items         GoodsReceiptItem[]
+  notes         String?
+
+  purchaseOrder   PurchaseOrder?  @relation(fields: [po_id], references: [po_id])
+  location        Location?       @relation(fields: [location_id], references: [location_id])
+  supplier        Supplier?       @relation(fields: [supplier_id], references: [supplier_id])
+  threeWayMatches ThreeWayMatch[]
+
+  @@map("goods_receipt")
+}
+
+model GoodsReceiptItem {
+  gri_id       String  @id @default(uuid())
+  grn_id       String
+  po_item_id   String?
+  product_id   String?
+  material_id  String?
+  qty_received Float
+  uom_id       String?
+
+  goodsReceipt GoodsReceipt       @relation(fields: [grn_id], references: [grn_id], onDelete: Cascade)
+  po_item      PurchaseOrderItem? @relation(fields: [po_item_id], references: [po_item_id])
+  product      Product?           @relation(fields: [product_id], references: [product_id])
+  material     Material?          @relation(fields: [material_id], references: [material_id])
+  uom          UOM?               @relation(fields: [uom_id], references: [uom_id])
+
+  @@map("goods_receipt_item")
+}
+
+model ProcurementRequest {
+  id               String   @id @default(uuid())
+  material_id      String
+  quantity         Float
+  status           String   @default("PENDING") // PENDING, APPROVED, RECEIVED, REJECTED, FULFILLED, CANCELLED
+  requested_by     String
+  approved_by      String?
+  received_by      String?
+  notes            String?
+  reference_po     String?
+  rejection_reason String?
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  material      Material       @relation(fields: [material_id], references: [material_id])
+  inventoryTxns InventoryTxn[]
+
+  @@map("procurement_request")
+}
+
+//
+// ──────────────────────────────────────────────────────────────
+// WORK ORDERS / PRODUCTION (extended for MRP & scrap)
+// ──────────────────────────────────────────────────────────────
+//
+
+model WorkOrder {
+  wo_id              String    @id @default(uuid())
+  wo_no              String    @unique
+  product_id         String
+  quantity           Float
+  uom_id             String?
+  priority           Int?      @default(1)
+  scheduled_start    DateTime?
+  scheduled_end      DateTime?
+  status             WOStatus  @default(PLANNED)
+  created_by         String?
+  created_at         DateTime  @default(now())
+  customer           String?
+  sales_order_ref    String?
+  purchase_order_ref String?
+
+  product              Product               @relation(fields: [product_id], references: [product_id])
+  uom                  UOM?                  @relation(fields: [uom_id], references: [uom_id])
+  steps                WorkOrderStep[]
+  materials_issued     InventoryTxn[]
+  wo_items             WorkOrderItem[]
+  wastages             Wastage[] // wastage records per work order
+  materialReservations MaterialReservation[]
+  qaRejections         QARejection[] @relation("ReworkWorkOrder")
+
+  @@index([product_id])
+  @@map("work_order")
+}
+
+model WorkOrderItem {
+  id         String @id @default(uuid())
+  wo_id      String
+  product_id String
+  quantity   Float
+
+  workOrder WorkOrder @relation(fields: [wo_id], references: [wo_id], onDelete: Cascade)
+  product   Product   @relation(fields: [product_id], references: [product_id])
+
+  @@map("work_order_item")
+}
+
+model WorkOrderStep {
+  step_id     String     @id @default(uuid())
+  wo_id       String
+  step_no     Int
+  routing_id  String?
+  operation   String
+  work_center String?
+  assigned_to String?
+  planned_qty Float?
+  start_time  DateTime?
+  end_time    DateTime?
+  status      StepStatus @default(PENDING)
+  remarks     String?
+  created_at  DateTime   @default(now())
+
+  wastages  Wastage[] // opposite relation added
+  workOrder WorkOrder @relation(fields: [wo_id], references: [wo_id], onDelete: Cascade)
+  routing   Routing?  @relation(fields: [routing_id], references: [routing_id])
+
+  @@unique([wo_id, step_no])
+  @@map("work_order_step")
+}
+
+//
+// ──────────────────────────────────────────────────────────────
+// WASTAGE / SCRAP (extended)
+// ──────────────────────────────────────────────────────────────
+//
+
+model Wastage {
+  wastage_id     String   @id @default(uuid())
+  wo_id          String
+  step_id        String?
+  material_id    String
+  reentry_txn_id String?  @unique
+  quantity       Float
+  uom_id         String?
+  location_id    String? // location where original material was issued (we will re-enter here)
+  reason         String?
+  created_at     DateTime @default(now())
+
+  workOrder WorkOrder      @relation(fields: [wo_id], references: [wo_id], onDelete: Cascade)
+  step      WorkOrderStep? @relation(fields: [step_id], references: [step_id])
+  material  Material       @relation(fields: [material_id], references: [material_id])
+  uom       UOM?           @relation(fields: [uom_id], references: [uom_id])
+  location  Location?      @relation(fields: [location_id], references: [location_id])
+
+  // optional link to the inventory transaction that re-entered scrap to stock
+  reentry_txn InventoryTxn? @relation("TxnWastage", fields: [reentry_txn_id], references: [txn_id])
+
+  @@map("wastage")
+}
+
+//
+// ──────────────────────────────────────────────────────────────
+// LOCATIONS / WORK CENTERS / OPERATIONS
+// ──────────────────────────────────────────────────────────────
+//
+
+model Location {
+  location_id String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  type        String?
+  created_at  DateTime @default(now())
+
+  inventories      Inventory[]
+  txns             InventoryTxn[]
+  goodsReceipts    GoodsReceipt[]
+  dispatches       DispatchOrder[]
+  wastages         Wastage[]
+  scrapInventories ScrapInventory[]
+  stockLedgers     StockLedger[]
+
+  @@map("location")
+}
+
+model WorkCenter {
+  work_center_id String   @id @default(uuid())
+  code           String   @unique
+  name           String
+  description    String?
+  created_at     DateTime @default(now())
+
+  @@map("work_center")
+}
+
+model Operation {
+  operation_id String   @id @default(uuid())
+  code         String   @unique
+  name         String
+  description  String?
+  created_at   DateTime @default(now())
+
+  @@map("operation")
+}
+
+//
+// ──────────────────────────────────────────────────────────────
+// BLANK SPECIFICATIONS - connect blanks to Product
+// ──────────────────────────────────────────────────────────────
+//
+
+model BlankSpec {
+  blank_id          String   @id @default(uuid())
+  product_id        String // link to finished product/part
+  sub_assembly_name String? // e.g., "Main", "Sides", "Rubber", "Strip", "Clamp1", "Clamp2"
+  width_mm          Float
+  length_mm         Float
+  thickness_mm      Float
+  quantity          Int      @default(1) // Number of pieces per assembly
+  blank_weight_kg   Float?
+  pcs_per_sheet     Int?
+  sheet_util_pct    Float?
+  sheet_type        String? // e.g., "4x8", "5x10"
+  sheet_weight_kg   Float?
+  total_blanks      Float? // Calculated total blanks needed
+  consumption_pct   Float? // Material consumption percentage
+  material_density  Float? // kg/m³ for weight calculations
+  created_at        DateTime @default(now())
+  created_by        String?
+  updated_at        DateTime @updatedAt
+
+  product                        Product                         @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
+  scrapInventories               ScrapInventory[]
+  productionMaterialConsumptions ProductionMaterialConsumption[]
+  optimizations                  BlankOptimization[]
+  scrapOrigins                   ScrapOrigin[]
+
+  @@index([product_id])
+  @@index([product_id, sub_assembly_name])
+  @@map("blank_spec")
+}
+
+// Material Consumption Tracking for BOM calculations
+model MaterialConsumption {
+  consumption_id     String   @id @default(uuid())
+  product_id         String
+  material_id        String
+  sub_assembly_name  String?
+  sheet_type         String // e.g., "4x8", "5x10"
+  sheet_width_mm     Float
+  sheet_length_mm    Float
+  sheet_weight_kg    Float
+  blank_width_mm     Float
+  blank_length_mm    Float
+  blank_thickness_mm Float
+  blank_weight_kg    Float
+  pieces_per_sheet   Int
+  utilization_pct    Float
+  total_blanks       Float
+  consumption_pct    Float
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  product  Product  @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
+  material Material @relation(fields: [material_id], references: [material_id])
+
+  @@index([product_id, material_id])
+  @@map("material_consumption")
+}
+
+//
+// ──────────────────────────────────────────────────────────────
+// SCRAP / LEFTOVER MANAGEMENT
+// ──────────────────────────────────────────────────────────────
+//
+
+model ScrapInventory {
+  scrap_id       String      @id @default(uuid())
+  blank_id       String? // if scrap associated with a blank/part
+  material_id    String? // or generic material (coil/sheet)
+  material_name  String? // Descriptive name for leftover
+  width_mm       Float?
+  length_mm      Float?
+  thickness_mm   Float?
+  weight_kg      Float
+  location_id    String?
+  status         ScrapStatus @default(AVAILABLE) // Available, Consumed, Sold
+  created_at     DateTime    @default(now())
+  created_by     String?
+  reference      String? // e.g., WO no, GRN no
+  consumed_by_po String? // if used for a PO or Production Order reference
+
+  // New fields for enterprise-grade scrap management
+  leftover_area_mm2     Float? // Indexed for fast reuse matching
+  orientation           String? // "H" or "V" for better matching
+  sheet_original_size   String? // e.g., "1220×2440"
+  blank_size            String? // e.g., "170×760"
+  efficiency_percentage Float? // Material utilization efficiency
+  scrap_percentage      Float? // Leftover percentage
+  unit                  String? @default("kg") // kg, pcs, sheet, etc.
+
+  blank                    BlankSpec?                @relation(fields: [blank_id], references: [blank_id])
+  material                 Material?                 @relation(fields: [material_id], references: [material_id])
+  scrapTxns                ScrapTransaction[]
+  location                 Location?                 @relation(fields: [location_id], references: [location_id])
+  productionMaterialUsages ProductionMaterialUsage[]
+  stockLedgers             StockLedger[]
+  movements                ScrapMovement[]
+  origin                   ScrapOrigin? // Link to how it was created
+  transactionLogs          ScrapTransactionLog[] // Full audit trail
+  qaRejections             QARejection[]
+
+  @@index([status])
+  @@index([location_id])
+  @@index([leftover_area_mm2]) // For fast reuse matching
+  @@index([material_id])
+  @@map("scrap_inventory")
+}
+
+model ScrapTransaction {
+  txn_id     String       @id @default(uuid())
+  scrap_id   String
+  txn_type   ScrapTxnType
+  qty_used   Float?
+  weight_kg  Float?
+  reference  String? // production order, sale, etc
+  created_at DateTime     @default(now())
+  created_by String?
+
+  scrap ScrapInventory @relation(fields: [scrap_id], references: [scrap_id], onDelete: Cascade)
+
+  @@index([txn_type])
+  @@map("scrap_transaction")
+}
+
+//
+// ──────────────────────────────────────────────────────────────
+// STOCK LEDGER (reporting-grade audit trail)
+// ──────────────────────────────────────────────────────────────
+//
+
+model StockLedger {
+  ledger_id   String         @id @default(uuid())
+  item_type   LedgerItemType // PRODUCT or MATERIAL or SCRAP
+  product_id  String?
+  material_id String?
+  scrap_id    String?
+  txn_id      String? // link to InventoryTxn.txn_id or ScrapTransaction.txn_id
+  txn_type    TxnType
+  quantity    Float
+  unit_cost   Float?
+  total_cost  Float?
+  location_id String?
+  reference   String?
+  created_at  DateTime       @default(now())
+  created_by  String?
+
+  product  Product?        @relation(fields: [product_id], references: [product_id])
+  material Material?       @relation(fields: [material_id], references: [material_id])
+  scrap    ScrapInventory? @relation(fields: [scrap_id], references: [scrap_id])
+  location Location?       @relation(fields: [location_id], references: [location_id])
+
+  @@index([product_id, material_id, scrap_id])
+  @@index([created_at])
+  @@map("stock_ledger")
+}
+
+//
+// ──────────────────────────────────────────────────────────────
+// PRODUCTION ORDERS (smart production + scrap consumption rules)
+// ──────────────────────────────────────────────────────────────
+//
+
+model ProductionOrder {
+  po_id         String           @id @default(uuid())
+  po_no         String           @unique
+  product_id    String
+  qty_ordered   Float
+  qty_completed Float            @default(0)
+  uom_id        String?
+  priority      Int?             @default(1)
+  planned_start DateTime?
+  planned_end   DateTime?
+  status        ProductionStatus @default(PLANNED)
+  created_by    String?
+  created_at    DateTime         @default(now())
+
+  product               Product                   @relation(fields: [product_id], references: [product_id])
+  uom                   UOM?                      @relation(fields: [uom_id], references: [uom_id])
+  materials             ProductionMaterialUsage[]
+  steps                 ProductionStep[]
+  produced_inventory    Inventory?                @relation(fields: [produced_inventory_id], references: [inventory_id])
+  produced_inventory_id String?                   @unique
+
+  @@index([product_id])
+  @@map("production_order")
+}
+
+model ProductionMaterialUsage {
+  usage_id      String   @id @default(uuid())
+  production_id String
+  product_id    String? // finished product if issuing FG; typically material_id used
+  material_id   String?
+  scrap_id      String? // if using scrap
+  qty_required  Float
+  qty_issued    Float    @default(0)
+  uom_id        String?
+  created_at    DateTime @default(now())
+
+  production ProductionOrder @relation(fields: [production_id], references: [po_id], onDelete: Cascade)
+  product    Product?        @relation(fields: [product_id], references: [product_id])
+  material   Material?       @relation(fields: [material_id], references: [material_id])
+  scrap      ScrapInventory? @relation(fields: [scrap_id], references: [scrap_id])
+  uom        UOM?            @relation(fields: [uom_id], references: [uom_id])
+
+  @@index([production_id, material_id, scrap_id])
+  @@map("production_material_usage")
+}
+
+model ProductionStep {
+  ps_id         String     @id @default(uuid())
+  production_id String
+  step_no       Int
+  operation     String
+  planned_qty   Float?
+  completed_qty Float?     @default(0)
+  status        StepStatus @default(PENDING)
+  start_time    DateTime?
+  end_time      DateTime?
+  remarks       String?
+
+  production ProductionOrder @relation(fields: [production_id], references: [po_id], onDelete: Cascade)
+
+  @@unique([production_id, step_no])
+  @@map("production_step")
+}
+
+//
+// ──────────────────────────────────────────────────────────────
+// SALES / DISPATCH
+// ──────────────────────────────────────────────────────────────
+//
+
+model Customer {
+  customer_id String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  address     String?
+  phone       String?
+  email       String?
+  created_at  DateTime @default(now())
+
+  salesOrders SalesOrder[]
+  dispatches  DispatchOrder[]
+
+  @@map("customer")
+}
+
+model SalesOrder {
+  so_id         String           @id @default(uuid())
+  so_no         String           @unique
+  customer_id   String
+  order_date    DateTime         @default(now())
+  expected_date DateTime?
+  status        SOStatus         @default(OPEN)
+  created_by    String?
+  created_at    DateTime         @default(now())
+  quote_id      String?          @unique // Link to source quotation
+  items         SalesOrderItem[]
+  dispatches    DispatchOrder[]
+
+  customer Customer @relation(fields: [customer_id], references: [customer_id])
+
+  @@index([customer_id])
+  @@map("sales_order")
+}
+
+model SalesOrderItem {
+  soi_id      String  @id @default(uuid())
+  so_id       String
+  product_id  String
+  qty_ordered Float
+  qty_shipped Float   @default(0)
+  uom_id      String?
+
+  salesOrder SalesOrder @relation(fields: [so_id], references: [so_id], onDelete: Cascade)
+  product    Product    @relation(fields: [product_id], references: [product_id])
+  uom        UOM?       @relation(fields: [uom_id], references: [uom_id])
+
+  @@map("sales_order_item")
+}
+
+model DispatchOrder {
+  dispatch_id   String         @id @default(uuid())
+  dispatch_no   String         @unique
+  so_id         String?
+  customer_id   String?
+  location_id   String?
+  vehicle_no    String?
+  driver_name   String?
+  dispatch_date DateTime?
+  created_at    DateTime       @default(now())
+  created_by    String?
+  status        DispatchStatus @default(PENDING)
+  items         DispatchItem[]
+
+  salesOrder SalesOrder? @relation(fields: [so_id], references: [so_id])
+  location   Location?   @relation(fields: [location_id], references: [location_id])
+  customer   Customer?   @relation(fields: [customer_id], references: [customer_id])
+
+  @@index([so_id])
+  @@map("dispatch_order")
+}
+
+model DispatchItem {
+  di_id       String  @id @default(uuid())
+  dispatch_id String
+  product_id  String
+  qty         Float
+  uom_id      String?
+
+  dispatch DispatchOrder @relation(fields: [dispatch_id], references: [dispatch_id], onDelete: Cascade)
+  product  Product       @relation(fields: [product_id], references: [product_id])
+  uom      UOM?          @relation(fields: [uom_id], references: [uom_id])
+
+  @@map("dispatch_item")
+}
+
+model Lead {
+  lead_id      String   @id @default(uuid())
+  title        String   // e.g. "Bulk Order for Model X"
+  company      String
+  contact_name String
+  email        String?
+  phone        String?
+  status       LeadStatus @default(NEW)
+  source       String?     // Website, Referral, Trade Show
+  lost_reason  String?
+  created_at   DateTime @default(now())
+  owner        String?
+
+  opportunities Opportunity[]
+  activities    CRMActivity[]
+
+  @@map("crm_lead")
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  LOST
+}
+
+model Opportunity {
+  opp_id      String   @id @default(uuid())
+  lead_id     String?
+  customer_id String?
+  title       String
+  deal_value  Decimal  @db.Decimal(15, 2)
+  stage       OppStage @default(DISCOVERY)
+  probability Int      @default(10) // 10% to 100%
+  close_date  DateTime?
+  status      String   @default("OPEN") // OPEN, WON, LOST
+  created_at  DateTime @default(now())
+
+  lead        Lead?       @relation(fields: [lead_id], references: [lead_id])
+  customer    Customer?   @relation(fields: [customer_id], references: [customer_id])
+  activities  CRMActivity[]
+  quotations  Quotation[]
+
+  @@map("crm_opportunity")
+}
+
+enum OppStage {
+  DISCOVERY
+  QUALIFICATION
+  PROPOSAL
+  NEGOTIATION
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+model CRMActivity {
+  activity_id   String   @id @default(uuid())
+  lead_id       String?
+  opp_id        String?
+  customer_id   String?
+  type          String   // CALL, EMAIL, MEETING, TASK
+  subject       String
+  description   String?
+  activity_date DateTime @default(now())
+  created_by    String
+  status        String   @default("COMPLETED") // COMPLETED, SCHEDULED
+
+  lead          Lead?        @relation(fields: [lead_id], references: [lead_id])
+  opportunity   Opportunity? @relation(fields: [opp_id], references: [opp_id])
+  customer      Customer?    @relation(fields: [customer_id], references: [customer_id])
+
+  @@map("crm_activity")
+}
+
+model Quotation {
+  quote_id      String   @id @default(uuid())
+  quote_no      String   @unique
+  opp_id        String?
+  customer_id   String
+  total_amount  Decimal  @db.Decimal(15, 2)
+  status        String   @default("DRAFT") // DRAFT, SENT, ACCEPTED, EXPIRED, REJECTED
+  valid_until   DateTime
+  terms         String?
+  created_at    DateTime @default(now())
+
+  opportunity   Opportunity? @relation(fields: [opp_id], references: [opp_id])
+  customer      Customer     @relation(fields: [customer_id], references: [customer_id])
+  items         QuotationItem[]
+
+  @@map("crm_quotation")
+}
+
+model QuotationItem {
+  item_id     String   @id @default(uuid())
+  quote_id    String
+  product_id  String
+  quantity    Float
+  unit_price  Decimal  @db.Decimal(15, 2)
+  total_price Decimal  @db.Decimal(15, 2)
+
+  quotation   Quotation @relation(fields: [quote_id], references: [quote_id], onDelete: Cascade)
+  product     Product   @relation(fields: [product_id], references: [product_id])
+
+  @@map("crm_quotation_item")
+}
+
+model ReportSchedule {
+  report_id  String    @id @default(uuid())
+  name       String
+  cron_expr  String
+  last_run   DateTime?
+  created_at DateTime  @default(now())
+  created_by String?
+  params     Json?
+
+  @@map("report_schedule")
+}
+
+//
+// ──────────────────────────────────────────────────────────────
+// ENUMS
+// ──────────────────────────────────────────────────────────────
+//
+
+enum Category {
+  RAW_MATERIAL
+  SEMI_FINISHED
+  FINISHED_GOOD
+  SCRAP_ITEM
+}
+
+enum InventoryStatus {
+  AVAILABLE
+  RESERVED
+  ISSUED
+  DAMAGED
+  QUARANTINE
+  CONSUMED
+  REWORK_PENDING
+}
+
+enum TxnType {
+  ISSUE
+  RECEIVE
+  TRANSFER
+  ADJUSTMENT
+  RETURN
+}
+
+enum WOStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  ON_HOLD
+  CANCELLED
+}
+
+enum StepStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
+enum POStatus {
+  OPEN
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CLOSED
+  CANCELLED
+}
+
+enum PRStatus {
+  OPEN
+  APPROVED
+  REJECTED
+  CONVERTED
+}
+
+enum ScrapStatus {
+  AVAILABLE
+  CONSUMED
+  SOLD
+  QUARANTINED
+}
+
+enum ProductionStatus {
+  PLANNED
+  RELEASED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum DispatchStatus {
+  PENDING
+  DISPATCHED
+  DELIVERED
+  CANCELLED
+}
+
+enum SOStatus {
+  OPEN
+  PARTIALLY_SHIPPED
+  SHIPPED
+  CLOSED
+  CANCELLED
+}
+
+enum LedgerItemType {
+  PRODUCT
+  MATERIAL
+  SCRAP
+}
+
+enum ScrapTxnType {
+  GENERATED
+  REUSED
+  ADJUSTED
+  CONSUMED
+  SOLD
+}
+
+// Audit Trail Model
+model AuditLog {
+  id              String   @id @default(uuid())
+  user_id         String
+  action          String
+  entity_type     String
+  entity_id       String
+  old_values      String?
+  new_values      String?
+  reference_id    String?
+  ip_address      String?
+  user_agent      String?
+  additional_data String?
+  timestamp       DateTime @default(now())
+
+  @@map("audit_log")
+}
+
+// Batch Tracking Models
+model Batch {
+  batch_id       String    @id @default(uuid())
+  inventory_id   String
+  batch_no       String
+  quantity       Float
+  unit_cost      Float?
+  expiry_date    DateTime?
+  supplier_id    String?
+  received_date  DateTime  @default(now())
+  quality_status String    @default("PENDING")
+  status         String    @default("AVAILABLE") // AVAILABLE, CONSUMED, EXPIRED, QUARANTINE
+  created_by     String
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  inventory    Inventory          @relation(fields: [inventory_id], references: [inventory_id])
+  supplier     Supplier?          @relation(fields: [supplier_id], references: [supplier_id])
+  consumptions BatchConsumption[]
+
+  @@map("batch")
+}
+
+model BatchConsumption {
+  consumption_id   String   @id @default(uuid())
+  batch_id         String
+  quantity         Float
+  wo_id            String?
+  reference        String?
+  created_by       String
+  consumption_date DateTime @default(now())
+
+  batch Batch @relation(fields: [batch_id], references: [batch_id])
+
+  @@map("batch_consumption")
+}
+
+// Work Order Integration Models
+model MaterialReservation {
+  reservation_id String    @id @default(uuid())
+  work_order_id  String
+  material_id    String
+  quantity       Float
+  priority       String    @default("NORMAL") // HIGH, NORMAL, LOW
+  status         String    @default("RESERVED") // RESERVED, RELEASED, CONSUMED, PARTIALLY_CONSUMED
+  created_by     String
+  reserved_at    DateTime  @default(now())
+  released_at    DateTime?
+  released_by    String?
+
+  workOrder WorkOrder @relation(fields: [work_order_id], references: [wo_id])
+  material  Material  @relation(fields: [material_id], references: [material_id])
+
+  @@map("material_reservation")
+}
+
+// Purchase Order Integration Models
+model ThreeWayMatch {
+  matching_id               String   @id @default(uuid())
+  po_id                     String
+  grn_id                    String
+  invoice_id                String
+  po_item_id                String
+  grn_item_id               String
+  invoice_item_id           String
+  po_quantity               Float
+  po_unit_price             Float
+  po_total                  Float
+  grn_quantity              Float
+  grn_unit_price            Float
+  grn_total                 Float
+  invoice_quantity          Float
+  invoice_unit_price        Float
+  invoice_total             Float
+  quantity_variance         Float
+  price_variance            Float
+  total_variance            Float
+  quantity_variance_percent Float
+  price_variance_percent    Float
+  total_variance_percent    Float
+  match_status              String // MATCHED, EXCEPTION
+  exceptions                String?
+  created_by                String
+  matched_at                DateTime @default(now())
+
+  purchaseOrder PurchaseOrder @relation(fields: [po_id], references: [po_id])
+  goodsReceipt  GoodsReceipt  @relation(fields: [grn_id], references: [grn_id])
+  invoice       Invoice       @relation(fields: [invoice_id], references: [invoice_id])
+
+  @@map("three_way_match")
+}
+
+model Invoice {
+  invoice_id      String    @id @default(uuid())
+  invoice_no      String    @unique
+  po_id           String
+  supplier_id     String
+  invoice_date    DateTime  @default(now())
+  due_date        DateTime?
+  subtotal        Float     @default(0)
+  tax_amount      Float     @default(0)
+  total_amount    Float
+  status          String    @default("RECEIVED") // RECEIVED, APPROVED_FOR_PAYMENT, PAID
+  payment_terms   String?
+  payment_method  String?
+  approved_by     String?
+  approved_amount Float?
+  approved_at     DateTime?
+  created_by      String
+  created_at      DateTime  @default(now())
+
+  purchaseOrder   PurchaseOrder   @relation(fields: [po_id], references: [po_id])
+  supplier        Supplier        @relation(fields: [supplier_id], references: [supplier_id])
+  items           InvoiceItem[]
+  threeWayMatches ThreeWayMatch[]
+  payments        Payment[]
+
+  @@map("invoice")
+}
+
+model InvoiceItem {
+  invoice_item_id String  @id @default(uuid())
+  invoice_id      String
+  po_item_id      String?
+  material_id     String?
+  product_id      String?
+  quantity        Float
+  unit_price      Float
+  total_price     Float
+
+  invoice  Invoice   @relation(fields: [invoice_id], references: [invoice_id])
+  material Material? @relation(fields: [material_id], references: [material_id])
+  product  Product?  @relation(fields: [product_id], references: [product_id])
+
+  @@map("invoice_item")
+}
+
+model Payment {
+  payment_id     String    @id @default(uuid())
+  invoice_id     String
+  amount         Float
+  payment_method String?
+  payment_status String    @default("PENDING") // PENDING, PAID, FAILED
+  due_date       DateTime?
+  paid_date      DateTime?
+  reference      String?
+  created_by     String
+  created_at     DateTime  @default(now())
+
+  invoice Invoice @relation(fields: [invoice_id], references: [invoice_id])
+
+  @@map("payment")
+}
+
+// Production Material Consumption tracking
+model ProductionMaterialConsumption {
+  consumption_id      String   @id @default(uuid())
+  production_order_id String
+  product_id          String
+  blank_spec_id       String?
+  sub_assembly_name   String?
+  material_id         String?
+  planned_quantity    Float
+  consumed_quantity   Float
+  scrap_quantity      Float    @default(0)
+  consumption_type    String   @default("FRESH") // FRESH, SCRAP, MIXED, PLANNED
+  created_by          String?
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+  updated_by          String?
+
+  // Relations
+  product    Product    @relation(fields: [product_id], references: [product_id])
+  blank_spec BlankSpec? @relation(fields: [blank_spec_id], references: [blank_id])
+  material   Material?  @relation(fields: [material_id], references: [material_id])
+
+  @@map("production_material_consumption")
+}
+
+// Scrap Movement tracking
+model ScrapMovement {
+  movement_id   String   @id @default(uuid())
+  scrap_id      String
+  movement_type String // RESTORE, REUSE, DISPOSE, TRANSFER
+  quantity      Float
+  reason        String?
+  reference     String? // Production Order ID, Transfer location, etc.
+  created_by    String?
+  created_at    DateTime @default(now())
+
+  // Relations
+  scrap ScrapInventory @relation(fields: [scrap_id], references: [scrap_id])
+
+  @@map("scrap_movement")
+}
+
+// New: Scrap Origin - tracks how scrap was generated
+model ScrapOrigin {
+  origin_id String @id @default(uuid())
+  scrap_id  String @unique // One-to-one with ScrapInventory
+
+  // Source tracking
+  source_type      String // BOM, PRODUCTION, CUTTING, WELDING, etc.
+  source_reference String? // Product ID, Work Order ID, etc.
+  product_id       String?
+  blank_id         String?
+  process_step     String? // Which operation created the scrap
+  operator_id      String?
+
+  // BOM-specific data
+  bom_efficiency    Float? // Sheet utilization %
+  sheet_dimensions  String? // Original sheet: "1220×2440"
+  blank_dimensions  String? // Blank cut: "170×760"
+  leftover_width    Float? // Leftover strip dimensions
+  leftover_length   Float?
+  cutting_direction String? // HORIZONTAL or VERTICAL
+
+  created_at DateTime @default(now())
+  created_by String?
+
+  // Relations
+  scrap   ScrapInventory @relation(fields: [scrap_id], references: [scrap_id])
+  product Product?       @relation(fields: [product_id], references: [product_id])
+  blank   BlankSpec?     @relation(fields: [blank_id], references: [blank_id])
+
+  @@index([source_type])
+  @@index([product_id])
+  @@map("scrap_origin")
+}
+
+// New: Scrap Transaction Log - full audit trail
+model ScrapTransactionLog {
+  log_id   String @id @default(uuid())
+  scrap_id String
+
+  // Transaction details
+  transaction_type String // CREATED, REUSED, RESTORED, SOLD, DISCARDED, TRANSFERRED
+  quantity_before  Float
+  quantity_after   Float
+  quantity_changed Float
+
+  // Context
+  reason      String?
+  reference   String? // WO ID, PO ID, Transfer document, etc.
+  destination String? // Where it went (inventory, work order, sold to, etc.)
+
+  // Audit
+  performed_by String?
+  performed_at DateTime @default(now())
+  notes        String?
+
+  // Relations
+  scrap ScrapInventory @relation(fields: [scrap_id], references: [scrap_id])
+
+  @@index([scrap_id])
+  @@index([transaction_type])
+  @@index([performed_at])
+  @@map("scrap_transaction_log")
+}
+
+// Sheet Sizes for optimization
+model SheetSize {
+  sheet_size_id   String   @id @default(uuid())
+  width_mm        Float
+  length_mm       Float
+  material_type   String? // MS, SS, GI, etc.
+  sheet_weight_kg Float?
+  cost_per_kg     Float?
+  active          Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  created_by      String?
+
+  // Relations
+  optimizations BlankOptimization[]
+
+  @@index([active, material_type])
+  @@map("sheet_sizes")
+}
+
+// Blank Optimization Results
+model BlankOptimization {
+  optimization_id String  @id @default(uuid())
+  blank_id        String
+  sheet_size_id   String?
+
+  // Input parameters
+  blank_width_mm     Float
+  blank_length_mm    Float
+  blank_thickness_mm Float
+  blank_quantity     Int
+
+  // Weight calculations
+  weight_of_blank_kg    Float
+  total_blank_weight_kg Float
+
+  // Optimization results
+  best_direction  String // "Horizontal" or "Vertical"
+  sheet_width_mm  Float
+  sheet_length_mm Float
+
+  // Blanks calculation
+  primary_blanks_per_sheet   Int
+  extra_blanks_from_leftover Int
+  total_blanks_per_sheet     Int
+  total_blanks_weight_kg     Float
+
+  // Efficiency metrics
+  efficiency_percentage  Float
+  scrap_percentage       Float
+  utilization_percentage Float
+
+  // Leftover details
+  leftover_area_mm2  Float
+  leftover_width_mm  Float?
+  leftover_length_mm Float?
+  leftover_reusable  Boolean @default(false)
+
+  // Comparison data (JSON)
+  horizontal_result     Json? // Store horizontal calculation details
+  vertical_result       Json? // Store vertical calculation details
+  all_sheet_comparisons Json? // Store all sheet size comparisons
+
+  // Metadata
+  optimization_mode String   @default("AUTO") // AUTO, MANUAL
+  calculated_at     DateTime @default(now())
+  calculated_by     String?
+
+  // Relations
+  blank_spec BlankSpec  @relation(fields: [blank_id], references: [blank_id])
+  sheet_size SheetSize? @relation(fields: [sheet_size_id], references: [sheet_size_id])
+
+  @@index([blank_id])
+  @@index([calculated_at])
+  @@map("blank_optimization")
+}
+
+//
+// ──────────────────────────────────────────────────────────────
+// FINANCIAL SYSTEM (NEW)
+// ──────────────────────────────────────────────────────────────
+//
+
+model FinancialAccount {
+  account_id   String          @id @default(uuid())
+  code         String          @unique
+  name         String
+  type         AccountType
+  category     AccountCategory
+  description  String?
+  active       Boolean         @default(true)
+  created_at   DateTime        @default(now())
+  updated_at   DateTime        @updatedAt
+
+  journalLines JournalLine[]
+  bankTransactions BankTransaction[]
+  budgets      Budget[]
+  fixedAssets  FixedAsset[]
+
+  @@map("financial_account")
+}
+
+model CollectionEffort {
+  effort_id      String   @id @default(uuid())
+  invoice_id     String
+  contact_date   DateTime @default(now())
+  contact_method String   // EMAIL, PHONE, SYSTEM_REMINDER
+  notes          String?
+  next_follow_up DateTime?
+  status         String   @default("OPEN") // OPEN, RESOLVED
+
+  @@map("collection_effort")
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum AccountCategory {
+  CASH
+  BANK
+  ACCOUNTS_RECEIVABLE
+  ACCOUNTS_PAYABLE
+  INVENTORY
+  FIXED_ASSETS
+  OPERATING_EXPENSE
+  COST_OF_GOODS_SOLD
+  OTHER_INCOME
+  OTHER_EXPENSE
+  NRE_COST
+}
+
+model JournalEntry {
+  entry_id      String        @id @default(uuid())
+  entry_date    DateTime      @default(now())
+  reference     String?       // e.g. "INV-2023001"
+  description   String?
+  status        EntryStatus   @default(POSTED)
+  created_by    String?
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+  currency_code String        @default("INR")
+  exchange_rate Decimal       @default(1.0) @db.Decimal(15, 6)
+
+  lines         JournalLine[]
+
+  @@map("journal_entry")
+}
+
+enum EntryStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+model JournalLine {
+  line_id        String          @id @default(uuid())
+  entry_id       String
+  account_id     String
+  debit          Decimal         @default(0) @db.Decimal(15, 2)
+  credit         Decimal         @default(0) @db.Decimal(15, 2)
+  description    String?
+  nre_id         String?         // Optional link to NRE
+  cost_center_id String?         // Optional link to Cost Center
+  cash_flow_type CashFlowType?
+
+  entry         JournalEntry     @relation(fields: [entry_id], references: [entry_id], onDelete: Cascade)
+  account       FinancialAccount @relation(fields: [account_id], references: [account_id])
+  nre           NRELedger?       @relation(fields: [nre_id], references: [nre_id])
+  costCenter    CostCenter?      @relation(fields: [cost_center_id], references: [center_id])
+  bankTransaction BankTransaction?
+
+  @@map("journal_line")
+}
+
+model BankTransaction {
+  txn_id           String          @id @default(uuid())
+  account_id       String
+  transaction_date DateTime
+  description      String
+  amount           Decimal         @db.Decimal(15, 2)
+  reference        String?
+  recon_status     ReconStatus     @default(UNRECONCILED)
+  journal_line_id  String?         @unique
+  created_at       DateTime        @default(now())
+
+  account         FinancialAccount @relation(fields: [account_id], references: [account_id])
+  journalLine     JournalLine?     @relation(fields: [journal_line_id], references: [line_id])
+
+  @@map("bank_transaction")
+}
+
+enum ReconStatus {
+  UNRECONCILED
+  RECONCILED
+  EXCLUDED
+}
+
+enum CashFlowType {
+  OPERATING
+  INVESTING
+  FINANCING
+}
+
+model NRELedger {
+  nre_id         String        @id @default(uuid())
+  nre_code       String        @unique // e.g. "NRE-PROJ-001"
+  name           String
+  description    String?
+  product_id     String?
+  estimated_cost Decimal?      @db.Decimal(15, 2)
+  status         NREStatus     @default(ACTIVE)
+  created_at     DateTime      @default(now())
+  updated_at     DateTime      @updatedAt
+
+  product       Product?       @relation(fields: [product_id], references: [product_id])
+  journalLines  JournalLine[]
+
+  @@map("nre_ledger")
+}
+
+enum NREStatus {
+  ACTIVE
+  CLOSED
+  CANCELLED
+}
+
+model CostCenter {
+  center_id   String   @id @default(uuid())
+  code        String   @unique // e.g. "DEPT-PROD"
+  name        String
+  description String?
+  active      Boolean  @default(true)
+  created_at  DateTime @default(now())
+
+  journalLines JournalLine[]
+
+  @@map("cost_center")
+}
+
+model FixedAsset {
+  asset_id         String   @id @default(uuid())
+  asset_code       String   @unique
+  name             String
+  category         String   // e.g. "Machinery", "Vehicles"
+  purchase_date    DateTime
+  purchase_cost    Decimal  @db.Decimal(15, 2)
+  salvage_value    Decimal  @default(0) @db.Decimal(15, 2)
+  useful_life_years Int
+  current_value    Decimal  @db.Decimal(15, 2)
+  depreciation_type String  @default("STRAIGHT_LINE")
+  account_id       String   // Linked financial account (Fixed Asset)
+  status           String   @default("ACTIVE") // ACTIVE, DISPOSED, WRITTEN_OFF
+
+  account          FinancialAccount  @relation(fields: [account_id], references: [account_id])
+  depreciations    DepreciationLog[]
+  schedules        MaintenanceSchedule[]
+  maintenanceLogs  MaintenanceLog[]
+
+  @@map("fixed_asset")
+}
+
+model MaintenanceSchedule {
+  schedule_id    String   @id @default(uuid())
+  asset_id       String
+  task_name      String   // e.g. "Oil Change", "Calibration"
+  frequency_days Int      // Interval in days
+  last_done_at   DateTime?
+  next_due_at    DateTime
+  priority       String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  instructions   String?
+
+  asset          FixedAsset @relation(fields: [asset_id], references: [asset_id])
+
+  @@map("asset_maintenance_schedule")
+}
+
+model MaintenanceLog {
+  log_id         String   @id @default(uuid())
+  asset_id       String
+  service_date   DateTime @default(now())
+  service_type   String   // PREVENTIVE, BREAKDOWN, CALIBRATION
+  description    String
+  performed_by   String
+  cost           Decimal  @default(0) @db.Decimal(15, 2)
+  downtime_hours Float    @default(0)
+  status         String   @default("COMPLETED") // COMPLETED, PENDING
+
+  asset          FixedAsset @relation(fields: [asset_id], references: [asset_id])
+
+  @@map("asset_maintenance_log")
+}
+
+model DepreciationLog {
+  log_id           String   @id @default(uuid())
+  asset_id         String
+  depreciation_date DateTime @default(now())
+  amount           Decimal  @db.Decimal(15, 2)
+  description      String?
+
+  asset            FixedAsset @relation(fields: [asset_id], references: [asset_id])
+
+  @@map("depreciation_log")
+}
+
+model Budget {
+  budget_id   String   @id @default(uuid())
+  account_id  String
+  fiscal_year String   // e.g. "2023-24"
+  amount      Decimal  @db.Decimal(15, 2)
+  notes       String?
+
+  account     FinancialAccount @relation(fields: [account_id], references: [account_id])
+
+  @@unique([account_id, fiscal_year])
+  @@map("budget")
+}
+
+model ExpenseClaim {
+  claim_id      String   @id @default(uuid())
+  employee_name String
+  claim_date    DateTime @default(now())
+  description   String
+  amount        Decimal  @db.Decimal(15, 2)
+  category      String   // Travel, Meals, Office Supplies, etc.
+  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED, PAID
+  receipt_url   String?
+  approved_by   String?
+  approved_at   DateTime?
+  journal_id    String?   // Link to JournalEntry once posted
+
+  @@map("expense_claim")
+}
+
+model FiscalYear {
+  year_id    String   @id @default(uuid())
+  name       String   @unique // e.g. "FY2023"
+  start_date DateTime
+  end_date   DateTime
+  is_closed  Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  @@map("fiscal_year")
+}
+
+model Currency {
+  code          String   @id // e.g. "USD", "EUR"
+  name          String
+  symbol        String
+  exchange_rate Decimal  @db.Decimal(15, 6) // Rate relative to base currency (INR)
+  is_base       Boolean  @default(false)
+  updated_at    DateTime @updatedAt
+
+  @@map("currency")
+}
+
+model Notification {
+  notif_id   String   @id @default(uuid())
+  type       String   // e.g. "BUDGET_EXCEEDED", "PAYMENT_OVERDUE"
+  title      String
+  message    String
+  severity   String   @default("INFO") // INFO, WARNING, CRITICAL
+  is_read    Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  @@map("notification")
+}
+
+model Employee {
+  emp_id        String   @id @default(uuid())
+  emp_code      String   @unique // e.g. "EMP001"
+  first_name    String
+  last_name     String
+  email         String?
+  phone         String?
+  department    String
+  designation   String
+  doj           DateTime // Date of Joining
+  base_salary   Decimal  @db.Decimal(15, 2)
+  bank_account  String?
+  pan_no        String?
+  status        String   @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
+  created_at    DateTime @default(now())
+
+  attendances   Attendance[]
+  payrolls      Payroll[]
+
+  @@map("hr_employee")
+}
+
+model Attendance {
+  att_id     String   @id @default(uuid())
+  emp_id     String
+  date       DateTime
+  status     String   // PRESENT, ABSENT, LEAVE, HALF_DAY
+  clock_in   DateTime?
+  clock_out  DateTime?
+  remarks    String?
+
+  employee   Employee @relation(fields: [emp_id], references: [emp_id])
+
+  @@unique([emp_id, date])
+  @@map("hr_attendance")
+}
+
+model Payroll {
+  payroll_id     String   @id @default(uuid())
+  emp_id         String
+  month          Int      // 1-12
+  year           Int
+  gross_salary   Decimal  @db.Decimal(15, 2)
+  bonus          Decimal  @default(0) @db.Decimal(15, 2)
+  deductions     Decimal  @default(0) @db.Decimal(15, 2)
+  net_salary     Decimal  @db.Decimal(15, 2)
+  status         String   @default("PROCESSED") // PROCESSED, PAID
+  payment_date   DateTime?
+  journal_id     String?  // Link to salary expense posting
+
+  employee       Employee @relation(fields: [emp_id], references: [emp_id])
+
+  @@unique([emp_id, month, year])
+  @@map("hr_payroll")
+}
+
+model QCStandard {
+  standard_id   String   @id @default(uuid())
+  product_id    String
+  name          String   // e.g. "Dimensional Accuracy Check"
+  min_value     Float?
+  max_value     Float?
+  target_value  Float?
+  unit          String?  // mm, kg, etc.
+  description   String?
+  created_at    DateTime @default(now())
+
+  product       Product      @relation(fields: [product_id], references: [product_id])
+  inspections   QCInspection[]
+
+  @@map("qc_standard")
+}
+
+model QCInspection {
+  inspection_id String   @id @default(uuid())
+  standard_id   String
+  reference_id  String   // e.g. Work Order ID or GRN ID
+  batch_id      String?
+  inspector_id  String
+  result        String   @default("PENDING") // PENDING, PASSED, FAILED
+  measured_value Float?
+  notes         String?
+  inspected_at  DateTime @default(now())
+
+  standard      QCStandard    @relation(fields: [standard_id], references: [standard_id])
+  rejections    QCRejectionLog[]
+
+  @@map("qc_inspection")
+}
+
+model QCRejectionLog {
+  rejection_id  String   @id @default(uuid())
+  inspection_id String
+  reason        String   // e.g. "Surface Scratches", "Off-size"
+  quantity      Float
+  action_taken  String   @default("REWORK") // REWORK, SCRAP, RETURN_TO_SUPPLIER
+  created_at    DateTime @default(now())
+
+  inspection    QCInspection @relation(fields: [inspection_id], references: [inspection_id])
+
+  @@map("qc_rejection_log")
+}
