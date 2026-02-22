@@ -82,10 +82,10 @@ const queryClient = new QueryClient({
 const App = () => (
   <AuthProvider>
     <QueryClientProvider client={queryClient}>
-      <CommandPalette />
       <TooltipProvider>
         <Toaster />
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <CommandPalette />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route

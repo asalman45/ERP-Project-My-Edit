@@ -99,6 +99,8 @@ model Product {
   scrapOrigins                   ScrapOrigin[]
   qaRejections                   QARejection[]
   nreLedgers                     NRELedger[]
+  QuotationItem                  QuotationItem[]
+  QCStandard                     QCStandard[]
 
   @@index([product_code])
   @@map("product")
@@ -232,22 +234,22 @@ model QARejection {
   inventory_id      String
   product_id        String
   quantity          Decimal?  @db.Decimal(10, 2) // Quantity rejected (for partial QA)
-  rejection_reason  String    // Required reason for rejection
-  disposition       String    // REWORK, SCRAP, DISPOSAL
+  rejection_reason  String // Required reason for rejection
+  disposition       String // REWORK, SCRAP, DISPOSAL
   rejected_by       String?
   rejected_at       DateTime  @default(now())
-  root_cause        String?   // Root cause analysis
-  corrective_action String?   // Corrective actions taken
-  rework_wo_id      String?   // If disposition is REWORK, link to rework work order
-  scrap_id          String?   // If disposition is SCRAP, link to scrap inventory
+  root_cause        String? // Root cause analysis
+  corrective_action String? // Corrective actions taken
+  rework_wo_id      String? // If disposition is REWORK, link to rework work order
+  scrap_id          String? // If disposition is SCRAP, link to scrap inventory
   disposal_date     DateTime? // If disposition is DISPOSAL
-  notes             String?   // Additional notes
+  notes             String? // Additional notes
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt
 
-  inventory Inventory @relation(fields: [inventory_id], references: [inventory_id])
-  product   Product   @relation(fields: [product_id], references: [product_id])
-  reworkWO  WorkOrder? @relation("ReworkWorkOrder", fields: [rework_wo_id], references: [wo_id])
+  inventory Inventory       @relation(fields: [inventory_id], references: [inventory_id])
+  product   Product         @relation(fields: [product_id], references: [product_id])
+  reworkWO  WorkOrder?      @relation("ReworkWorkOrder", fields: [rework_wo_id], references: [wo_id])
   scrap     ScrapInventory? @relation(fields: [scrap_id], references: [scrap_id])
 
   @@index([inventory_id])
@@ -475,7 +477,7 @@ model WorkOrder {
   wo_items             WorkOrderItem[]
   wastages             Wastage[] // wastage records per work order
   materialReservations MaterialReservation[]
-  qaRejections         QARejection[] @relation("ReworkWorkOrder")
+  qaRejections         QARejection[]         @relation("ReworkWorkOrder")
 
   @@index([product_id])
   @@map("work_order")
@@ -839,6 +841,9 @@ model Customer {
 
   salesOrders SalesOrder[]
   dispatches  DispatchOrder[]
+  Opportunity Opportunity[]
+  CRMActivity CRMActivity[]
+  Quotation   Quotation[]
 
   @@map("customer")
 }
@@ -914,16 +919,16 @@ model DispatchItem {
 }
 
 model Lead {
-  lead_id      String   @id @default(uuid())
-  title        String   // e.g. "Bulk Order for Model X"
+  lead_id      String     @id @default(uuid())
+  title        String // e.g. "Bulk Order for Model X"
   company      String
   contact_name String
   email        String?
   phone        String?
   status       LeadStatus @default(NEW)
-  source       String?     // Website, Referral, Trade Show
+  source       String? // Website, Referral, Trade Show
   lost_reason  String?
-  created_at   DateTime @default(now())
+  created_at   DateTime   @default(now())
   owner        String?
 
   opportunities Opportunity[]
@@ -940,21 +945,21 @@ enum LeadStatus {
 }
 
 model Opportunity {
-  opp_id      String   @id @default(uuid())
+  opp_id      String    @id @default(uuid())
   lead_id     String?
   customer_id String?
   title       String
-  deal_value  Decimal  @db.Decimal(15, 2)
-  stage       OppStage @default(DISCOVERY)
-  probability Int      @default(10) // 10% to 100%
+  deal_value  Decimal   @db.Decimal(15, 2)
+  stage       OppStage  @default(DISCOVERY)
+  probability Int       @default(10) // 10% to 100%
   close_date  DateTime?
-  status      String   @default("OPEN") // OPEN, WON, LOST
-  created_at  DateTime @default(now())
+  status      String    @default("OPEN") // OPEN, WON, LOST
+  created_at  DateTime  @default(now())
 
-  lead        Lead?       @relation(fields: [lead_id], references: [lead_id])
-  customer    Customer?   @relation(fields: [customer_id], references: [customer_id])
-  activities  CRMActivity[]
-  quotations  Quotation[]
+  lead       Lead?         @relation(fields: [lead_id], references: [lead_id])
+  customer   Customer?     @relation(fields: [customer_id], references: [customer_id])
+  activities CRMActivity[]
+  quotations Quotation[]
 
   @@map("crm_opportunity")
 }
@@ -973,48 +978,48 @@ model CRMActivity {
   lead_id       String?
   opp_id        String?
   customer_id   String?
-  type          String   // CALL, EMAIL, MEETING, TASK
+  type          String // CALL, EMAIL, MEETING, TASK
   subject       String
   description   String?
   activity_date DateTime @default(now())
   created_by    String
   status        String   @default("COMPLETED") // COMPLETED, SCHEDULED
 
-  lead          Lead?        @relation(fields: [lead_id], references: [lead_id])
-  opportunity   Opportunity? @relation(fields: [opp_id], references: [opp_id])
-  customer      Customer?    @relation(fields: [customer_id], references: [customer_id])
+  lead        Lead?        @relation(fields: [lead_id], references: [lead_id])
+  opportunity Opportunity? @relation(fields: [opp_id], references: [opp_id])
+  customer    Customer?    @relation(fields: [customer_id], references: [customer_id])
 
   @@map("crm_activity")
 }
 
 model Quotation {
-  quote_id      String   @id @default(uuid())
-  quote_no      String   @unique
-  opp_id        String?
-  customer_id   String
-  total_amount  Decimal  @db.Decimal(15, 2)
-  status        String   @default("DRAFT") // DRAFT, SENT, ACCEPTED, EXPIRED, REJECTED
-  valid_until   DateTime
-  terms         String?
-  created_at    DateTime @default(now())
+  quote_id     String   @id @default(uuid())
+  quote_no     String   @unique
+  opp_id       String?
+  customer_id  String
+  total_amount Decimal  @db.Decimal(15, 2)
+  status       String   @default("DRAFT") // DRAFT, SENT, ACCEPTED, EXPIRED, REJECTED
+  valid_until  DateTime
+  terms        String?
+  created_at   DateTime @default(now())
 
-  opportunity   Opportunity? @relation(fields: [opp_id], references: [opp_id])
-  customer      Customer     @relation(fields: [customer_id], references: [customer_id])
-  items         QuotationItem[]
+  opportunity Opportunity?    @relation(fields: [opp_id], references: [opp_id])
+  customer    Customer        @relation(fields: [customer_id], references: [customer_id])
+  items       QuotationItem[]
 
   @@map("crm_quotation")
 }
 
 model QuotationItem {
-  item_id     String   @id @default(uuid())
+  item_id     String  @id @default(uuid())
   quote_id    String
   product_id  String
   quantity    Float
-  unit_price  Decimal  @db.Decimal(15, 2)
-  total_price Decimal  @db.Decimal(15, 2)
+  unit_price  Decimal @db.Decimal(15, 2)
+  total_price Decimal @db.Decimal(15, 2)
 
-  quotation   Quotation @relation(fields: [quote_id], references: [quote_id], onDelete: Cascade)
-  product     Product   @relation(fields: [product_id], references: [product_id])
+  quotation Quotation @relation(fields: [quote_id], references: [quote_id], onDelete: Cascade)
+  product   Product   @relation(fields: [product_id], references: [product_id])
 
   @@map("crm_quotation_item")
 }
@@ -1498,32 +1503,32 @@ model BlankOptimization {
 //
 
 model FinancialAccount {
-  account_id   String          @id @default(uuid())
-  code         String          @unique
-  name         String
-  type         AccountType
-  category     AccountCategory
-  description  String?
-  active       Boolean         @default(true)
-  created_at   DateTime        @default(now())
-  updated_at   DateTime        @updatedAt
+  account_id  String          @id @default(uuid())
+  code        String          @unique
+  name        String
+  type        AccountType
+  category    AccountCategory
+  description String?
+  active      Boolean         @default(true)
+  created_at  DateTime        @default(now())
+  updated_at  DateTime        @updatedAt
 
-  journalLines JournalLine[]
+  journalLines     JournalLine[]
   bankTransactions BankTransaction[]
-  budgets      Budget[]
-  fixedAssets  FixedAsset[]
+  budgets          Budget[]
+  fixedAssets      FixedAsset[]
 
   @@map("financial_account")
 }
 
 model CollectionEffort {
-  effort_id      String   @id @default(uuid())
+  effort_id      String    @id @default(uuid())
   invoice_id     String
-  contact_date   DateTime @default(now())
-  contact_method String   // EMAIL, PHONE, SYSTEM_REMINDER
+  contact_date   DateTime  @default(now())
+  contact_method String // EMAIL, PHONE, SYSTEM_REMINDER
   notes          String?
   next_follow_up DateTime?
-  status         String   @default("OPEN") // OPEN, RESOLVED
+  status         String    @default("OPEN") // OPEN, RESOLVED
 
   @@map("collection_effort")
 }
@@ -1551,18 +1556,18 @@ enum AccountCategory {
 }
 
 model JournalEntry {
-  entry_id      String        @id @default(uuid())
-  entry_date    DateTime      @default(now())
-  reference     String?       // e.g. "INV-2023001"
+  entry_id      String      @id @default(uuid())
+  entry_date    DateTime    @default(now())
+  reference     String? // e.g. "INV-2023001"
   description   String?
-  status        EntryStatus   @default(POSTED)
+  status        EntryStatus @default(POSTED)
   created_by    String?
-  created_at    DateTime      @default(now())
-  updated_at    DateTime      @updatedAt
-  currency_code String        @default("INR")
-  exchange_rate Decimal       @default(1.0) @db.Decimal(15, 6)
+  created_at    DateTime    @default(now())
+  updated_at    DateTime    @updatedAt
+  currency_code String      @default("INR")
+  exchange_rate Decimal     @default(1.0) @db.Decimal(15, 6)
 
-  lines         JournalLine[]
+  lines JournalLine[]
 
   @@map("journal_entry")
 }
@@ -1574,38 +1579,38 @@ enum EntryStatus {
 }
 
 model JournalLine {
-  line_id        String          @id @default(uuid())
+  line_id        String        @id @default(uuid())
   entry_id       String
   account_id     String
-  debit          Decimal         @default(0) @db.Decimal(15, 2)
-  credit         Decimal         @default(0) @db.Decimal(15, 2)
+  debit          Decimal       @default(0) @db.Decimal(15, 2)
+  credit         Decimal       @default(0) @db.Decimal(15, 2)
   description    String?
-  nre_id         String?         // Optional link to NRE
-  cost_center_id String?         // Optional link to Cost Center
+  nre_id         String? // Optional link to NRE
+  cost_center_id String? // Optional link to Cost Center
   cash_flow_type CashFlowType?
 
-  entry         JournalEntry     @relation(fields: [entry_id], references: [entry_id], onDelete: Cascade)
-  account       FinancialAccount @relation(fields: [account_id], references: [account_id])
-  nre           NRELedger?       @relation(fields: [nre_id], references: [nre_id])
-  costCenter    CostCenter?      @relation(fields: [cost_center_id], references: [center_id])
+  entry           JournalEntry     @relation(fields: [entry_id], references: [entry_id], onDelete: Cascade)
+  account         FinancialAccount @relation(fields: [account_id], references: [account_id])
+  nre             NRELedger?       @relation(fields: [nre_id], references: [nre_id])
+  costCenter      CostCenter?      @relation(fields: [cost_center_id], references: [center_id])
   bankTransaction BankTransaction?
 
   @@map("journal_line")
 }
 
 model BankTransaction {
-  txn_id           String          @id @default(uuid())
+  txn_id           String      @id @default(uuid())
   account_id       String
   transaction_date DateTime
   description      String
-  amount           Decimal         @db.Decimal(15, 2)
+  amount           Decimal     @db.Decimal(15, 2)
   reference        String?
-  recon_status     ReconStatus     @default(UNRECONCILED)
-  journal_line_id  String?         @unique
-  created_at       DateTime        @default(now())
+  recon_status     ReconStatus @default(UNRECONCILED)
+  journal_line_id  String?     @unique
+  created_at       DateTime    @default(now())
 
-  account         FinancialAccount @relation(fields: [account_id], references: [account_id])
-  journalLine     JournalLine?     @relation(fields: [journal_line_id], references: [line_id])
+  account     FinancialAccount @relation(fields: [account_id], references: [account_id])
+  journalLine JournalLine?     @relation(fields: [journal_line_id], references: [line_id])
 
   @@map("bank_transaction")
 }
@@ -1623,18 +1628,18 @@ enum CashFlowType {
 }
 
 model NRELedger {
-  nre_id         String        @id @default(uuid())
-  nre_code       String        @unique // e.g. "NRE-PROJ-001"
+  nre_id         String    @id @default(uuid())
+  nre_code       String    @unique // e.g. "NRE-PROJ-001"
   name           String
   description    String?
   product_id     String?
-  estimated_cost Decimal?      @db.Decimal(15, 2)
-  status         NREStatus     @default(ACTIVE)
-  created_at     DateTime      @default(now())
-  updated_at     DateTime      @updatedAt
+  estimated_cost Decimal?  @db.Decimal(15, 2)
+  status         NREStatus @default(ACTIVE)
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
 
-  product       Product?       @relation(fields: [product_id], references: [product_id])
-  journalLines  JournalLine[]
+  product      Product?      @relation(fields: [product_id], references: [product_id])
+  journalLines JournalLine[]
 
   @@map("nre_ledger")
 }
@@ -1659,38 +1664,38 @@ model CostCenter {
 }
 
 model FixedAsset {
-  asset_id         String   @id @default(uuid())
-  asset_code       String   @unique
-  name             String
-  category         String   // e.g. "Machinery", "Vehicles"
-  purchase_date    DateTime
-  purchase_cost    Decimal  @db.Decimal(15, 2)
-  salvage_value    Decimal  @default(0) @db.Decimal(15, 2)
+  asset_id          String   @id @default(uuid())
+  asset_code        String   @unique
+  name              String
+  category          String // e.g. "Machinery", "Vehicles"
+  purchase_date     DateTime
+  purchase_cost     Decimal  @db.Decimal(15, 2)
+  salvage_value     Decimal  @default(0) @db.Decimal(15, 2)
   useful_life_years Int
-  current_value    Decimal  @db.Decimal(15, 2)
-  depreciation_type String  @default("STRAIGHT_LINE")
-  account_id       String   // Linked financial account (Fixed Asset)
-  status           String   @default("ACTIVE") // ACTIVE, DISPOSED, WRITTEN_OFF
+  current_value     Decimal  @db.Decimal(15, 2)
+  depreciation_type String   @default("STRAIGHT_LINE")
+  account_id        String // Linked financial account (Fixed Asset)
+  status            String   @default("ACTIVE") // ACTIVE, DISPOSED, WRITTEN_OFF
 
-  account          FinancialAccount  @relation(fields: [account_id], references: [account_id])
-  depreciations    DepreciationLog[]
-  schedules        MaintenanceSchedule[]
-  maintenanceLogs  MaintenanceLog[]
+  account         FinancialAccount      @relation(fields: [account_id], references: [account_id])
+  depreciations   DepreciationLog[]
+  schedules       MaintenanceSchedule[]
+  maintenanceLogs MaintenanceLog[]
 
   @@map("fixed_asset")
 }
 
 model MaintenanceSchedule {
-  schedule_id    String   @id @default(uuid())
+  schedule_id    String    @id @default(uuid())
   asset_id       String
-  task_name      String   // e.g. "Oil Change", "Calibration"
-  frequency_days Int      // Interval in days
+  task_name      String // e.g. "Oil Change", "Calibration"
+  frequency_days Int // Interval in days
   last_done_at   DateTime?
   next_due_at    DateTime
-  priority       String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  priority       String    @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
   instructions   String?
 
-  asset          FixedAsset @relation(fields: [asset_id], references: [asset_id])
+  asset FixedAsset @relation(fields: [asset_id], references: [asset_id])
 
   @@map("asset_maintenance_schedule")
 }
@@ -1699,55 +1704,55 @@ model MaintenanceLog {
   log_id         String   @id @default(uuid())
   asset_id       String
   service_date   DateTime @default(now())
-  service_type   String   // PREVENTIVE, BREAKDOWN, CALIBRATION
+  service_type   String // PREVENTIVE, BREAKDOWN, CALIBRATION
   description    String
   performed_by   String
   cost           Decimal  @default(0) @db.Decimal(15, 2)
   downtime_hours Float    @default(0)
   status         String   @default("COMPLETED") // COMPLETED, PENDING
 
-  asset          FixedAsset @relation(fields: [asset_id], references: [asset_id])
+  asset FixedAsset @relation(fields: [asset_id], references: [asset_id])
 
   @@map("asset_maintenance_log")
 }
 
 model DepreciationLog {
-  log_id           String   @id @default(uuid())
-  asset_id         String
+  log_id            String   @id @default(uuid())
+  asset_id          String
   depreciation_date DateTime @default(now())
-  amount           Decimal  @db.Decimal(15, 2)
-  description      String?
+  amount            Decimal  @db.Decimal(15, 2)
+  description       String?
 
-  asset            FixedAsset @relation(fields: [asset_id], references: [asset_id])
+  asset FixedAsset @relation(fields: [asset_id], references: [asset_id])
 
   @@map("depreciation_log")
 }
 
 model Budget {
-  budget_id   String   @id @default(uuid())
+  budget_id   String  @id @default(uuid())
   account_id  String
-  fiscal_year String   // e.g. "2023-24"
-  amount      Decimal  @db.Decimal(15, 2)
+  fiscal_year String // e.g. "2023-24"
+  amount      Decimal @db.Decimal(15, 2)
   notes       String?
 
-  account     FinancialAccount @relation(fields: [account_id], references: [account_id])
+  account FinancialAccount @relation(fields: [account_id], references: [account_id])
 
   @@unique([account_id, fiscal_year])
   @@map("budget")
 }
 
 model ExpenseClaim {
-  claim_id      String   @id @default(uuid())
+  claim_id      String    @id @default(uuid())
   employee_name String
-  claim_date    DateTime @default(now())
+  claim_date    DateTime  @default(now())
   description   String
-  amount        Decimal  @db.Decimal(15, 2)
-  category      String   // Travel, Meals, Office Supplies, etc.
-  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED, PAID
+  amount        Decimal   @db.Decimal(15, 2)
+  category      String // Travel, Meals, Office Supplies, etc.
+  status        String    @default("PENDING") // PENDING, APPROVED, REJECTED, PAID
   receipt_url   String?
   approved_by   String?
   approved_at   DateTime?
-  journal_id    String?   // Link to JournalEntry once posted
+  journal_id    String? // Link to JournalEntry once posted
 
   @@map("expense_claim")
 }
@@ -1776,7 +1781,7 @@ model Currency {
 
 model Notification {
   notif_id   String   @id @default(uuid())
-  type       String   // e.g. "BUDGET_EXCEEDED", "PAYMENT_OVERDUE"
+  type       String // e.g. "BUDGET_EXCEEDED", "PAYMENT_OVERDUE"
   title      String
   message    String
   severity   String   @default("INFO") // INFO, WARNING, CRITICAL
@@ -1787,91 +1792,91 @@ model Notification {
 }
 
 model Employee {
-  emp_id        String   @id @default(uuid())
-  emp_code      String   @unique // e.g. "EMP001"
-  first_name    String
-  last_name     String
-  email         String?
-  phone         String?
-  department    String
-  designation   String
-  doj           DateTime // Date of Joining
-  base_salary   Decimal  @db.Decimal(15, 2)
-  bank_account  String?
-  pan_no        String?
-  status        String   @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
-  created_at    DateTime @default(now())
+  emp_id       String   @id @default(uuid())
+  emp_code     String   @unique // e.g. "EMP001"
+  first_name   String
+  last_name    String
+  email        String?
+  phone        String?
+  department   String
+  designation  String
+  doj          DateTime // Date of Joining
+  base_salary  Decimal  @db.Decimal(15, 2)
+  bank_account String?
+  pan_no       String?
+  status       String   @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
+  created_at   DateTime @default(now())
 
-  attendances   Attendance[]
-  payrolls      Payroll[]
+  attendances Attendance[]
+  payrolls    Payroll[]
 
   @@map("hr_employee")
 }
 
 model Attendance {
-  att_id     String   @id @default(uuid())
-  emp_id     String
-  date       DateTime
-  status     String   // PRESENT, ABSENT, LEAVE, HALF_DAY
-  clock_in   DateTime?
-  clock_out  DateTime?
-  remarks    String?
+  att_id    String    @id @default(uuid())
+  emp_id    String
+  date      DateTime
+  status    String // PRESENT, ABSENT, LEAVE, HALF_DAY
+  clock_in  DateTime?
+  clock_out DateTime?
+  remarks   String?
 
-  employee   Employee @relation(fields: [emp_id], references: [emp_id])
+  employee Employee @relation(fields: [emp_id], references: [emp_id])
 
   @@unique([emp_id, date])
   @@map("hr_attendance")
 }
 
 model Payroll {
-  payroll_id     String   @id @default(uuid())
-  emp_id         String
-  month          Int      // 1-12
-  year           Int
-  gross_salary   Decimal  @db.Decimal(15, 2)
-  bonus          Decimal  @default(0) @db.Decimal(15, 2)
-  deductions     Decimal  @default(0) @db.Decimal(15, 2)
-  net_salary     Decimal  @db.Decimal(15, 2)
-  status         String   @default("PROCESSED") // PROCESSED, PAID
-  payment_date   DateTime?
-  journal_id     String?  // Link to salary expense posting
+  payroll_id   String    @id @default(uuid())
+  emp_id       String
+  month        Int // 1-12
+  year         Int
+  gross_salary Decimal   @db.Decimal(15, 2)
+  bonus        Decimal   @default(0) @db.Decimal(15, 2)
+  deductions   Decimal   @default(0) @db.Decimal(15, 2)
+  net_salary   Decimal   @db.Decimal(15, 2)
+  status       String    @default("PROCESSED") // PROCESSED, PAID
+  payment_date DateTime?
+  journal_id   String? // Link to salary expense posting
 
-  employee       Employee @relation(fields: [emp_id], references: [emp_id])
+  employee Employee @relation(fields: [emp_id], references: [emp_id])
 
   @@unique([emp_id, month, year])
   @@map("hr_payroll")
 }
 
 model QCStandard {
-  standard_id   String   @id @default(uuid())
-  product_id    String
-  name          String   // e.g. "Dimensional Accuracy Check"
-  min_value     Float?
-  max_value     Float?
-  target_value  Float?
-  unit          String?  // mm, kg, etc.
-  description   String?
-  created_at    DateTime @default(now())
+  standard_id  String   @id @default(uuid())
+  product_id   String
+  name         String // e.g. "Dimensional Accuracy Check"
+  min_value    Float?
+  max_value    Float?
+  target_value Float?
+  unit         String? // mm, kg, etc.
+  description  String?
+  created_at   DateTime @default(now())
 
-  product       Product      @relation(fields: [product_id], references: [product_id])
-  inspections   QCInspection[]
+  product     Product        @relation(fields: [product_id], references: [product_id])
+  inspections QCInspection[]
 
   @@map("qc_standard")
 }
 
 model QCInspection {
-  inspection_id String   @id @default(uuid())
-  standard_id   String
-  reference_id  String   // e.g. Work Order ID or GRN ID
-  batch_id      String?
-  inspector_id  String
-  result        String   @default("PENDING") // PENDING, PASSED, FAILED
+  inspection_id  String   @id @default(uuid())
+  standard_id    String
+  reference_id   String // e.g. Work Order ID or GRN ID
+  batch_id       String?
+  inspector_id   String
+  result         String   @default("PENDING") // PENDING, PASSED, FAILED
   measured_value Float?
-  notes         String?
-  inspected_at  DateTime @default(now())
+  notes          String?
+  inspected_at   DateTime @default(now())
 
-  standard      QCStandard    @relation(fields: [standard_id], references: [standard_id])
-  rejections    QCRejectionLog[]
+  standard   QCStandard       @relation(fields: [standard_id], references: [standard_id])
+  rejections QCRejectionLog[]
 
   @@map("qc_inspection")
 }
@@ -1879,12 +1884,12 @@ model QCInspection {
 model QCRejectionLog {
   rejection_id  String   @id @default(uuid())
   inspection_id String
-  reason        String   // e.g. "Surface Scratches", "Off-size"
+  reason        String // e.g. "Surface Scratches", "Off-size"
   quantity      Float
   action_taken  String   @default("REWORK") // REWORK, SCRAP, RETURN_TO_SUPPLIER
   created_at    DateTime @default(now())
 
-  inspection    QCInspection @relation(fields: [inspection_id], references: [inspection_id])
+  inspection QCInspection @relation(fields: [inspection_id], references: [inspection_id])
 
   @@map("qc_rejection_log")
 }
