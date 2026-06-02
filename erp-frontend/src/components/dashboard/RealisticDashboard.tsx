@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   Package,
   Box,
@@ -20,6 +20,7 @@ import {
   Gem,
   Briefcase
 } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import StatsCard from './StatsCard';
 import { dashboardService, DashboardStats, InventorySummary, WorkOrderStatus, RecentActivity } from '../../services/dashboard.service';
 
@@ -153,7 +154,7 @@ const RealisticDashboard: React.FC = () => {
         <div className="animate-in slide-in-from-bottom-4 duration-700 delay-400">
           <StatsCard
             title="Revenue"
-            value={`₹${stats?.financials?.totalRevenue.toLocaleString() || 0}`}
+            value={`Rs. ${stats?.financials?.totalRevenue.toLocaleString() || 0}`}
             icon={ArrowUpCircle}
             color="green"
             subtitle="Total recognized revenue"
@@ -167,7 +168,7 @@ const RealisticDashboard: React.FC = () => {
         <div className="animate-in slide-in-from-bottom-4 duration-700 delay-500">
           <StatsCard
             title="Accounts Receivable"
-            value={`₹${stats?.financials?.accountsReceivable.toLocaleString() || 0}`}
+            value={`Rs. ${stats?.financials?.accountsReceivable.toLocaleString() || 0}`}
             icon={DollarSign}
             color="blue"
             subtitle="Customer balance due"
@@ -177,7 +178,7 @@ const RealisticDashboard: React.FC = () => {
         <div className="animate-in slide-in-from-bottom-4 duration-700 delay-600">
           <StatsCard
             title="Accounts Payable"
-            value={`₹${stats?.financials?.accountsPayable.toLocaleString() || 0}`}
+            value={`Rs. ${stats?.financials?.accountsPayable.toLocaleString() || 0}`}
             icon={Briefcase}
             color="orange"
             subtitle="Outstanding vendor bills"
@@ -187,7 +188,7 @@ const RealisticDashboard: React.FC = () => {
         <div className="animate-in slide-in-from-bottom-4 duration-700 delay-700">
           <StatsCard
             title="Operating Expense"
-            value={`₹${stats?.financials?.totalExpense.toLocaleString() || 0}`}
+            value={`Rs. ${stats?.financials?.totalExpense.toLocaleString() || 0}`}
             icon={ArrowDownCircle}
             color="red"
             subtitle="Total business spend"
@@ -197,7 +198,7 @@ const RealisticDashboard: React.FC = () => {
         <div className="animate-in slide-in-from-bottom-4 duration-700 delay-800">
           <StatsCard
             title="Net Business Profit"
-            value={`₹${stats?.financials?.netProfit.toLocaleString() || 0}`}
+            value={`Rs. ${stats?.financials?.netProfit.toLocaleString() || 0}`}
             icon={Gem}
             color="indigo"
             subtitle="Earnings after expenses"
@@ -206,8 +207,49 @@ const RealisticDashboard: React.FC = () => {
         </div>
       </div>
 
-
-      {/* Charts and Activities Row */}
+      {/* Operations & Sales Row — Automotive Factory KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="animate-in slide-in-from-bottom-4 duration-700 delay-500">
+          <StatsCard
+            title="Sales Orders"
+            value={`${stats?.activeSalesOrders || 0} Active`}
+            icon={Car}
+            color="blue"
+            subtitle={`${stats?.totalSalesOrders || 0} total orders`}
+            loading={loading}
+          />
+        </div>
+        <div className="animate-in slide-in-from-bottom-4 duration-700 delay-600">
+          <StatsCard
+            title="Customers"
+            value={stats?.totalCustomers || 0}
+            icon={Building2}
+            color="green"
+            subtitle="OEM & Aftermarket buyers"
+            loading={loading}
+          />
+        </div>
+        <div className="animate-in slide-in-from-bottom-4 duration-700 delay-700">
+          <StatsCard
+            title="Suppliers"
+            value={stats?.totalSuppliers || 0}
+            icon={Warehouse}
+            color="purple"
+            subtitle="Raw material vendors"
+            loading={loading}
+          />
+        </div>
+        <div className="animate-in slide-in-from-bottom-4 duration-700 delay-800">
+          <StatsCard
+            title="Low Stock Alerts"
+            value={stats?.lowStockCount || 0}
+            icon={AlertTriangle}
+            color={(stats?.lowStockCount || 0) > 0 ? "red" : "green"}
+            subtitle="Items below reorder level"
+            loading={loading}
+          />
+        </div>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Work Order Status */}
         <div className="animate-in slide-in-from-left-4 duration-700 delay-900">
@@ -301,6 +343,68 @@ const RealisticDashboard: React.FC = () => {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Business Intelligence Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in slide-in-from-bottom-4 duration-700 delay-1050">
+        <div className="bg-white/70 backdrop-blur-xl rounded-2xl p-6 border border-white/30 shadow-lg hover:shadow-xl transition-all duration-500">
+          <h3 className="text-xl font-bold text-gray-800 mb-6">Daily Production Output (Units)</h3>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={[
+                  { name: 'Mon', Output: 120 }, { name: 'Tue', Output: 150 }, { name: 'Wed', Output: 180 },
+                  { name: 'Thu', Output: 160 }, { name: 'Fri', Output: 210 }, { name: 'Sat', Output: 190 }, { name: 'Sun', Output: 90 }
+                ]}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <RechartsTooltip />
+                <Legend />
+                <Line type="monotone" dataKey="Output" stroke="#4f46e5" activeDot={{ r: 8 }} strokeWidth={3} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        
+        <div className="bg-white/70 backdrop-blur-xl rounded-2xl p-6 border border-white/30 shadow-lg hover:shadow-xl transition-all duration-500">
+          <h3 className="text-xl font-bold text-gray-800 mb-6">Top 5 Finished Goods by Volume</h3>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Radiator Core', value: 450 }, { name: 'Fuel Tank 50L', value: 380 },
+                    { name: 'Exhaust Pipe', value: 300 }, { name: 'Bumper Front', value: 250 },
+                    { name: 'Steel Sheet 2mm', value: 180 }
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                >
+                  {
+                    [
+                      { name: 'Radiator Core', value: 450 }, { name: 'Fuel Tank 50L', value: 380 },
+                      { name: 'Exhaust Pipe', value: 300 }, { name: 'Bumper Front', value: 250 },
+                      { name: 'Steel Sheet 2mm', value: 180 }
+                    ].map((entry, index) => {
+                      const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6'];
+                      return <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />;
+                    })
+                  }
+                </Pie>
+                <RechartsTooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>

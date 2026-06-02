@@ -12,8 +12,10 @@ import { Loader2, FileText, Plus, DollarSign, CheckCircle, Clock, AlertCircle, S
 import { toast } from 'sonner';
 
 interface SalesOrder {
-  so_id: string;
+  sales_order_id?: string;
+  so_id?: string;
   so_no: string;
+  order_number?: string;
   customer_name: string;
   customer_id: string;
   total_amount: number;
@@ -136,7 +138,7 @@ export default function Invoicing() {
     } else if (dispatch) {
       setSelectedDispatch(dispatch);
       // Find matching sales order
-      const matchingSO = salesOrders.find(s => s.so_id === dispatch.so_id);
+      const matchingSO = salesOrders.find(s => (s.sales_order_id || s.so_id) === dispatch.so_id);
       setSelectedSalesOrder(matchingSO || null);
     }
     setShowInvoiceDialog(true);
@@ -155,7 +157,7 @@ export default function Invoicing() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          so_id: selectedSalesOrder?.so_id || selectedDispatch?.so_id,
+          so_id: selectedSalesOrder?.sales_order_id || selectedSalesOrder?.so_id || selectedDispatch?.so_id,
           dispatch_id: selectedDispatch?.dispatch_id || null,
           customer_id: selectedSalesOrder?.customer_id,
           invoice_date: new Date().toISOString().split('T')[0],
@@ -234,6 +236,7 @@ export default function Invoicing() {
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
         toast.success('Invoice PDF downloaded successfully');
       } else {
         toast.error('Failed to download invoice PDF');
@@ -241,6 +244,30 @@ export default function Invoicing() {
     } catch (error) {
       console.error('Error downloading PDF:', error);
       toast.error('Failed to download invoice PDF');
+    }
+  };
+
+  const handleDownloadSalesOrderPDF = async (so: SalesOrder) => {
+    try {
+      const soId = so.sales_order_id || so.so_id;
+      const response = await fetch(`/api/sales-orders/${soId}/pdf`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `SalesOrder_${so.order_number || so.so_no}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success('Sales order PDF downloaded successfully');
+      } else {
+        toast.error('Failed to download sales order PDF');
+      }
+    } catch (error) {
+      console.error('Error downloading SO PDF:', error);
+      toast.error('Failed to download sales order PDF');
     }
   };
 
@@ -324,7 +351,7 @@ export default function Invoicing() {
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Pending Amount</p>
                 <p className="text-2xl font-bold text-red-600">
-                  ₹{totalPendingAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  Rs. {totalPendingAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
               <DollarSign className="w-8 h-8 text-red-600" />
@@ -396,7 +423,7 @@ export default function Invoicing() {
                         <TableCell>{invoice.so_number || '-'}</TableCell>
                         <TableCell>{invoice.customer_name || '-'}</TableCell>
                         <TableCell>
-                          ₹{invoice.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          Rs. {invoice.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell>
                           {invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '-'}
@@ -471,20 +498,29 @@ export default function Invoicing() {
                   </TableHeader>
                   <TableBody>
                     {salesOrders.map((so) => (
-                      <TableRow key={so.so_id}>
-                        <TableCell className="font-medium">{so.so_no}</TableCell>
+                      <TableRow key={so.sales_order_id || so.so_id}>
+                        <TableCell className="font-medium">{so.order_number || so.so_no || '-'}</TableCell>
                         <TableCell>{so.customer_name}</TableCell>
                         <TableCell>
-                          ₹{so.total_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                          Rs. {so.total_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
                         </TableCell>
                         <TableCell>{getInvoiceStatusBadge(so.status)}</TableCell>
                         <TableCell>
                           <Button
                             size="sm"
+                            className="mr-2"
                             onClick={() => openInvoiceDialog(so)}
                           >
                             <FileText className="w-4 h-4 mr-2" />
                             Create Invoice
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDownloadSalesOrderPDF(so)}
+                          >
+                            <Download className="w-4 h-4 mr-1" />
+                            PDF
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -570,7 +606,7 @@ export default function Invoicing() {
                     <>
                       <div><span className="font-medium">SO Number:</span> {selectedSalesOrder.so_no}</div>
                       <div><span className="font-medium">Customer:</span> {selectedSalesOrder.customer_name}</div>
-                      <div><span className="font-medium">Amount:</span> ₹{selectedSalesOrder.total_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</div>
+                      <div><span className="font-medium">Amount:</span> Rs. {selectedSalesOrder.total_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}</div>
                     </>
                   )}
                   {selectedDispatch && (
@@ -628,7 +664,7 @@ export default function Invoicing() {
                 <div className="text-sm font-medium mb-2">Invoice Details</div>
                 <div className="space-y-1 text-sm">
                   <div><span className="font-medium">Invoice No:</span> {selectedInvoice.invoice_no}</div>
-                  <div><span className="font-medium">Total Amount:</span> ₹{selectedInvoice.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                  <div><span className="font-medium">Total Amount:</span> Rs. {selectedInvoice.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
                   <div><span className="font-medium">Due Date:</span> {selectedInvoice.due_date ? new Date(selectedInvoice.due_date).toLocaleDateString() : '-'}</div>
                 </div>
               </div>

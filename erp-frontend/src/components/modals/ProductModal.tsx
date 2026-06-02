@@ -43,6 +43,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
     modelId: "",
     uomId: "",
     standardCost: "",
+    hsCode: "",
     category: "FINISHED_GOOD" as ProductCategory,
   });
 
@@ -59,6 +60,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
           modelId: editingProduct.modelId,
           uomId: editingProduct.uomId,
           standardCost: editingProduct.standardCost?.toString() || "",
+          hsCode: editingProduct.hsCode || "",
           category: editingProduct.category,
         });
       } else {
@@ -69,6 +71,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
           modelId: "",
           uomId: "",
           standardCost: "",
+          hsCode: "",
           category: "FINISHED_GOOD",
         });
       }
@@ -132,6 +135,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
         modelId: formData.modelId,
         uomId: formData.uomId,
         standardCost: formData.standardCost ? Number(formData.standardCost) : undefined,
+        hsCode: formData.hsCode.trim() || undefined,
         category: formData.category,
       };
 
@@ -286,18 +290,32 @@ const ProductModal: React.FC<ProductModalProps> = ({
             </div>
           </div>
 
-          {/* Category Selection - Fixed to Finished Good */}
-          <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
-            <Select
-              value="FINISHED_GOOD"
-              disabled={true}
-            >
-              <SelectTrigger className="bg-gray-50">
-                <SelectValue>Finished Good</SelectValue>
-              </SelectTrigger>
-            </Select>
-            <p className="text-xs text-muted-foreground">Category is fixed to Finished Good</p>
+          <div className="grid grid-cols-2 gap-4">
+            {/* Category Selection - Fixed to Finished Good */}
+            <div className="space-y-2">
+              <Label htmlFor="category">Category</Label>
+              <Select
+                value="FINISHED_GOOD"
+                disabled={true}
+              >
+                <SelectTrigger className="bg-gray-50">
+                  <SelectValue>Finished Good</SelectValue>
+                </SelectTrigger>
+              </Select>
+              <p className="text-xs text-muted-foreground">Category is fixed to Finished Good</p>
+            </div>
+
+            {/* HS Code */}
+            <div className="space-y-2">
+              <Label htmlFor="hsCode">HS Code</Label>
+              <Input
+                id="hsCode"
+                value={formData.hsCode}
+                onChange={(e) => handleInputChange("hsCode", e.target.value)}
+                placeholder="Enter HS code"
+                maxLength={20}
+              />
+            </div>
           </div>
 
           {/* Action Buttons */}

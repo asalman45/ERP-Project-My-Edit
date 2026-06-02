@@ -13,6 +13,7 @@ import { api } from '@/services/api';
 interface Product {
   product_id: string;
   model_name: string;
+  oem_name: string;
   product_code: string;
   part_name: string;
   opening_stock: number;
@@ -48,13 +49,14 @@ const MonthlyInventorySalesReport: React.FC = () => {
   const [models, setModels] = useState<Model[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
-  
-  // Form state
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
-  const [selectedYear, setSelectedYear] = useState<string>('');
+
+  // Default to August 2025 (the seeded period)
+  const [selectedMonth, setSelectedMonth] = useState<string>('8');
+  const [selectedYear, setSelectedYear] = useState<string>('2025');
   const [selectedModel, setSelectedModel] = useState<string>('all');
+  const [selectedOEM, setSelectedOEM] = useState<string>('all');
   const [openingStockData, setOpeningStockData] = useState<Record<string, number>>({});
-  
+
   const { toast } = useToast();
 
   // Generate year options (current year and previous 5 years)
@@ -101,40 +103,32 @@ const MonthlyInventorySalesReport: React.FC = () => {
     }
   };
 
+  // Unique OEMs from loaded models
+  const oemOptions = [...new Set(models.map(m => m.oem_name))].sort();
+
   const generateReport = async () => {
     if (!selectedMonth || !selectedYear) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please select both month and year',
-        variant: 'destructive'
-      });
+      toast({ title: 'Validation Error', description: 'Please select both month and year', variant: 'destructive' });
       return;
     }
-
+    // Find model_id if OEM+model selected
+    const modelId = selectedModel !== 'all' ? selectedModel : null;
     try {
       setGenerating(true);
       const response = await api.post('/reports/monthly-inventory-sales', {
         month: parseInt(selectedMonth),
         year: parseInt(selectedYear),
-        model_id: selectedModel === 'all' ? null : selectedModel,
+        model_id: modelId,
+        oem_name: selectedOEM !== 'all' ? selectedOEM : undefined,
         format: 'json',
         opening_stock_data: openingStockData
       });
-
-      if (response.data.success) {
-        setReportData(response.data.data);
-        toast({
-          title: 'Success',
-          description: 'Report generated successfully'
-        });
+      if (response.data) {
+        setReportData(response.data);
+        toast({ title: 'Report Generated', description: `${response.data.products?.length || 0} products loaded` });
       }
     } catch (error) {
-      console.error('Error generating report:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to generate report',
-        variant: 'destructive'
-      });
+      toast({ title: 'Error', description: 'Failed to generate report', variant: 'destructive' });
     } finally {
       setGenerating(false);
     }
@@ -152,20 +146,28 @@ const MonthlyInventorySalesReport: React.FC = () => {
 
     try {
       setGenerating(true);
-      const response = await api.post('/reports/monthly-inventory-sales', {
-        month: parseInt(selectedMonth),
-        year: parseInt(selectedYear),
-        model_id: selectedModel === 'all' ? null : selectedModel,
-        format: format,
-        opening_stock_data: openingStockData
-      }, {
-        responseType: 'blob'
+      const token = localStorage.getItem('empclerp_token');
+      const response = await fetch('/api/reports/monthly-inventory-sales', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          month: parseInt(selectedMonth),
+          year: parseInt(selectedYear),
+          model_id: selectedModel === 'all' ? null : selectedModel,
+          format: format,
+          opening_stock_data: openingStockData
+        })
       });
 
-      // Create download link
-      const blob = new Blob([response.data], {
-        type: format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      });
+      if (!response.ok) {
+        throw new Error('Failed to download report');
+      }
+
+      // Read actual binary blob from the response
+      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -224,73 +226,50 @@ const MonthlyInventorySalesReport: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="month">Month</Label>
+              <Label>Month</Label>
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select month" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Month" /></SelectTrigger>
                 <SelectContent>
-                  {monthOptions.map(month => (
-                    <SelectItem key={month.value} value={month.value}>
-                      {month.label}
-                    </SelectItem>
-                  ))}
+                  {monthOptions.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="year">Year</Label>
+              <Label>Year</Label>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select year" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Year" /></SelectTrigger>
                 <SelectContent>
-                  {yearOptions.map(year => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
+                  {yearOptions.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="model">Model (Optional)</Label>
+              <Label>OEM Company</Label>
+              <Select value={selectedOEM} onValueChange={v => { setSelectedOEM(v); setSelectedModel('all'); }}>
+                <SelectTrigger><SelectValue placeholder="All OEMs" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All OEMs</SelectItem>
+                  {oemOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Model</Label>
               <Select value={selectedModel} onValueChange={setSelectedModel}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All models" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="All Models" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Models</SelectItem>
-                  {models.map(model => (
-                    <SelectItem key={model.model_id} value={model.model_id}>
-                      {model.oem_name} - {model.model_name}
-                    </SelectItem>
-                  ))}
+                  {models
+                    .filter(m => selectedOEM === 'all' || m.oem_name === selectedOEM)
+                    .map(m => <SelectItem key={m.model_id} value={m.model_id}>{m.oem_name} – {m.model_name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-
             <div className="flex items-end">
-              <Button 
-                onClick={generateReport} 
-                disabled={generating || loading}
-                className="w-full"
-              >
-                {generating ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Generate Report
-                  </>
-                )}
+              <Button onClick={generateReport} disabled={generating || loading} className="w-full">
+                {generating ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Generating…</> : <><RefreshCw className="h-4 w-4 mr-2" />Generate</>}
               </Button>
             </div>
           </div>
@@ -346,105 +325,95 @@ const MonthlyInventorySalesReport: React.FC = () => {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-center">Model</TableHead>
-                      <TableHead>Part Number</TableHead>
-                      <TableHead>Part Name</TableHead>
-                      <TableHead className="text-right">Opening (Nos)</TableHead>
-                      <TableHead className="text-right">Quantity Produced</TableHead>
-                      <TableHead className="text-right">Total Inventory</TableHead>
+                    <TableRow className="bg-slate-800 text-white">
+                      <TableHead className="text-white w-8">#</TableHead>
+                      <TableHead className="text-white">OEM</TableHead>
+                      <TableHead className="text-white">Model</TableHead>
+                      <TableHead className="text-white">Part Number</TableHead>
+                      <TableHead className="text-white">Part Name</TableHead>
+                      <TableHead className="text-right text-white">Opening</TableHead>
+                      <TableHead className="text-right text-white">Produced</TableHead>
+                      <TableHead className="text-right text-white">Total Inv.</TableHead>
                       {reportData.sale_dates.map(date => (
-                        <TableHead key={date} className="text-right">
-                          {formatDate(date)}
-                        </TableHead>
+                        <TableHead key={date} className="text-right text-white text-xs">{formatDate(date)}</TableHead>
                       ))}
-                      <TableHead className="text-right">Total Sales</TableHead>
-                      <TableHead className="text-right">Closing Stock</TableHead>
+                      <TableHead className="text-right text-white">Total Sold</TableHead>
+                      <TableHead className="text-right text-white">Closing</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {reportData.products.map((product, index) => (
-                      <TableRow key={product.product_id}>
-                        <TableCell className="text-center font-medium">
-                          {index + 1}
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {product.product_code}
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className={product.part_name.includes('NMR') || product.part_name.includes('NLR') ? 'text-red-600 font-semibold' : ''}>
-                              {product.part_name}
-                            </div>
-                            {product.model_name && (
-                              <Badge variant="outline" className="text-xs">
-                                {product.model_name}
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            value={openingStockData[product.product_id] || product.opening_stock}
-                            onChange={(e) => handleOpeningStockChange(product.product_id, e.target.value)}
-                            className="w-20 text-right"
-                            min="0"
-                            step="0.01"
-                          />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <span className={product.produced_quantity > 0 ? 'bg-yellow-200 px-2 py-1 rounded text-sm font-medium' : ''}>
-                            {product.produced_quantity}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {(openingStockData[product.product_id] || product.opening_stock) + product.produced_quantity}
-                        </TableCell>
-                        {reportData.sale_dates.map(date => (
-                          <TableCell key={date} className="text-right">
-                            {product.daily_sales[date] || 0}
+                    {reportData.products.map((product, index) => {
+                      const openingQty = openingStockData[product.product_id] ?? product.opening_stock;
+                      const closingQty = openingQty + product.produced_quantity - product.total_sales;
+                      return (
+                        <TableRow key={product.product_id} className={index % 2 === 0 ? '' : 'bg-slate-50'}>
+                          <TableCell className="text-center text-xs text-slate-400">{index + 1}</TableCell>
+                          <TableCell className="text-xs font-medium text-slate-600">{product.oem_name ?? '—'}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">{product.model_name}</Badge>
                           </TableCell>
-                        ))}
-                        <TableCell className="text-right font-medium">
-                          {product.total_sales}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <span className={product.closing_stock < 10 ? 'text-red-600 font-semibold' : 'font-medium'}>
-                            {((openingStockData[product.product_id] || product.opening_stock) + product.produced_quantity) - product.total_sales}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          <TableCell className="font-mono text-xs">{product.product_code}</TableCell>
+                          <TableCell className="text-sm">{product.part_name}</TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              value={openingQty}
+                              onChange={(e) => handleOpeningStockChange(product.product_id, e.target.value)}
+                              className="w-20 text-right h-7 text-sm"
+                              min="0"
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className={product.produced_quantity > 0 ? 'bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded text-sm font-medium' : 'text-slate-400'}>
+                              {product.produced_quantity || '—'}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right font-medium">{openingQty + product.produced_quantity}</TableCell>
+                          {reportData.sale_dates.map(date => (
+                            <TableCell key={date} className="text-right text-sm">{product.daily_sales[date] || '—'}</TableCell>
+                          ))}
+                          <TableCell className="text-right font-medium text-red-600">{product.total_sales || '—'}</TableCell>
+                          <TableCell className="text-right font-bold">
+                            <span className={closingQty < 0 ? 'text-red-700 bg-red-100 px-1 rounded' : closingQty === 0 ? 'text-slate-400' : 'text-green-700'}>
+                              {closingQty}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
 
               {/* Summary */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {reportData.products.length}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Total Products</div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-4 border-t">
+                <div className="text-center p-3 bg-blue-50 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-700">{reportData.products.length}</div>
+                  <div className="text-xs text-slate-500">SKUs</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">
-                    {reportData.products.reduce((sum, p) => sum + (openingStockData[p.product_id] || p.opening_stock), 0)}
+                <div className="text-center p-3 bg-slate-50 rounded-lg">
+                  <div className="text-2xl font-bold text-slate-700">
+                    {reportData.products.reduce((s, p) => s + (openingStockData[p.product_id] ?? p.opening_stock), 0).toLocaleString()}
                   </div>
-                  <div className="text-sm text-muted-foreground">Total Opening Stock</div>
+                  <div className="text-xs text-slate-500">Opening Stock</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-yellow-600">
-                    {reportData.products.reduce((sum, p) => sum + p.produced_quantity, 0)}
+                <div className="text-center p-3 bg-yellow-50 rounded-lg">
+                  <div className="text-2xl font-bold text-yellow-700">
+                    {reportData.products.reduce((s, p) => s + p.produced_quantity, 0).toLocaleString()}
                   </div>
-                  <div className="text-sm text-muted-foreground">Total Produced</div>
+                  <div className="text-xs text-slate-500">Total Produced</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-red-600">
-                    {reportData.products.reduce((sum, p) => sum + p.total_sales, 0)}
+                <div className="text-center p-3 bg-orange-50 rounded-lg">
+                  <div className="text-2xl font-bold text-orange-700">
+                    {reportData.products.reduce((s, p) => s + p.total_sales, 0).toLocaleString()}
                   </div>
-                  <div className="text-sm text-muted-foreground">Total Sales</div>
+                  <div className="text-xs text-slate-500">Total Sold</div>
+                </div>
+                <div className="text-center p-3 bg-green-50 rounded-lg">
+                  <div className="text-2xl font-bold text-green-700">
+                    {reportData.products.reduce((s, p) => s + (openingStockData[p.product_id] ?? p.opening_stock) + p.produced_quantity - p.total_sales, 0).toLocaleString()}
+                  </div>
+                  <div className="text-xs text-slate-500">Closing Stock</div>
                 </div>
               </div>
             </div>

@@ -33,6 +33,7 @@ import type { SalesOrder, SalesOrderStatus, SalesOrderFilters } from './types';
 import CreateSalesOrderModal from './components/CreateSalesOrderModal';
 import SalesOrderDetailsModal from './components/SalesOrderDetailsModal';
 import GenericExportModal from '@/components/common/GenericExportModal';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const statusConfig = {
   DRAFT: { label: 'Draft', color: 'bg-gray-100 text-gray-800', icon: Edit },
@@ -130,6 +131,23 @@ export default function SalesOrderPage() {
   const handleViewDetails = (order: SalesOrder) => {
     setSelectedOrder(order);
     setShowDetailsModal(true);
+  };
+
+  const handleDownloadPDF = async (orderId: string, orderNumber: string) => {
+    try {
+      const blob = await salesOrderApi.downloadPDF(orderId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `SalesOrder_${orderNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Sales order PDF downloaded successfully');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to download PDF');
+    }
   };
 
   const getStatusIcon = (status: SalesOrderStatus) => {
@@ -305,8 +323,12 @@ export default function SalesOrderPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            <div className="space-y-4 py-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
             </div>
           ) : (
             <Table>
@@ -351,6 +373,15 @@ export default function SalesOrderPage() {
                           onClick={() => handleViewDetails(order)}
                         >
                           <Eye className="h-4 w-4" />
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadPDF(order.sales_order_id, order.order_number)}
+                          title="Download PDF"
+                        >
+                          <FileText className="h-4 w-4" />
                         </Button>
                         
                         {order.status === 'APPROVED' && (

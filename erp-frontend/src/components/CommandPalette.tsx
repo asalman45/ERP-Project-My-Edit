@@ -65,10 +65,6 @@ export function CommandPalette() {
                 </CommandGroup>
                 <CommandSeparator />
                 <CommandGroup heading="Advanced Systems">
-                    <CommandItem onSelect={() => runCommand(() => navigate("/crm/pipeline"))}>
-                        <Activity className="mr-2 h-4 w-4" />
-                        <span>CRM Pipeline</span>
-                    </CommandItem>
                     <CommandItem onSelect={() => runCommand(() => navigate("/qc/inspections"))}>
                         <ShieldCheck className="mr-2 h-4 w-4" />
                         <span>Quality Governance</span>

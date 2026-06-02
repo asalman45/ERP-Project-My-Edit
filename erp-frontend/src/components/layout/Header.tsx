@@ -62,10 +62,10 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
               3
             </span>
           </Button>
-          
+
           <div className="flex items-center space-x-3 bg-white/50 rounded-xl p-2 hover:bg-white/70 transition-all duration-300 hover:shadow-md border border-white/30">
             <Avatar className="w-10 h-10 border-2 border-white/50 shadow-sm">
-              <AvatarImage src="/api/placeholder/40/40" />
+              <AvatarImage src="https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff" />
               <AvatarFallback className="bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 text-white font-semibold">
                 {initials}
               </AvatarFallback>

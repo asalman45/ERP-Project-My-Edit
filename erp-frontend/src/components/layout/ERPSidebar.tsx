@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/context/AuthContext';
 import {
   LayoutDashboard,
   BarChart3,
@@ -32,6 +33,7 @@ interface ERPSidebarProps {
 
 const ERPSidebar: React.FC<ERPSidebarProps> = ({ isCollapsed, onToggle }) => {
   const location = useLocation();
+  const { user } = useAuth();
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
 
   const handleSubmenuToggle = (menuKey: string) => {
@@ -41,28 +43,36 @@ const ERPSidebar: React.FC<ERPSidebarProps> = ({ isCollapsed, onToggle }) => {
   const isActive = (path: string) => location.pathname === path;
   const isSubmenuActive = (paths: string[]) => paths.some(path => location.pathname.startsWith(path));
 
-  const menuItems = [
+  const roleAuth = (allowedRoles: string[]) => {
+    if (!user || !user.role) return false;
+    if (user.role.toLowerCase() === 'admin') return true;
+    return allowedRoles.includes(user.role.toLowerCase());
+  };
+
+  const allMenuItems = [
     {
       key: 'dashboard',
       icon: LayoutDashboard,
       label: 'Dashboard',
       path: '/',
+      roles: ['admin', 'finance', 'production', 'procurement', 'sales']
     },
     {
       key: 'crm',
       icon: Activity,
       label: 'CRM & Sales',
+      roles: ['admin', 'sales'],
       submenu: [
-        { label: 'Pipeline Master', path: '/crm/pipeline' },
-        { label: 'Lead Center', path: '/crm/leads' },
-        { label: 'Quotation Center', path: '/crm/quotations' },
         { label: 'Sales Orders', path: '/sales-orders' },
+        { label: 'Dispatch', path: '/sales/dispatch' },
+        { label: 'Invoicing & Payments', path: '/sales/invoicing' },
       ],
     },
     {
       key: 'master-data',
       icon: Database,
       label: 'Master Data',
+      roles: ['admin', 'finance', 'production', 'procurement', 'sales'],
       submenu: [
         { label: 'Products', path: '/master-data' },
         { label: 'Materials', path: '/raw-materials' },
@@ -73,6 +83,7 @@ const ERPSidebar: React.FC<ERPSidebarProps> = ({ isCollapsed, onToggle }) => {
       key: 'procurement',
       icon: ShoppingCart,
       label: 'Procurement',
+      roles: ['admin', 'procurement', 'finance'],
       submenu: [
         { label: 'Procurement Requests', path: '/procurement' },
         { label: 'Purchase Orders', path: '/purchase-orders' },
@@ -83,6 +94,7 @@ const ERPSidebar: React.FC<ERPSidebarProps> = ({ isCollapsed, onToggle }) => {
       key: 'inventory',
       icon: Warehouse,
       label: 'Inventory',
+      roles: ['admin', 'production', 'procurement', 'finance'],
       submenu: [
         { label: 'Current Stock', path: '/inventory' },
         { label: 'Stock In', path: '/inventory/stock-in' },
@@ -93,7 +105,10 @@ const ERPSidebar: React.FC<ERPSidebarProps> = ({ isCollapsed, onToggle }) => {
       key: 'production',
       icon: Factory,
       label: 'Production',
+      roles: ['admin', 'production'],
       submenu: [
+        { label: 'Planned Production', path: '/planned-production' },
+        { label: 'MRP Planning', path: '/planning/mrp-planning' },
         { label: 'Work Orders', path: '/work-orders-management' },
         { label: 'Production Tracking', path: '/production-tracking' },
         { label: 'Process Flow', path: '/process-flow' },
@@ -106,6 +121,7 @@ const ERPSidebar: React.FC<ERPSidebarProps> = ({ isCollapsed, onToggle }) => {
       key: 'bom',
       icon: Layers,
       label: 'BOM Management',
+      roles: ['admin', 'production'],
       submenu: [
         { label: 'BOM Standard Display', path: '/bom/standard-display' },
         { label: 'Production Recipe BOM', path: '/bom/production-recipe' },
@@ -116,6 +132,7 @@ const ERPSidebar: React.FC<ERPSidebarProps> = ({ isCollapsed, onToggle }) => {
       key: 'hr',
       icon: Workflow,
       label: 'HR & Payroll',
+      roles: ['admin', 'finance'],
       submenu: [
         { label: 'Employee Registry', path: '/hr/employees' },
         { label: 'Payroll Portal', path: '/hr/payroll' },
@@ -125,30 +142,64 @@ const ERPSidebar: React.FC<ERPSidebarProps> = ({ isCollapsed, onToggle }) => {
       key: 'assets',
       icon: Wrench,
       label: 'Asset Management',
+      roles: ['admin', 'finance', 'production'],
       submenu: [
         { label: 'Maintenance Log', path: '/assets/maintenance' },
         { label: 'Fixed Assets', path: '/finance/fixed-assets' },
       ],
     },
     {
+      key: 'finance',
+      icon: Calculator,
+      label: 'Finance',
+      roles: ['admin', 'finance'],
+      submenu: [
+        { label: 'Finance Dashboard', path: '/finance' },
+        { label: 'Vendor Payments', path: '/finance/vendor-payments' },
+        { label: 'AR Collection', path: '/finance/collections' },
+        { label: 'Customer Ledger', path: '/finance/customer-ledger' },
+        { label: 'Bank Reconciliation', path: '/finance/bank' },
+        { label: 'Financial Statements', path: '/finance/reporting' },
+        { label: 'Budget Management', path: '/finance/budgets' },
+        { label: 'Expense Management', path: '/finance/expenses' },
+        { label: 'Tax Reports', path: '/finance/tax' },
+        { label: 'NRE Costs', path: '/finance/nre' },
+        { label: 'Fixed Assets', path: '/finance/assets' },
+        { label: 'Cash Forecast', path: '/finance/cash-forecast' },
+        { label: 'Currency Settings', path: '/finance/currencies' },
+      ],
+    },
+    {
       key: 'reports',
       icon: BarChart3,
-      label: 'Intelligence',
+      label: 'Reports',
+      roles: ['admin', 'finance', 'sales', 'production', 'procurement'],
       submenu: [
         { label: 'P&L Statement', path: '/reports/p-and-l' },
         { label: 'Overhead Analysis', path: '/reports/overheads' },
-        { label: 'Inventory Reports', path: '/reports' },
+        { label: 'All Reports', path: '/reports' },
+      ],
+    },
+    {
+      key: 'settings',
+      icon: Settings,
+      label: 'Security & Settings',
+      roles: ['admin'],
+      submenu: [
+        { label: 'System Audit Logs', path: '/settings/audit-logs' },
       ],
     },
   ];
 
+  const menuItems = allMenuItems.filter(item => roleAuth(item.roles));
+
   return (
     <div className={cn(
-      "fixed left-0 top-0 z-40 h-full bg-white/80 backdrop-blur-xl border-r border-white/20 shadow-2xl transition-all duration-500 ease-out",
+      "fixed left-0 top-0 z-40 h-full flex flex-col bg-white/80 backdrop-blur-xl border-r border-white/20 shadow-2xl transition-all duration-500 ease-out",
       isCollapsed ? "w-16" : "w-64"
     )}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-white/20 bg-gradient-to-r from-white/40 to-white/20 backdrop-blur-sm">
+      <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-white/20 bg-gradient-to-r from-white/40 to-white/20 backdrop-blur-sm">
         {!isCollapsed && (
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-white/30">
@@ -167,8 +218,8 @@ const ERPSidebar: React.FC<ERPSidebarProps> = ({ isCollapsed, onToggle }) => {
         </Button>
       </div>
 
-      {/* Main Menu */}
-      <div className="flex-1 overflow-y-auto py-4">
+      {/* Main Menu - scrollable */}
+      <div className="flex-1 overflow-y-auto py-4 scrollbar-thin" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 transparent' }}>
         <nav className="space-y-2">
           {menuItems.map((item, index) => (
             <div key={index}>

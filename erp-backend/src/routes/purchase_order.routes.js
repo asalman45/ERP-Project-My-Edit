@@ -2,7 +2,7 @@
 import express from 'express';
 import {
   listPurchaseOrders, getPurchaseOrder, createPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, updateStatus,
-  getPOItems, addPOItem, updatePOItem, deletePOItem
+  getPOItems, addPOItem, updatePOItem, deletePOItem, approvePurchaseOrder, rejectPurchaseOrder
 } from '../controllers/purchase_order.controller.js';
 
 const router = express.Router();
@@ -20,5 +20,9 @@ router.get('/:poId/items', getPOItems);
 router.post('/:poId/items', addPOItem);
 router.patch('/items/:itemId', updatePOItem);
 router.delete('/items/:itemId', deletePOItem);
+
+// Approvals
+router.post('/:id/approve', approvePurchaseOrder);
+router.post('/:id/reject', rejectPurchaseOrder);
 
 export default router;

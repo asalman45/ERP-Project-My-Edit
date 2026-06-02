@@ -22,21 +22,42 @@ export const getRawMaterial = async (req, res) => {
 };
 
 export const createRawMaterial = async (req, res) => {
+  const standard_cost = req.body.standard_cost;
+  if (req.body.standard_cost !== undefined) delete req.body.standard_cost;
+
   const { error, value } = validateRawMaterialCreate(req.body);
   if (error) return res.status(400).json({ error: error.details.map(d => d.message) });
 
   try {
     const rawMaterial = await rawMaterialModel.create(value);
+
+    // --> HOOK: Standard Cost Ledger Init
+    if (standard_cost && parseFloat(standard_cost) > 0) {
+      try {
+        const db = (await import('../utils/db.js')).default;
+        const { v4: uuidv4 } = await import('uuid');
+        await db.query(`
+          INSERT INTO standard_cost_ledger 
+          (cost_id, material_id, effective_date, standard_cost, moving_average_cost)
+          VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4)
+        `, [uuidv4(), rawMaterial.raw_material_id, parseFloat(standard_cost), parseFloat(standard_cost)]);
+        logger.info({ raw_material_id: rawMaterial.raw_material_id, standard_cost }, 'Standard Cost initialized');
+      } catch (err) {
+        logger.error({ err }, 'Failed to initialize standard cost for RM');
+      }
+    }
+    // <-- END HOOK
+
     logger.info({ raw_material_id: rawMaterial.raw_material_id }, 'raw material created');
     return res.status(201).json({ data: rawMaterial });
   } catch (err) {
     // Handle duplicate key constraint violations
     if (err.code === '23505' && err.constraint === 'raw_material_material_code_key') {
-      return res.status(409).json({ 
-        error: `Material code '${value.material_code}' already exists. Please use a different material code.` 
+      return res.status(409).json({
+        error: `Material code '${value.material_code}' already exists. Please use a different material code.`
       });
     }
-    
+
     // Handle other database errors
     logger.error({ err, material_code: value.material_code }, 'Failed to create raw material');
     return res.status(500).json({ error: 'Failed to create raw material. Please try again.' });
@@ -65,34 +86,34 @@ export const deleteRawMaterial = async (req, res) => {
     return res.status(204).send();
   } catch (err) {
     logger.error({ err, raw_material_id: req.params.id }, 'Failed to delete raw material');
-    
+
     // Handle foreign key constraint violations with detailed reference information
     if (err.code === '23503' || err.issues) {
       // Build detailed error message
       let errorMessage = 'Cannot delete this raw material. It is currently being used in:\n';
-      
+
       if (err.issues && err.issues.length > 0) {
         errorMessage += err.issues.join(', ');
       } else {
         errorMessage += 'inventory, BOM items, purchase orders, or other transactions';
       }
-      
+
       errorMessage += '\n\nPlease remove all references first.';
-      
-      return res.status(409).json({ 
+
+      return res.status(409).json({
         error: errorMessage,
         references: err.references || {},
         issues: err.issues || []
       });
     }
-    
+
     // Handle other database constraint violations
     if (err.code && err.code.startsWith('23')) {
-      return res.status(409).json({ 
-        error: `Cannot delete this raw material: ${err.message || 'Database constraint violation'}` 
+      return res.status(409).json({
+        error: `Cannot delete this raw material: ${err.message || 'Database constraint violation'}`
       });
     }
-    
+
     return res.status(500).json({ error: 'Failed to delete raw material. Please try again.' });
   }
 };
@@ -136,14 +157,14 @@ export const importRawMaterials = async (req, res) => {
       // Remove BOM if present
       const cleanData = csvData.replace(/^\uFEFF/, '');
       const lines = cleanData.split('\n').filter(line => line.trim());
-      
+
       if (!lines.length) {
         return res.status(400).json({ error: 'CSV file is empty' });
       }
-      
+
       const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, '').toLowerCase());
       logger.debug({ headers, headerCount: headers.length }, 'CSV headers parsed');
-      
+
       for (let i = 1; i < lines.length; i++) {
         const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
         const row = {};
@@ -153,7 +174,7 @@ export const importRawMaterials = async (req, res) => {
         logger.debug({ row, lineNumber: i + 1, values, valueCount: values.length }, 'CSV row parsed');
         rawMaterialData.push(row);
       }
-    } 
+    }
     // Parse Excel
     else if (fileExtension === '.xlsx' || fileExtension === '.xls') {
       const workbook = XLSX.read(file.buffer, { type: 'buffer' });
@@ -177,7 +198,7 @@ export const importRawMaterials = async (req, res) => {
       try {
         // Debug: Log the row to see what we're getting
         logger.debug({ row, rowKeys: Object.keys(row) }, 'Processing row');
-        
+
         // Map CSV/Excel columns to raw material fields
         // Headers are converted to lowercase, so use lowercase keys
         const material_code = String(row.material_code || row['material_code'] || '').trim();
@@ -185,6 +206,7 @@ export const importRawMaterials = async (req, res) => {
         const description = String(row.description || '').trim();
         const uom_id = row.uom_id ? String(row.uom_id).trim() : null;
         const uom_code = String(row.uom_code || '').trim();
+        const hs_code = String(row.hs_code || row.hscode || row['hs code'] || row['hs_code'] || '').trim();
 
         // Validate required fields
         if (!material_code || !name) {
@@ -211,7 +233,8 @@ export const importRawMaterials = async (req, res) => {
           material_code,
           name,
           description: description || '',
-          uom_id: resolvedUomId
+          uom_id: resolvedUomId,
+          hs_code: hs_code || null
         });
       } catch (error) {
         errors.push(`Row ${i + 2}: ${error.message}`);
@@ -219,13 +242,13 @@ export const importRawMaterials = async (req, res) => {
     }
 
     if (processed.length === 0) {
-      logger.error({ 
-        errors, 
+      logger.error({
+        errors,
         rawMaterialDataLength: rawMaterialData.length,
         sampleRow: rawMaterialData[0],
         sampleRowKeys: rawMaterialData[0] ? Object.keys(rawMaterialData[0]) : []
       }, 'No valid rows to import');
-      
+
       return res.status(400).json({
         error: 'No valid rows to import',
         details: errors,
@@ -287,21 +310,19 @@ export const exportRawMaterials = async (req, res) => {
   try {
     const { format = 'json' } = req.query;
 
-    const rawMaterialsData = await rawMaterialModel.findAll({ 
+    const rawMaterialsData = await rawMaterialModel.findAll({
       limit: 10000,
       offset: 0,
     });
 
     if (format === 'csv') {
       const csvHeaders =
-        'Raw Material ID,Material Code,Name,Description,UOM Code,UOM Name,Created At\n';
+        'Raw Material ID,Material Code,Name,Description,HS Code,UOM Code,UOM Name,Created At\n';
       const csvRows = rawMaterialsData
         .map(
           (item) =>
-            `"${item.raw_material_id}","${item.material_code || ''}","${
-              item.name || ''
-            }","${item.description || ''}","${item.uom_code || ''}","${
-              item.uom_name || ''
+            `"${item.raw_material_id}","${item.material_code || ''}","${item.name || ''
+            }","${item.description || ''}","${item.hs_code || ''}","${item.uom_code || ''}","${item.uom_name || ''
             }","${item.created_at || ''}"`
         )
         .join('\n');
@@ -360,6 +381,7 @@ export const exportRawMaterials = async (req, res) => {
                     <th>Material Code</th>
                     <th>Name</th>
                     <th>Description</th>
+                    <th>HS Code</th>
                     <th>UOM Code</th>
                     <th>UOM Name</th>
                     <th>Created At</th>
@@ -367,18 +389,19 @@ export const exportRawMaterials = async (req, res) => {
                 </thead>
                 <tbody>
                   ${rawMaterialsData
-                    .map(
-                      (item) => `
+            .map(
+              (item) => `
                     <tr>
                       <td>${item.material_code || ''}</td>
                       <td>${item.name || ''}</td>
                       <td>${item.description || ''}</td>
+                      <td>${item.hs_code || ''}</td>
                       <td>${item.uom_code || ''}</td>
                       <td>${item.uom_name || ''}</td>
                       <td>${item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}</td>
                     </tr>`
-                    )
-                    .join('')}
+            )
+            .join('')}
                 </tbody>
               </table>
               <div class="footer">
@@ -417,7 +440,7 @@ export const exportRawMaterials = async (req, res) => {
         });
       }
     }
-    
+
     return res.json({ data: rawMaterialsData });
   } catch (error) {
     logger.error({ error }, 'Failed to export raw materials data');

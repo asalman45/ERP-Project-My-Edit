@@ -78,7 +78,7 @@ export default function StockIn() {
 
   const fetchMaterials = async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/materials');
+      const response = await fetch('/api/materials');
       if (response.ok) {
         const data = await response.json();
         setMaterials(Array.isArray(data) ? data : data.data || []);
@@ -91,7 +91,7 @@ export default function StockIn() {
 
   const fetchLocations = async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/locations');
+      const response = await fetch('/api/locations');
       if (response.ok) {
         const data = await response.json();
         setLocations(Array.isArray(data) ? data : data.data || []);
@@ -105,7 +105,7 @@ export default function StockIn() {
   const fetchStockInRecords = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:4000/api/inventory/stock-in');
+      const response = await fetch('/api/inventory/stock-in');
       if (response.ok) {
         const data = await response.json();
         setStockInRecords(Array.isArray(data) ? data : data.data || []);
@@ -120,7 +120,7 @@ export default function StockIn() {
 
   const createStockInRecord = async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/inventory/stock-in', {
+      const response = await fetch('/api/inventory/stock-in', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -340,7 +340,7 @@ export default function StockIn() {
                 <Truck className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">Rs {totalStockInValue.toLocaleString()}</div>
+                <div className="text-2xl font-bold">Rs. {totalStockInValue.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">
                   Total stock in value
                 </p>
@@ -385,7 +385,7 @@ export default function StockIn() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">Rs {record.total_cost.toLocaleString()}</p>
+                        <p className="font-medium">Rs. {record.total_cost.toLocaleString()}</p>
                         <div className="flex items-center gap-2">
                           {getStatusBadge(record.status)}
                           <span className="text-sm text-muted-foreground">
@@ -433,7 +433,7 @@ export default function StockIn() {
                         <TableCell>{record.location}</TableCell>
                         <TableCell>{record.supplier}</TableCell>
                         <TableCell>{record.purchase_order_ref}</TableCell>
-                        <TableCell>Rs {record.total_cost.toLocaleString()}</TableCell>
+                        <TableCell>Rs. {record.total_cost.toLocaleString()}</TableCell>
                         <TableCell>{new Date(record.received_date).toLocaleDateString()}</TableCell>
                         <TableCell>{getStatusBadge(record.status)}</TableCell>
                       </TableRow>

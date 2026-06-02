@@ -5,100 +5,237 @@ import autoTable from 'jspdf-autotable';
 /**
  * Generate PDF file from report data
  */
+/**
+ * Generate PDF file from report data with professional styling
+ */
 export async function generatePDFFromReport(reportData, reportType) {
   try {
-    const doc = new jsPDF();
-    
-    // Set font
-    doc.setFont('helvetica');
-    
-    // Add title
-    doc.setFontSize(20);
-    doc.text(reportData.title, 20, 20);
-    
-    // Add generation info
+    // 4. Intelligent Page Handling: Auto-Orientation
+    const colCount = reportData.data && reportData.data.length > 0 ? Object.keys(reportData.data[0]).length : 0;
+    const isLandscape = colCount > 6;
+    const orientation = isLandscape ? 'landscape' : 'portrait';
+
+    const doc = new jsPDF({
+      orientation: orientation,
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 20; // 0.5-inch to 1-inch uniform margin
+
+    // --- 1. Standardized Document Layout (Header) ---
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, pageWidth, 40, 'F');
+
+    // Header Left: Company Logo / Name
+    doc.setTextColor(30, 64, 175); // Deep blue (#1e40af)
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.text('EMPCL ERP', margin, 25);
+
+    // Header Center: Report Title
+    doc.setTextColor(15, 23, 42); // Dark gray (#0f172a)
+    doc.setFontSize(18);
+    const titleWidth = doc.getTextWidth(reportData.title.toUpperCase());
+    doc.text(reportData.title.toUpperCase(), (pageWidth - titleWidth) / 2, 25);
+
+    // Header Right: Date, Time & User
+    doc.setTextColor(100, 116, 139); // Slate (#64748b)
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    const genDate = reportData.generated_at ? new Date(reportData.generated_at).toLocaleString() : new Date().toLocaleString();
+    const rightText1 = `Generated: ${genDate}`;
+    const rightText2 = `User: System Admin`;
+    doc.text(rightText1, pageWidth - margin - doc.getTextWidth(rightText1), 20);
+    doc.text(rightText2, pageWidth - margin - doc.getTextWidth(rightText2), 26);
+
+    // Divider Line
+    doc.setDrawColor(226, 232, 240); // Light gray (#e2e8f0)
+    doc.setLineWidth(0.5);
+    doc.line(margin, 35, pageWidth - margin, 35);
+
+    let currentY = 45;
+
+    // --- Report Scope & Filters ---
     doc.setFontSize(10);
-    doc.text(`Generated at: ${reportData.generated_at}`, 20, 30);
-    
-    if (reportData.period) {
-      doc.text(`Period: ${reportData.period.start_date} to ${reportData.period.end_date}`, 20, 35);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(51, 65, 85);
+
+    if (reportData.period && reportData.period.start_date !== 'N/A') {
+      doc.text(`Period: ${reportData.period.start_date} to ${reportData.period.end_date}`, margin, currentY);
+      currentY += 8;
+    } else if (reportData.filters && reportData.filters['Date Range']) {
+      doc.text(`Period: ${reportData.filters['Date Range']}`, margin, currentY);
+      currentY += 8;
     }
-    
-    // Add filters if any
-    if (reportData.filters) {
-      doc.text('Filters:', 20, 45);
-      let yPos = 50;
-      Object.entries(reportData.filters).forEach(([key, value]) => {
-        doc.text(`${key}: ${value}`, 25, yPos);
-        yPos += 5;
-      });
+
+    if (reportData.filters && Object.keys(reportData.filters).filter(k => k !== 'Date Range').length > 0) {
+      doc.setFont('helvetica', 'normal');
+      let filterString = Object.entries(reportData.filters)
+        .filter(([k]) => k !== 'Date Range')
+        .map(([k, v]) => `${k}: ${v}`)
+        .join('  |  ');
+      doc.text(`Filters: ${filterString}`, margin, currentY);
+      currentY += 12;
+    } else {
+      currentY += 4;
     }
-    
-    let currentY = 70;
-    
-    // Add summary section
-    if (reportData.summary) {
-      doc.setFontSize(14);
-      doc.text('Summary', 20, currentY);
-      currentY += 10;
-      
-      doc.setFontSize(10);
-      Object.entries(reportData.summary).forEach(([key, value]) => {
-        doc.text(`${key}: ${value}`, 25, currentY);
-        currentY += 5;
-      });
-      currentY += 5;
-    }
-    
-    // Add data table
+
+    let footData = [];
+
+    // --- Data Table with 2. Smart Table Alignment & 3. Professional Styling ---
     if (reportData.data && reportData.data.length > 0) {
-      doc.setFontSize(14);
-      doc.text('Data', 20, currentY);
-      currentY += 10;
-      
-      // Prepare table data
-      const tableData = reportData.data.map(row => {
-        // Convert object to array of values
-        return Object.values(row);
-      });
-      
-      // Get headers from first row
       const headers = Object.keys(reportData.data[0]);
-      
-      // Add table
+      const tableData = reportData.data.map(row => Object.values(row));
+
+      // Calculate Footer "Grand Total" Row if summary matches headers
+      if (reportData.summary) {
+        const footRow = headers.map(h => {
+          // Attempt to map summary keys to header names (e.g. Total_Amount matches total_amount)
+          const searchKey = h.toLowerCase().replace(/_/g, '');
+          const sumKey = Object.keys(reportData.summary).find(k => k.toLowerCase().replace(/_/g, '').includes(searchKey) || searchKey.includes(k.toLowerCase().replace(/_/g, '')));
+
+          if (h.toLowerCase().includes('total') || h.toLowerCase().includes('amount') || h.toLowerCase().includes('qty') || h.toLowerCase().includes('value')) {
+            if (sumKey) return String(reportData.summary[sumKey]);
+          }
+          if (h === headers[0]) return 'GRAND TOTAL';
+          return '';
+        });
+        footData.push(footRow);
+      }
+
       autoTable(doc, {
-        head: [headers],
+        head: [headers.map(h => h.replace(/_/g, ' ').toUpperCase())],
         body: tableData,
+        foot: footData.length > 0 ? footData : null,
         startY: currentY,
+        theme: 'grid',
+        margin: { left: margin, right: margin },
         styles: {
-          fontSize: 8,
-          cellPadding: 3,
+          font: 'helvetica',
+          fontSize: 9,
+          cellPadding: 4,
+          lineColor: [226, 232, 240], // 1px solid light gray
+          lineWidth: 0.1,
+          overflow: 'linebreak',
+          valign: 'middle'
         },
         headStyles: {
-          fillColor: [66, 139, 202],
+          fillColor: [30, 41, 59], // Dark background (#1e293b)
           textColor: 255,
+          fontStyle: 'bold',
+          halign: 'left' // Default, will override in didParseCell
+        },
+        footStyles: {
+          fillColor: [241, 245, 249], // Very light gray for totals
+          textColor: [15, 23, 42],
           fontStyle: 'bold',
         },
         alternateRowStyles: {
-          fillColor: [245, 245, 245],
+          fillColor: [248, 250, 252], // Zebra Striping: subtle light-gray (#f8fafc)
         },
-        margin: { left: 20, right: 20 },
+        // 4. Intelligent Page Handling: Page Break Prevention
+        pageBreak: 'auto',
+        rowPageBreak: 'avoid',
+
+        didParseCell: function (data) {
+          // 2. Smart Table Alignment Rules
+          const colTitle = data.column.dataKey !== undefined && headers[data.column.dataKey] ? String(headers[data.column.dataKey]).toUpperCase() : '';
+          const cellContent = data.cell.raw ? String(data.cell.raw).toUpperCase() : '';
+
+          let align = 'left'; // Text Columns: Left-aligned (Default)
+
+          // Number & Currency Columns: Strictly Right-aligned
+          if (
+            colTitle.includes('QTY') ||
+            colTitle.includes('AMOUNT') ||
+            colTitle.includes('PRICE') ||
+            colTitle.includes('COST') ||
+            colTitle.includes('TOTAL') ||
+            colTitle.includes('BALANCE') ||
+            colTitle.includes('DEBIT') ||
+            colTitle.includes('CREDIT') ||
+            (!isNaN(parseFloat(data.cell.raw)) && isFinite(data.cell.raw) && !colTitle.includes('NO') && !colTitle.includes('ID') && !colTitle.includes('REF'))
+          ) {
+            align = 'right';
+          }
+
+          // Date & Status Columns: Center-aligned
+          if (
+            colTitle.includes('DATE') ||
+            colTitle.includes('STATUS') ||
+            colTitle.includes('TYPE') ||
+            cellContent === 'COMPLETED' ||
+            cellContent === 'PENDING' ||
+            cellContent === 'DELIVERED' ||
+            cellContent === 'SHIPPED'
+          ) {
+            align = 'center';
+          }
+
+          data.cell.styles.halign = align;
+        }
+      });
+
+      currentY = doc.lastAutoTable.finalY + 15;
+    }
+
+    // --- Fallback Summary Section (If Table Footer isn't enough) ---
+    if (reportData.summary && footData.length === 0) {
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 41, 59);
+      doc.text('REPORT SUMMARY', margin, currentY);
+      currentY += 8;
+
+      const summaryEntries = Object.entries(reportData.summary);
+      let summaryX = margin;
+
+      doc.setFontSize(10);
+      summaryEntries.forEach(([key, value]) => {
+        const label = key.replace(/_/g, ' ').toUpperCase() + ':';
+        doc.setFont('helvetica', 'bold');
+        doc.text(label, summaryX, currentY);
+
+        doc.setFont('helvetica', 'normal');
+        doc.text(String(value ?? '0'), summaryX + doc.getTextWidth(label) + 2, currentY);
+
+        summaryX += 60;
+        if (summaryX > pageWidth - margin - 40) {
+          summaryX = margin;
+          currentY += 8;
+        }
       });
     }
-    
-    // Add page numbers
+
+    // --- 1. Standardized Document Layout (Footer) ---
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
+
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.5);
+      doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+
       doc.setFontSize(8);
-      doc.text(`Page ${i} of ${pageCount}`, 20, doc.internal.pageSize.height - 10);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(148, 163, 184); // Muted gray
+
+      // Footer Left: Confidentiality Notice
+      doc.text('CONFIDENTIAL - SYSTEM GENERATED REPORT', margin, pageHeight - 8);
+
+      // Footer Right: Page Numbering
+      const pageText = `Page ${i} of ${pageCount}`;
+      doc.text(pageText, pageWidth - margin - doc.getTextWidth(pageText), pageHeight - 8);
     }
-    
+
     return doc.output('arraybuffer');
-    
+
   } catch (error) {
     console.error('PDF generation error:', error);
-    throw new Error('Failed to generate PDF: ' + error.message);
+    throw new Error('Failed to generate professional PDF: ' + error.message);
   }
 }
 
@@ -107,122 +244,178 @@ export async function generatePDFFromReport(reportData, reportType) {
  */
 export async function generatePDFFromMonthlyReport(reportData) {
   try {
-    const doc = new jsPDF('landscape', 'mm', 'a4');
-    
-    // Set font
-    doc.setFont('helvetica');
-    
-    // Add title - large and centered
-    doc.setFontSize(24);
+    const orientation = 'landscape';
+    const doc = new jsPDF(orientation, 'mm', 'a4');
+
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 20;
+
+    // --- 1. Standardized Document Layout (Header) ---
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, pageWidth, 40, 'F');
+
+    doc.setTextColor(30, 64, 175);
     doc.setFont('helvetica', 'bold');
-    doc.text(reportData.title, 150, 20, { align: 'center' });
-    
-    // Add company name
-    doc.setFontSize(12);
+    doc.setFontSize(22);
+    doc.text('EMPCL ERP', margin, 25);
+
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(18);
+    const titleWidth = doc.getTextWidth(reportData.title.toUpperCase());
+    doc.text(reportData.title.toUpperCase(), (pageWidth - titleWidth) / 2, 25);
+
+    doc.setTextColor(100, 116, 139);
     doc.setFont('helvetica', 'normal');
-    doc.text(reportData.company_name, 20, 35);
-    
+    doc.setFontSize(9);
+    const genDate = new Date().toLocaleString();
+    const rightText1 = `Generated: ${genDate}`;
+    const rightText2 = `User: System Admin`;
+    doc.text(rightText1, pageWidth - margin - doc.getTextWidth(rightText1), 20);
+    doc.text(rightText2, pageWidth - margin - doc.getTextWidth(rightText2), 26);
+
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.5);
+    doc.line(margin, 35, pageWidth - margin, 35);
+
+    let currentY = 45;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(51, 65, 85);
+    doc.text(`Company: ${reportData.company_name}`, margin, currentY);
+    currentY += 10;
+
     // Prepare table data
     const tableData = reportData.products.map((product, index) => {
-      const row = [
-        index + 1, // Model/Row number
-        product.product_code, // Part Number
-        product.part_name, // Part Name
-        product.opening_stock, // Opening Stock
-        product.produced_quantity, // Quantity Produced
-        product.total_inventory, // Total Inventory
-        ...reportData.sale_dates.map(date => product.daily_sales[date] || 0), // Daily Sales
-        product.total_sales, // Total Sales
-        product.closing_stock // Closing Stock
+      return [
+        index + 1,
+        product.product_code,
+        product.part_name,
+        product.opening_stock,
+        product.produced_quantity,
+        product.total_inventory,
+        ...reportData.sale_dates.map(date => product.daily_sales[date] || 0),
+        product.total_sales,
+        product.closing_stock
       ];
-      return row;
     });
-    
+
     // Prepare headers
     const headers = [
       'Model',
-      'Part Number', 
+      'Part Number',
       'Part Name',
-      'Opening (Nos)',
-      'Quantity Produced During the Month (Nos)',
-      'Total Inventory (Nos)',
+      'Opening (Qty)',
+      'Produced (Qty)',
+      'Total Inv (Qty)',
       ...reportData.sale_dates.map(date => {
         const dateObj = new Date(date);
-        return dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+        return dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
       }),
-      'Total Quantity Sold During The Month (Units)',
-      'Closing Stock (Nos)'
+      'Total Sold (Qty)',
+      'Closing (Qty)'
     ];
-    
-    // Add table with custom styling
+
+    // Footer Grand Total Row
+    let footRow = new Array(headers.length).fill('');
+    footRow[2] = 'GRAND TOTAL';
+
+    let totalOpening = 0, totalProduced = 0, totalInventoryTotal = 0, totalSalesTotal = 0, totalClosing = 0;
+
+    reportData.products.forEach(p => {
+      totalOpening += Number(p.opening_stock || 0);
+      totalProduced += Number(p.produced_quantity || 0);
+      totalInventoryTotal += Number(p.total_inventory || 0);
+      totalSalesTotal += Number(p.total_sales || 0);
+      totalClosing += Number(p.closing_stock || 0);
+    });
+
+    footRow[3] = totalOpening;
+    footRow[4] = totalProduced;
+    footRow[5] = totalInventoryTotal;
+    footRow[footRow.length - 2] = totalSalesTotal;
+    footRow[footRow.length - 1] = totalClosing;
+
     autoTable(doc, {
       head: [headers],
       body: tableData,
-      startY: 45,
+      foot: [footRow],
+      startY: currentY,
+      theme: 'grid',
+      margin: { left: margin, right: margin },
       styles: {
-        fontSize: 8,
-        cellPadding: 2,
+        font: 'helvetica',
+        fontSize: 7,
+        cellPadding: 3,
+        lineColor: [226, 232, 240], // 1px solid light gray
+        lineWidth: 0.1,
         overflow: 'linebreak',
-        halign: 'center',
         valign: 'middle'
       },
       headStyles: {
-        fillColor: [173, 216, 230], // Light blue background
-        textColor: 0,
+        fillColor: [30, 41, 59], // Dark background (#1e293b)
+        textColor: 255,
         fontStyle: 'bold',
-        halign: 'center',
-        valign: 'middle'
+        halign: 'center'
+      },
+      footStyles: {
+        fillColor: [241, 245, 249],
+        textColor: [15, 23, 42],
+        fontStyle: 'bold',
       },
       alternateRowStyles: {
-        fillColor: [240, 248, 255], // Light blue alternate rows
+        fillColor: [248, 250, 252], // Zebra striping
       },
-      columnStyles: {
-        0: { halign: 'center' }, // Model column
-        1: { halign: 'left' }, // Part Number
-        2: { halign: 'left' }, // Part Name
-        3: { halign: 'right' }, // Opening Stock
-        4: { halign: 'right' }, // Produced Quantity
-        5: { halign: 'right' }, // Total Inventory
-        // Sales columns
-        ...Object.fromEntries(
-          reportData.sale_dates.map((_, index) => [6 + index, { halign: 'right' }])
-        ),
-        // Total Sales and Closing Stock
-        [6 + reportData.sale_dates.length]: { halign: 'right' }, // Total Sales
-        [7 + reportData.sale_dates.length]: { halign: 'right' }  // Closing Stock
-      },
-      didParseCell: function(data) {
-        // Highlight production quantities in yellow
-        if (data.column.index === 4 && data.cell.raw > 0) {
-          data.cell.styles.fillColor = [255, 255, 0]; // Yellow
+      pageBreak: 'auto',
+      rowPageBreak: 'avoid',
+
+      didParseCell: function (data) {
+        // Smart Table Alignment Rules & Custom Highlights
+        let align = 'right'; // Default numbers to right
+
+        if (data.column.index === 0 || data.column.index === 1 || data.column.index === 2) {
+          align = 'left';
         }
-        
-        // Highlight closing stock in red if low
-        if (data.column.index === 7 + reportData.sale_dates.length && data.cell.raw < 10) {
-          data.cell.styles.textColor = [255, 0, 0]; // Red text
+
+        data.cell.styles.halign = align;
+
+        // Custom Highlighting for Monthly Report
+        if (data.section === 'body') {
+          if (data.column.index === 4 && Number(data.cell.raw) > 0) {
+            data.cell.styles.fillColor = [254, 252, 232]; // Subtle yellow
+          }
+          if (data.column.index === headers.length - 1 && Number(data.cell.raw) < 10) {
+            data.cell.styles.textColor = [220, 38, 38]; // Red text
+          }
+          const cellRawStr = data.cell.raw ? String(data.cell.raw) : '';
+          if (data.column.index === 2 && (cellRawStr.includes('NMR') || cellRawStr.includes('NLR'))) {
+            data.cell.styles.textColor = [220, 38, 38];
+          }
         }
-        
-        // Highlight special part names in red
-        if (data.column.index === 2 && data.cell.raw && 
-            (data.cell.raw.includes('NMR') || data.cell.raw.includes('NLR'))) {
-          data.cell.styles.textColor = [255, 0, 0]; // Red text
-        }
-      },
-      margin: { left: 10, right: 10 },
-      tableWidth: 'auto'
+      }
     });
-    
-    // Add footer
+
+    // --- 1. Standardized Document Layout (Footer) ---
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
+
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.5);
+      doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+
       doc.setFontSize(8);
-      doc.text(`Generated by EmpclERP System - Page ${i} of ${pageCount}`, 
-               20, doc.internal.pageSize.height - 10);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(148, 163, 184);
+
+      doc.text('CONFIDENTIAL - SYSTEM GENERATED REPORT', margin, pageHeight - 8);
+      const pageText = `Page ${i} of ${pageCount}`;
+      doc.text(pageText, pageWidth - margin - doc.getTextWidth(pageText), pageHeight - 8);
     }
-    
+
     return doc.output('arraybuffer');
-    
+
   } catch (error) {
     console.error('Monthly report PDF generation error:', error);
     throw new Error('Failed to generate monthly report PDF: ' + error.message);

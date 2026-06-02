@@ -5,18 +5,21 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Factory, 
-  Package, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle, 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Factory,
+  Package,
+  Clock,
+  CheckCircle,
+  AlertCircle,
   Play,
   Pause,
   RotateCcw,
   TrendingUp,
   Users,
-  Settings
+  Settings,
+  Loader2
 } from 'lucide-react';
 import { api } from '@/services/api';
 import websocketService from '@/services/websocket.service';
@@ -62,6 +65,9 @@ const ProductionTracking: React.FC = () => {
   const [productionOrders, setProductionOrders] = useState<ProductionOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<ProductionOrder | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [newStatus, setNewStatus] = useState<string>('');
+  const { toast } = useToast();
 
   useEffect(() => {
     // Connect to WebSocket
@@ -117,6 +123,36 @@ const ProductionTracking: React.FC = () => {
     } catch (error) {
       console.error('Failed to fetch production orders:', error);
       setLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async () => {
+    if (!selectedOrder || !newStatus) return;
+
+    try {
+      setUpdatingStatus(true);
+      await api.put(`/hierarchical-work-order/${selectedOrder.wo_id}/status`, {
+        status: newStatus
+      });
+
+      toast({
+        title: 'Success',
+        description: 'Work order status updated successfully',
+      });
+
+      setSelectedOrder({ ...selectedOrder, status: newStatus });
+      setNewStatus('');
+      fetchProductionOrders();
+      fetchDashboardData();
+    } catch (error: any) {
+      console.error('Failed to update status:', error);
+      toast({
+        title: 'Error',
+        description: error?.response?.data?.error || 'Failed to update work order status',
+        variant: 'destructive',
+      });
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -353,10 +389,40 @@ const ProductionTracking: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex justify-end space-x-2 pt-4">
-                  <Button variant="outline" onClick={() => setSelectedOrder(null)}>
+                  <Button variant="outline" onClick={() => {
+                    setSelectedOrder(null);
+                    setNewStatus('');
+                  }}>
                     Close
                   </Button>
-                  <Button>Update Status</Button>
+                  {selectedOrder.status !== 'COMPLETED' && selectedOrder.status !== 'CANCELLED' && (
+                    <div className="flex items-center space-x-2">
+                      <Select
+                        value={newStatus || selectedOrder.status}
+                        onValueChange={(value) => setNewStatus(value)}
+                      >
+                        <SelectTrigger className="w-40">
+                          <SelectValue placeholder="Update status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {selectedOrder.status === 'PLANNED' && (
+                            <SelectItem value="IN_PROGRESS">Start Production</SelectItem>
+                          )}
+                          {selectedOrder.status === 'IN_PROGRESS' && (
+                            <SelectItem value="COMPLETED">Complete</SelectItem>
+                          )}
+                          <SelectItem value="CANCELLED">Cancel</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        onClick={handleUpdateStatus}
+                        disabled={updatingStatus || !newStatus || newStatus === selectedOrder.status}
+                      >
+                        {updatingStatus ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                        Update Status
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>

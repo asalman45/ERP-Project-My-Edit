@@ -10,7 +10,7 @@ class WebSocketService {
       return;
     }
 
-    this.socket = io('http://localhost:4000', {
+    this.socket = io('/', {
       transports: ['websocket', 'polling'],
       timeout: 20000,
       forceNew: true
@@ -18,7 +18,7 @@ class WebSocketService {
 
     this.socket.on('connect', () => {
       console.log('Connected to WebSocket server');
-      
+
       // Join relevant rooms for real-time updates
       this.socket?.emit('join-room', 'work-orders');
       this.socket?.emit('join-room', 'production-tracking');

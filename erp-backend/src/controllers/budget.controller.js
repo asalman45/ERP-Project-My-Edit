@@ -5,6 +5,22 @@ import { logger } from '../utils/logger.js';
 const prisma = new PrismaClient();
 
 /**
+ * Get all budgets
+ * GET /api/finance/budgets
+ */
+export async function getBudgets(req, res) {
+    try {
+        const budgets = await prisma.budget.findMany({
+            include: { account: true },
+            orderBy: { fiscal_year: 'desc' }
+        });
+        res.json({ success: true, data: budgets });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+}
+
+/**
  * Set or Update Budget for an account
  * POST /api/finance/budgets
  */
@@ -99,6 +115,7 @@ export async function getNotifications(req, res) {
 }
 
 export default {
+    getBudgets,
     setBudget,
     checkBudgetVariances,
     getNotifications

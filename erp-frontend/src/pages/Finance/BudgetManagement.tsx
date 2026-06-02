@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Target, AlertTriangle, CheckCircle2, RefreshCcw, Save } from "lucide-react";
@@ -85,7 +85,7 @@ const BudgetManagement: React.FC = () => {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹{budgets.reduce((s, b) => s + parseFloat(b.budget), 0).toLocaleString()}</div>
+                        <div className="text-2xl font-bold">Rs. {budgets.reduce((s, b) => s + parseFloat(b.budget), 0).toLocaleString()}</div>
                         <p className="text-xs opacity-80 mt-1">Total approved budget for FY 2023-24</p>
                     </CardContent>
                 </Card>
@@ -120,7 +120,7 @@ const BudgetManagement: React.FC = () => {
                                         <TableCell>
                                             <Badge variant="outline">{utilization > 100 ? "OVER-BUDGET" : "ACTIVE"}</Badge>
                                         </TableCell>
-                                        <TableCell className="text-right font-bold">₹{b.actual.toLocaleString()}</TableCell>
+                                        <TableCell className="text-right font-bold">Rs. {b.actual.toLocaleString()}</TableCell>
                                         <TableCell className="text-right">
                                             <Input
                                                 type="number"

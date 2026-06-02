@@ -387,9 +387,11 @@ const CreateIPOModal: React.FC<CreateIPOModalProps> = ({
                     </SelectTrigger>
                     <SelectContent>
                       {rawMaterials.length === 0 ? (
-                        <SelectItem value="" disabled>No raw materials available</SelectItem>
+                        <SelectItem value="none" disabled>No raw materials available</SelectItem>
                       ) : (
-                        rawMaterials.map((material: any) => {
+                        rawMaterials
+                          .filter((material: any) => material.raw_material_id || material.material_id)
+                          .map((material: any) => {
                           const materialId = material.raw_material_id || material.material_id;
                           const materialCode = material.material_code || material.code || '';
                           const materialName = material.name || '';

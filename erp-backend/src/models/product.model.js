@@ -31,13 +31,13 @@ export const findById = async (productId) => {
 
 export const create = async (payload) => {
   const {
-    product_code, part_name, oem_id, model_id, uom_id, standard_cost, category
+    product_code, part_name, oem_id, model_id, uom_id, standard_cost, category, image_url, hs_code
   } = payload;
   const res = await db.query(
-    `INSERT INTO product (product_id, product_code, part_name, oem_id, model_id, uom_id, standard_cost, category)
-     VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO product (product_id, product_code, part_name, oem_id, model_id, uom_id, standard_cost, category, image_url, hs_code)
+     VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING *`,
-    [product_code, part_name, oem_id, model_id, uom_id, standard_cost, category]
+    [product_code, part_name, oem_id, model_id, uom_id, standard_cost, category, image_url || null, hs_code || null]
   );
   return res.rows[0];
 };

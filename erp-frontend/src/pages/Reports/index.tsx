@@ -1,27 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  FileText, 
-  Download, 
-  Calendar, 
-  BarChart3, 
-  Package, 
-  Factory, 
+import {
+  FileText,
+  Download,
+  Calendar,
+  BarChart3,
+  Package,
+  Factory,
   DollarSign,
   TrendingUp,
   AlertCircle,
   CheckCircle,
   Loader2,
-  ClipboardList
+  ClipboardList,
+  ShoppingCart,
+  Receipt,
+  Landmark,
+  Truck,
+  CreditCard,
+  Settings,
+  Activity,
+  GitMerge,
+  Archive,
+  Layers,
+  Warehouse
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { reportsApi } from '@/services/api';
+import { reportsApi, detailedReportsApi } from '@/services/api';
+import { salesOrderApi } from '@/pages/SalesOrder/api';
 import { useNavigate } from 'react-router-dom';
 
 interface ReportFilters {
@@ -32,6 +44,7 @@ interface ReportFilters {
   location_id?: string;
   status?: string;
   low_stock_only?: boolean;
+  customer_id?: string;
 }
 
 interface ReportConfig {
@@ -48,16 +61,23 @@ const Reports: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState<string | null>(null);
   const [filters, setFilters] = useState<ReportFilters>({});
-  const [activeTab, setActiveTab] = useState('production');
+  const [activeReport, setActiveReport] = useState('production');
+  const [activeCategory, setActiveCategory] = useState<'all' | 'sales' | 'production' | 'inventory' | 'finance'>('all');
+  const [customers, setCustomers] = useState<any[]>([]);
 
-  const reportConfigs: Record<string, ReportConfig> = {
+  useEffect(() => {
+    salesOrderApi.getCustomers().then(res => setCustomers(res || [])).catch(err => console.error('Failed to load customers:', err));
+  }, []);
+
+  const reportConfigs: Record<string, ReportConfig & { category: string }> = {
     production: {
       name: 'Production Report',
       description: 'Comprehensive production analysis including work orders, efficiency metrics, and cost analysis',
       icon: Factory,
       color: 'blue',
       filters: ['start_date', 'end_date', 'product_id', 'status'],
-      endpoint: '/production'
+      endpoint: '/production',
+      category: 'production'
     },
     scrap: {
       name: 'Scrap Management Report',
@@ -65,7 +85,8 @@ const Reports: React.FC = () => {
       icon: Package,
       color: 'orange',
       filters: ['start_date', 'end_date', 'material_id', 'location_id', 'status'],
-      endpoint: '/scrap'
+      endpoint: '/scrap',
+      category: 'production'
     },
     inventory: {
       name: 'Inventory Report',
@@ -73,7 +94,8 @@ const Reports: React.FC = () => {
       icon: BarChart3,
       color: 'green',
       filters: ['product_id', 'material_id', 'location_id', 'low_stock_only'],
-      endpoint: '/inventory'
+      endpoint: '/inventory',
+      category: 'inventory'
     },
     cost_analysis: {
       name: 'Cost Analysis Report',
@@ -81,72 +103,213 @@ const Reports: React.FC = () => {
       icon: DollarSign,
       color: 'purple',
       filters: ['start_date', 'end_date', 'product_id', 'material_id'],
-      endpoint: '/cost-analysis'
+      endpoint: '/cost-analysis',
+      category: 'finance'
     },
     monthly_inventory_sales: {
       name: 'Monthly Inventory & Sales Report',
-      description: 'Comprehensive monthly inventory and sales report with manual opening stock input and automatic calculations',
+      description: 'Comprehensive monthly inventory and sales report with manual opening stock input and automatic calculations. Opens in a dedicated tool.',
       icon: ClipboardList,
       color: 'indigo',
-      filters: ['month', 'year', 'model_id'],
-      endpoint: '/monthly-inventory-sales'
+      filters: [],
+      endpoint: '/monthly-inventory-sales',
+      category: 'inventory'
+    },
+    sales_order: {
+      name: 'Sales Order Report',
+      description: 'Detailed analysis of sales orders, shipping status, and customer performance',
+      icon: ShoppingCart,
+      color: 'blue',
+      filters: ['start_date', 'end_date'],
+      endpoint: '/detailed/sales-orders',
+      category: 'sales'
+    },
+    expense: {
+      name: 'Expense Report',
+      description: 'Breakdown of employee expense claims, categories, and approval statuses',
+      icon: Receipt,
+      color: 'orange',
+      filters: ['start_date', 'end_date', 'status'],
+      endpoint: '/detailed/expenses',
+      category: 'finance'
+    },
+    income: {
+      name: 'Income Report',
+      description: 'Revenue tracking across all posted financial transactions',
+      icon: TrendingUp,
+      color: 'green',
+      filters: ['start_date', 'end_date'],
+      endpoint: '/detailed/income',
+      category: 'finance'
+    },
+    sales_tax: {
+      name: 'Sales Tax Report',
+      description: 'Summary of tax liabilities, GST collected, and GST paid',
+      icon: Landmark,
+      color: 'purple',
+      filters: ['start_date', 'end_date'],
+      endpoint: '/detailed/sales-tax',
+      category: 'finance'
+    },
+    dispatch: {
+      name: 'Dispatch Report',
+      description: 'Analysis of product dispatches and logistics',
+      icon: Truck,
+      color: 'blue',
+      filters: ['start_date', 'end_date', 'status'],
+      endpoint: '/detailed/dispatch',
+      category: 'sales'
+    },
+    invoicing: {
+      name: 'Invoicing Report',
+      description: 'Comprehensive view of all customer and supplier invoices',
+      icon: FileText,
+      color: 'orange',
+      filters: ['start_date', 'end_date', 'status'],
+      endpoint: '/detailed/invoicing',
+      category: 'sales'
+    },
+    payment: {
+      name: 'Payment Report',
+      description: 'Detailed cash flow and payment transaction history',
+      icon: CreditCard,
+      color: 'green',
+      filters: ['start_date', 'end_date'],
+      endpoint: '/detailed/payment',
+      category: 'finance'
+    },
+    detailed_production: {
+      name: 'Detailed Production Report',
+      description: 'In-depth analysis of planned vs actual yields and waste',
+      icon: Settings,
+      color: 'purple',
+      filters: ['start_date', 'end_date'],
+      endpoint: '/detailed/production',
+      category: 'production'
+    },
+    tracking: {
+      name: 'Production Tracking Report',
+      description: 'Audit log of all production stages and status changes',
+      icon: Activity,
+      color: 'indigo',
+      filters: ['start_date', 'end_date'],
+      endpoint: '/detailed/tracking',
+      category: 'production'
+    },
+    work_order: {
+      name: 'Work Order Report',
+      description: 'Status and timelines of all manufacturing work orders',
+      icon: ClipboardList,
+      color: 'red',
+      filters: ['start_date', 'end_date', 'status'],
+      endpoint: '/detailed/work-order',
+      category: 'production'
+    },
+    process_flow: {
+      name: 'Process Flow Report',
+      description: 'Configuration of manufacturing stages and sequences',
+      icon: GitMerge,
+      color: 'blue',
+      filters: [],
+      endpoint: '/detailed/process-flow',
+      category: 'production'
+    },
+    finished_goods: {
+      name: 'Finished Goods Report',
+      description: 'Inventory specifically allocated as ready-to-sell finished goods',
+      icon: Archive,
+      color: 'orange',
+      filters: [],
+      endpoint: '/detailed/finished-goods',
+      category: 'inventory'
+    },
+    bom: {
+      name: 'Bill of Materials Report',
+      description: 'Hierarchical breakdown of recipes and required materials',
+      icon: Layers,
+      color: 'green',
+      filters: [],
+      endpoint: '/detailed/bom',
+      category: 'production'
+    },
+    receipt_sales: {
+      name: 'Recording of Receipt Sales',
+      description: 'Historical detail of receipt sales including totals, taxes, and net amount.',
+      icon: Receipt,
+      color: 'blue',
+      filters: ['start_date', 'end_date'],
+      endpoint: '/detailed/receipt-sales',
+      category: 'sales'
+    },
+    customer_ledger: {
+      name: 'Customer Sales Ledger',
+      description: 'Customer transactions ledger showing invoices, payments, WH Tax, and running balance.',
+      icon: FileText,
+      color: 'green',
+      filters: ['start_date', 'end_date', 'customer_id'],
+      endpoint: '/detailed/customer-ledger',
+      category: 'finance'
     }
   };
 
+  const categories = [
+    { id: 'all', name: 'All Modules', icon: Layers },
+    { id: 'sales', name: 'CRM & Sales', icon: ShoppingCart },
+    { id: 'production', name: 'Production', icon: Factory },
+    { id: 'inventory', name: 'Inventory', icon: Warehouse },
+    { id: 'finance', name: 'Finance', icon: Landmark },
+  ];
+
+  const filteredReports = activeCategory === 'all'
+    ? reportConfigs
+    : Object.fromEntries(Object.entries(reportConfigs).filter(([_, c]) => c.category === activeCategory));
+
+  const config = reportConfigs[activeReport];
+
   const handleFilterChange = (key: string, value: string | boolean) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value === '' ? undefined : value
-    }));
+    setFilters(prev => ({ ...prev, [key]: value === '' ? undefined : value }));
   };
 
   const downloadReport = async (reportType: string, format: 'pdf' | 'excel') => {
     try {
       setLoading(`${reportType}-${format}`);
-      
-      const config = reportConfigs[reportType];
-      if (!config) {
-        throw new Error('Invalid report type');
-      }
+      const cfg = reportConfigs[reportType];
+      if (!cfg) throw new Error('Invalid report type');
 
-      // Special handling for monthly inventory sales report
       if (reportType === 'monthly_inventory_sales') {
         navigate('/reports/monthly-inventory-sales');
         return;
       }
 
-      // Build query parameters
-      const params: any = {
-        format: format
-      };
-      
+      const params: any = { format };
       Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== '') {
-          params[key] = value.toString();
-        }
+        if (value !== undefined && value !== '') params[key] = value.toString();
       });
 
       let blob: Blob;
-      
-      // Use the appropriate API function based on report type
       switch (reportType) {
-        case 'production':
-          blob = await reportsApi.generateProductionReport(params);
-          break;
-        case 'scrap':
-          blob = await reportsApi.generateScrapReport(params);
-          break;
-        case 'inventory':
-          blob = await reportsApi.generateInventoryReport(params);
-          break;
-        case 'cost-analysis':
-          blob = await reportsApi.generateCostAnalysisReport(params);
-          break;
-        default:
-          throw new Error(`Unknown report type: ${reportType}`);
+        case 'production': blob = await reportsApi.generateProductionReport(params); break;
+        case 'scrap': blob = await reportsApi.generateScrapReport(params); break;
+        case 'inventory': blob = await reportsApi.generateInventoryReport(params); break;
+        case 'cost-analysis': blob = await reportsApi.generateCostAnalysisReport(params); break;
+        case 'sales_order': blob = await detailedReportsApi.downloadSalesOrderReport(format, params); break;
+        case 'expense': blob = await detailedReportsApi.downloadExpenseReport(format, params); break;
+        case 'income': blob = await detailedReportsApi.downloadIncomeReport(format, params); break;
+        case 'sales_tax': blob = await detailedReportsApi.downloadSalesTaxReport(format, params); break;
+        case 'dispatch': blob = await detailedReportsApi.downloadDispatchReport(format, params); break;
+        case 'invoicing': blob = await detailedReportsApi.downloadInvoicingReport(format, params); break;
+        case 'payment': blob = await detailedReportsApi.downloadPaymentReport(format, params); break;
+        case 'detailed_production': blob = await detailedReportsApi.downloadProductionReport(format, params); break;
+        case 'tracking': blob = await detailedReportsApi.downloadTrackingReport(format, params); break;
+        case 'work_order': blob = await detailedReportsApi.downloadWorkOrderReport(format, params); break;
+        case 'process_flow': blob = await detailedReportsApi.downloadProcessFlowReport(format, params); break;
+        case 'finished_goods': blob = await detailedReportsApi.downloadFinishedGoodsReport(format, params); break;
+        case 'bom': blob = await detailedReportsApi.downloadBOMReport(format, params); break;
+        case 'receipt_sales': blob = await detailedReportsApi.downloadReceiptSalesReport(format, params); break;
+        case 'customer_ledger': blob = await detailedReportsApi.downloadCustomerLedgerReport(format, params); break;
+        default: throw new Error(`Unknown report type: ${reportType}`);
       }
 
-      // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -156,289 +319,190 @@ const Reports: React.FC = () => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(link);
 
-      toast({
-        title: 'Report Downloaded',
-        description: `${config.name} has been downloaded successfully as ${format.toUpperCase()}`,
-      });
-
+      toast({ title: 'Success', description: `${cfg.name} downloaded.` });
     } catch (error) {
-      console.error('Download failed:', error);
-      toast({
-        title: 'Download Failed',
-        description: 'Failed to download the report. Please try again.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Failed to download report.', variant: 'destructive' });
     } finally {
       setLoading(null);
     }
   };
 
   const renderFilterInput = (filterKey: string) => {
-    switch (filterKey) {
-      case 'start_date':
-      case 'end_date':
-        return (
-          <Input
-            type="date"
-            value={String(filters[filterKey as keyof ReportFilters] || '')}
-            onChange={(e) => handleFilterChange(filterKey, e.target.value)}
-            className="w-full"
-          />
-        );
-      
-      case 'status':
-        const statusOptions = activeTab === 'production' 
-          ? ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']
-          : ['AVAILABLE', 'CONSUMED', 'PROCESSED'];
-        
-        return (
-          <Select value={filters.status || 'all'} onValueChange={(value) => handleFilterChange('status', value === 'all' ? undefined : value)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              {statusOptions.map(status => (
-                <SelectItem key={status} value={status}>{status}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        );
-      
-      case 'low_stock_only':
-        return (
-          <Select 
-            value={filters.low_stock_only ? 'true' : 'false'} 
-            onValueChange={(value) => handleFilterChange('low_stock_only', value === 'true')}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="false">All Items</SelectItem>
-              <SelectItem value="true">Low Stock Only</SelectItem>
-            </SelectContent>
-          </Select>
-        );
-      
-      default:
-        return (
-          <Input
-            type="text"
-            placeholder={`Enter ${filterKey.replace('_', ' ')}`}
-            value={String(filters[filterKey as keyof ReportFilters] || '')}
-            onChange={(e) => handleFilterChange(filterKey, e.target.value)}
-            className="w-full"
-          />
-        );
+    if (filterKey === 'start_date' || filterKey === 'end_date') {
+      return <Input type="date" value={String(filters[filterKey as keyof ReportFilters] || '')} onChange={(e) => handleFilterChange(filterKey, e.target.value)} />;
     }
+    if (filterKey === 'status') {
+      const opts = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
+      return (
+        <Select value={filters.status || 'all'} onValueChange={(v) => handleFilterChange('status', v === 'all' ? undefined : v)}>
+          <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectContent><SelectItem value="all">All</SelectItem>{opts.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+        </Select>
+      );
+    }
+    if (filterKey === 'customer_id') {
+      return (
+        <Select value={String(filters.customer_id || 'all')} onValueChange={(v) => handleFilterChange('customer_id', v === 'all' ? undefined : v)}>
+          <SelectTrigger><SelectValue placeholder="Select Customer" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Select Customer...</SelectItem>
+            {customers.map(c => (
+              <SelectItem key={c.customer_id} value={c.customer_id}>
+                {c.oem_name || c.company_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+    return <Input type="text" placeholder={filterKey} value={String(filters[filterKey as keyof ReportFilters] || '')} onChange={(e) => handleFilterChange(filterKey, e.target.value)} />;
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in-50 duration-700">
-      {/* Header */}
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-purple-600/10 rounded-2xl blur-3xl"></div>
-        <div className="relative bg-white/60 backdrop-blur-sm rounded-2xl p-8 border border-white/20 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-800 via-blue-800 to-indigo-800 bg-clip-text text-transparent mb-3">
-                Business Reports
-              </h1>
-              <p className="text-gray-600 text-lg">
-                Generate comprehensive reports for production, inventory, scrap management, and cost analysis
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-2xl flex items-center justify-center">
-                <FileText className="w-8 h-8 text-blue-600" />
-              </div>
-            </div>
+    <div className="flex bg-gray-50/50 min-h-screen -m-6 animate-in fade-in duration-500">
+      {/* Side Navigation */}
+      <aside className="w-80 bg-white border-r border-gray-200 flex flex-col shadow-sm">
+        <div className="p-6 border-b border-gray-100 bg-white">
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">Reports</h1>
+          <p className="text-sm text-gray-500">Business Intelligence Portal</p>
+        </div>
+
+        <div className="p-4 space-y-6 overflow-y-auto">
+          {/* Categories */}
+          <div className="space-y-1">
+            <p className="px-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Categories</p>
+            {categories.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => { setActiveCategory(cat.id as any); setActiveReport(Object.keys(reportConfigs).find(k => cat.id === 'all' || reportConfigs[k].category === cat.id) || 'production'); }}
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                  activeCategory === cat.id ? "bg-blue-600 text-white shadow-blue-200 shadow-lg scale-[1.02]" : "text-gray-600 hover:bg-gray-100"
+                )}
+              >
+                <cat.icon className="w-4 h-4" />
+                {cat.name}
+              </button>
+            ))}
+          </div>
+
+          {/* Report List */}
+          <div className="space-y-1">
+            <p className="px-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Detailed Reports</p>
+            {Object.entries(filteredReports).map(([key, cfg]) => (
+              <button
+                key={key}
+                onClick={() => setActiveReport(key)}
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 text-left",
+                  activeReport === key ? "bg-gray-900 text-white shadow-lg" : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                )}
+              >
+                <cfg.icon className={cn("w-4 h-4", activeReport === key ? "text-white" : "text-gray-400")} />
+                <span className="truncate flex-1">{cfg.name}</span>
+                {activeReport === key && <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />}
+              </button>
+            ))}
           </div>
         </div>
-      </div>
+      </aside>
 
-      {/* Report Tabs */}
-      <div className="relative bg-white/70 backdrop-blur-xl rounded-2xl border border-white/30 shadow-lg overflow-hidden">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="p-6 border-b border-white/20 bg-gradient-to-r from-white/40 to-white/20">
-            <TabsList className="grid w-full grid-cols-5 bg-white/50 backdrop-blur-sm border border-white/30 rounded-xl p-1">
-              {Object.entries(reportConfigs).map(([key, config]) => (
-                <TabsTrigger 
-                  key={key}
-                  value={key}
-                  className={cn(
-                    "flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-300 hover:scale-105",
-                    config.color === "blue" && "data-[state=active]:text-blue-700",
-                    config.color === "orange" && "data-[state=active]:text-orange-700",
-                    config.color === "green" && "data-[state=active]:text-green-700",
-                    config.color === "purple" && "data-[state=active]:text-purple-700",
-                    config.color === "indigo" && "data-[state=active]:text-indigo-700"
-                  )}
-                >
-                  <config.icon className="w-4 h-4" />
-                  {config.name.split(' ')[0]}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </div>
-
-          {Object.entries(reportConfigs).map(([key, config]) => (
-            <TabsContent key={key} value={key} className="p-6 space-y-6">
-              {/* Report Header */}
-              <div className="flex justify-between items-start">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-3 mb-2">
+      {/* Content Area */}
+      <main className="flex-1 p-8 overflow-y-auto">
+        {config && (
+          <div className="max-w-4xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+            {/* Report Title Card */}
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-3xl blur opacity-25 group-hover:opacity-40 transition duration-1000"></div>
+              <div className="relative bg-white p-8 rounded-3xl border border-gray-100 shadow-xl">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-3">
                     <div className={cn(
-                      "w-10 h-10 bg-gradient-to-br rounded-xl flex items-center justify-center",
-                      config.color === "blue" && "from-blue-500/20 to-blue-600/20",
-                      config.color === "orange" && "from-orange-500/20 to-orange-600/20",
-                      config.color === "green" && "from-green-500/20 to-green-600/20",
-                      config.color === "purple" && "from-purple-500/20 to-purple-600/20",
-                      config.color === "indigo" && "from-indigo-500/20 to-indigo-600/20"
+                      "inline-flex p-3 rounded-2xl shadow-inner",
+                      config.color === 'blue' ? "bg-blue-50 text-blue-600" :
+                        config.color === 'orange' ? "bg-orange-50 text-orange-600" :
+                          config.color === 'green' ? "bg-green-50 text-green-600" :
+                            config.color === 'purple' ? "bg-purple-50 text-purple-600" :
+                              "bg-indigo-50 text-indigo-600"
                     )}>
-                      <config.icon className={cn(
-                        "w-6 h-6",
-                        config.color === "blue" && "text-blue-600",
-                        config.color === "orange" && "text-orange-600",
-                        config.color === "green" && "text-green-600",
-                        config.color === "purple" && "text-purple-600",
-                        config.color === "indigo" && "text-indigo-600"
-                      )} />
+                      <config.icon className="w-8 h-8" />
                     </div>
-                    {config.name}
-                  </h2>
-                  <p className="text-gray-600">{config.description}</p>
+                    <div>
+                      <h2 className="text-3xl font-bold text-gray-900 tracking-tight">{config.name}</h2>
+                      <p className="text-gray-500 mt-1 max-w-xl leading-relaxed">{config.description}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Filter Section */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="md:col-span-2 space-y-6">
+                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-md space-y-6">
+                  <div className="flex items-center gap-2 border-b border-gray-50 pb-4">
+                    <Calendar className="w-5 h-5 text-blue-600" />
+                    <h3 className="font-bold text-gray-900">Custom Parameters</h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {config.filters.map(f => (
+                      <div key={f} className="space-y-2">
+                        <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{f.replace(/_/g, ' ')}</Label>
+                        {renderFilterInput(f)}
+                      </div>
+                    ))}
+                    {config.filters.length === 0 && (
+                      <p className="text-sm text-gray-400 italic py-4 col-span-2">
+                        {activeReport === 'monthly_inventory_sales'
+                          ? 'This report has a dedicated interactive tool. Click "Open Report Tool" below to access it.'
+                          : 'This report has no required parameters.'}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Filters */}
-              <Card className="bg-white/50 backdrop-blur-sm border-white/30">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5" />
-                    Report Filters
-                  </CardTitle>
-                  <CardDescription>
-                    Configure the data range and filters for your report
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {config.filters.map(filterKey => (
-                      <div key={filterKey} className="space-y-2">
-                        <Label htmlFor={filterKey} className="text-sm font-medium">
-                          {filterKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </Label>
-                        {renderFilterInput(filterKey)}
-                      </div>
-                    ))}
+              {/* Action Sidebar */}
+              <div className="space-y-6">
+                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-md space-y-4">
+                  <div className="flex items-center gap-2 border-b border-gray-50 pb-4">
+                    <Download className="w-5 h-5 text-green-600" />
+                    <h3 className="font-bold text-gray-900">Export Options</h3>
                   </div>
-                </CardContent>
-              </Card>
-
-              {/* Download Options */}
-              <Card className="bg-white/50 backdrop-blur-sm border-white/30">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Download className="w-5 h-5" />
-                    {key === 'monthly_inventory_sales' ? 'Access Report' : 'Download Report'}
-                  </CardTitle>
-                  <CardDescription>
-                    {key === 'monthly_inventory_sales' 
-                      ? 'Access the interactive monthly inventory and sales report with manual opening stock input'
-                      : 'Choose your preferred format for the report'
-                    }
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {key === 'monthly_inventory_sales' ? (
-                    <div className="space-y-4">
-                      <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
-                        <div className="flex items-start gap-3">
-                          <CheckCircle className="w-5 h-5 text-indigo-600 mt-0.5" />
-                          <div>
-                            <h4 className="font-semibold text-indigo-800 mb-1">Interactive Report Features</h4>
-                            <ul className="text-sm text-indigo-700 space-y-1">
-                              <li>• Manual opening stock input with real-time calculations</li>
-                              <li>• Automatic total inventory and closing stock calculations</li>
-                              <li>• PDF and Excel export with exact formatting</li>
-                              <li>• Filter by month, year, and model</li>
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                      <Button
-                        onClick={() => downloadReport(key, 'pdf')}
-                        className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-                      >
-                        <ClipboardList className="w-4 h-4" />
-                        Open Monthly Report
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex gap-4">
-                      <Button
-                        onClick={() => downloadReport(key, 'pdf')}
-                        disabled={loading === `${key}-pdf`}
-                        className={cn(
-                          "flex items-center gap-2 bg-gradient-to-r text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105",
-                          config.color === "blue" && "from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700",
-                          config.color === "orange" && "from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700",
-                          config.color === "green" && "from-green-500 to-green-600 hover:from-green-600 hover:to-green-700",
-                          config.color === "purple" && "from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700",
-                          config.color === "indigo" && "from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700"
-                        )}
-                      >
-                        {loading === `${key}-pdf` ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <FileText className="w-4 h-4" />
-                        )}
-                        Download PDF
-                      </Button>
-                      
-                      <Button
-                        onClick={() => downloadReport(key, 'excel')}
-                        disabled={loading === `${key}-excel`}
-                        variant="outline"
-                        className="flex items-center gap-2 bg-white/50 hover:bg-white/70 border-white/30 transition-all duration-300 hover:scale-105"
-                      >
-                        {loading === `${key}-excel` ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <TrendingUp className="w-4 h-4" />
-                        )}
-                        Download Excel
-                      </Button>
-                    </div>
+                  <Button
+                    variant="default"
+                    className="w-full h-12 bg-gray-900 hover:bg-black text-white rounded-xl shadow-lg transition-all"
+                    onClick={() => downloadReport(activeReport, 'pdf')}
+                    disabled={!!loading}
+                  >
+                    {loading === `${activeReport}-pdf` ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileText className="w-4 h-4 mr-2" />}
+                    {activeReport === 'monthly_inventory_sales' ? 'Open Dedicated Report Tool' : 'Generate Professional PDF'}
+                  </Button>
+                  {activeReport !== 'monthly_inventory_sales' && (
+                    <Button
+                      variant="outline"
+                      className="w-full h-12 border-2 border-gray-100 hover:bg-gray-50 rounded-xl transition-all"
+                      onClick={() => downloadReport(activeReport, 'excel')}
+                      disabled={!!loading}
+                    >
+                      {loading === `${activeReport}-excel` ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <TrendingUp className="w-4 h-4 mr-2" />}
+                      Download Data Sheet
+                    </Button>
                   )}
-                </CardContent>
-              </Card>
+                </div>
 
-              {/* Report Preview Info */}
-              <Card className="bg-gradient-to-r from-gray-50 to-blue-50 border-gray-200">
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                      <AlertCircle className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-800 mb-2">Report Information</h3>
-                      <ul className="text-sm text-gray-600 space-y-1">
-                        <li>• Reports include comprehensive data analysis and summaries</li>
-                        <li>• PDF reports are formatted for printing and sharing</li>
-                        <li>• Excel reports allow for further data manipulation</li>
-                        <li>• All reports include timestamps and filter information</li>
-                      </ul>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          ))}
-        </Tabs>
-      </div>
+                <div className="bg-blue-600 p-6 rounded-3xl shadow-xl shadow-blue-200 text-white space-y-3">
+                  <AlertCircle className="w-8 h-8 opacity-50" />
+                  <h4 className="font-bold">System Note</h4>
+                  <p className="text-xs text-blue-100 leading-normal">
+                    This report is generated directly from the live production database. All currency values are in PKR unless otherwise stated.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 };

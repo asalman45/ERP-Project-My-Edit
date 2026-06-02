@@ -14,16 +14,17 @@ import { generateExcelFromMonthlyReport } from '../utils/excel-generator.js';
  */
 export const generateMonthlyInventorySalesReport = async (req, res) => {
   try {
-    const { 
-      month, 
-      year, 
-      model_id, 
-      location_id, 
+    const {
+      month,
+      year,
+      model_id,
+      oem_name,
+      location_id,
       format = 'json',
       opening_stock_data // Manual opening stock data
     } = req.body;
 
-    logger.info({ month, year, model_id, location_id, format }, 'Generating monthly inventory sales report');
+    logger.info({ month, year, model_id, oem_name, location_id, format }, 'Generating monthly inventory sales report');
 
     // Validate required parameters
     if (!month || !year) {
@@ -47,6 +48,12 @@ export const generateMonthlyInventorySalesReport = async (req, res) => {
     if (model_id) {
       whereClause += ` AND p.model_id = $${paramIndex}`;
       queryParams.push(model_id);
+      paramIndex++;
+    }
+
+    if (oem_name) {
+      whereClause += ` AND o.oem_name = $${paramIndex}`;
+      queryParams.push(oem_name);
       paramIndex++;
     }
 
@@ -151,12 +158,12 @@ export const generateMonthlyInventorySalesReport = async (req, res) => {
       sale_dates: uniqueSaleDates,
       products: products.map(product => {
         const productId = product.product_id;
-        const openingStock = opening_stock_data && opening_stock_data[productId] 
-          ? opening_stock_data[productId] 
+        const openingStock = opening_stock_data && opening_stock_data[productId]
+          ? opening_stock_data[productId]
           : 0;
         const producedQuantity = productionData[productId] || 0;
         const totalInventory = openingStock + producedQuantity;
-        
+
         // Calculate daily sales
         const dailySales = {};
         let totalSales = 0;
@@ -171,6 +178,7 @@ export const generateMonthlyInventorySalesReport = async (req, res) => {
         return {
           product_id: productId,
           model_name: product.model_name,
+          oem_name: product.oem_name,
           product_code: product.product_code,
           part_name: product.part_name,
           opening_stock: openingStock,
@@ -184,9 +192,9 @@ export const generateMonthlyInventorySalesReport = async (req, res) => {
       })
     };
 
-    logger.info({ 
+    logger.info({
       total_products: reportData.products.length,
-      sale_dates: reportData.sale_dates.length 
+      sale_dates: reportData.sale_dates.length
     }, 'Monthly inventory sales report data prepared');
 
     // Return data in requested format
@@ -253,7 +261,7 @@ export const getAvailableModels = async (req, res) => {
     `;
 
     const result = await db.query(modelsQuery);
-    
+
     return res.json({
       success: true,
       data: result.rows
@@ -273,7 +281,7 @@ export const getAvailableModels = async (req, res) => {
 export const getProductsByModel = async (req, res) => {
   try {
     const { model_id } = req.params;
-    
+
     const productsQuery = `
       SELECT 
         p.product_id,
@@ -292,7 +300,7 @@ export const getProductsByModel = async (req, res) => {
     `;
 
     const result = await db.query(productsQuery, [model_id]);
-    
+
     return res.json({
       success: true,
       data: result.rows

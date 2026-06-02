@@ -5,6 +5,22 @@ import { logger } from '../utils/logger.js';
 const prisma = new PrismaClient();
 
 /**
+ * Get all fixed assets
+ * GET /api/finance/fixed-assets
+ */
+export async function getAssets(req, res) {
+    try {
+        const assets = await prisma.fixedAsset.findMany({
+            orderBy: { purchase_date: 'desc' }
+        });
+        res.json({ success: true, data: assets });
+    } catch (error) {
+        logger.error({ error: error.message }, 'Error fetching fixed assets');
+        res.status(500).json({ success: false, error: error.message });
+    }
+}
+
+/**
  * Register a new fixed asset
  * POST /api/finance/fixed-assets
  */
@@ -94,6 +110,7 @@ export async function runDepreciation(req, res) {
 }
 
 export default {
+    getAssets,
     registerAsset,
     runDepreciation
 };

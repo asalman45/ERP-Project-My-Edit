@@ -1,17 +1,41 @@
-# Backups and database dumps (commented out to allow upload)
-# backups/
-# *.sql
-# *.backup
-# *.dump
+# Backups and database dumps
+backups/
+*.sql
+*.backup
+*.dump
+
+# Docker tar archives and zip files
+*.tar
+*.zip
+.tmp-*
+
+# Excel files
+*.xlsx
+*.xls
+*.xlsb
+~$*
+
+# Google Drive Transfer Directory
+EMPCL-GoogleDrive-Transfer/
 
 # Environment files
 .env
 .env.local
 .env.*.local
+.env.production
+.env.*
+.env.production.local
 
 # Logs
 *.log
 logs/
+backend_logs.txt
+
+# Dynamic uploads and storage
+erp-backend/uploads/
+erp-backend/backups/
+uploads/
+backups/
 
 # OS files
 .DS_Store

@@ -5,6 +5,13 @@ export interface DashboardStats {
   totalProducts: number;
   totalMaterials: number;
   totalWorkOrders: number;
+  totalSalesOrders: number;
+  activeSalesOrders: number;
+  totalSuppliers: number;
+  totalCustomers: number;
+  lowStockCount: number;
+  totalDispatches: number;
+  dispatchedCount: number;
   financials: {
     totalRevenue: number;
     totalExpense: number;
@@ -67,6 +74,13 @@ class DashboardService {
         totalProducts: 0,
         totalMaterials: 0,
         totalWorkOrders: 0,
+        totalSalesOrders: 0,
+        activeSalesOrders: 0,
+        totalSuppliers: 0,
+        totalCustomers: 0,
+        lowStockCount: 0,
+        totalDispatches: 0,
+        dispatchedCount: 0,
         financials: {
           totalRevenue: 0,
           totalExpense: 0,

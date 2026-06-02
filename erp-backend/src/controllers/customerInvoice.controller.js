@@ -5,6 +5,7 @@ import db from '../utils/db.js';
 import { logger } from '../utils/logger.js';
 import { v4 as uuidv4 } from 'uuid';
 import { generateInvoicePDF } from '../services/pdf.service.js';
+import { autoPostSalesInvoice } from '../services/smartAutomation.service.js';
 
 /**
  * Create a new customer invoice from sales order or dispatch
@@ -40,12 +41,12 @@ export async function createCustomerInvoice(req, res) {
 
     if (so_id) {
       const soQuery = `
-        SELECT so.so_id, so.so_no, so.customer_id, so.total_amount, so.tax_amount,
-               c.name as customer_name, c.address as customer_address,
-               c.gst_number, c.contact_person, c.phone, c.email
+        SELECT so.sales_order_id as so_id, so.order_number as so_no, so.customer_id, so.total_amount, so.tax_amount,
+               c.company_name as customer_name, c.address as customer_address,
+               c.tax_id as gst_number, c.contact_person, c.phone, c.email
         FROM sales_order so
         LEFT JOIN customer c ON so.customer_id = c.customer_id
-        WHERE so.so_id = $1
+        WHERE so.sales_order_id = $1
       `;
       const soResult = await client.query(soQuery, [so_id]);
       if (soResult.rows.length === 0) {
@@ -68,11 +69,11 @@ export async function createCustomerInvoice(req, res) {
     } else if (dispatch_id) {
       // Get dispatch details
       const dispatchQuery = `
-        SELECT do.so_id, so.so_no, do.customer_id,
-               c.name as customer_name, c.address as customer_address,
-               c.gst_number, c.contact_person, c.phone, c.email
+        SELECT do.sales_order_id as so_id, so.order_number as so_no, do.customer_id,
+               c.company_name as customer_name, c.address as customer_address,
+               c.tax_id as gst_number, c.contact_person, c.phone, c.email
         FROM dispatch_order do
-        LEFT JOIN sales_order so ON do.so_id = so.so_id
+        LEFT JOIN sales_order so ON do.sales_order_id = so.sales_order_id
         LEFT JOIN customer c ON do.customer_id = c.customer_id
         WHERE do.dispatch_id = $1
       `;
@@ -185,10 +186,10 @@ export async function createCustomerInvoice(req, res) {
       // Auto-populate from sales order items
       const soItemsQuery = `
         SELECT soi.product_id, p.part_name as product_name,
-               soi.qty_ordered as quantity, soi.unit_price
+               COALESCE(soi.quantity, soi.qty_ordered) as quantity, soi.unit_price
         FROM sales_order_item soi
         LEFT JOIN product p ON soi.product_id = p.product_id
-        WHERE soi.so_id = $1
+        WHERE soi.sales_order_id = $1
       `;
       const soItemsResult = await client.query(soItemsQuery, [soData.so_id]);
 
@@ -210,6 +211,13 @@ export async function createCustomerInvoice(req, res) {
           lineTotal
         ]);
       }
+    }
+
+    // TRIGGER 3B: Smart Auto-Posting (AR, Revenue, COGS, FG Inventory)
+    try {
+      await autoPostSalesInvoice(invoiceId);
+    } catch (finError) {
+      logger.error({ error: finError.message, invoiceNo }, 'Finance integration failed for invoice creation');
     }
 
     await client.query('COMMIT');
@@ -271,9 +279,9 @@ export async function getCustomerInvoices(req, res) {
         ci.status,
         ci.payment_status,
         ci.created_at,
-        so.so_no as so_number
+        so.order_number as so_number
       FROM customer_invoice ci
-      LEFT JOIN sales_order so ON ci.so_id = so.so_id
+      LEFT JOIN sales_order so ON ci.so_id = so.sales_order_id
       WHERE 1=1
     `;
     const params = [];
@@ -371,6 +379,36 @@ export async function updatePaymentStatus(req, res) {
       });
     }
 
+    // --- FINANCE INTEGRATION: Create Journal Entry for Payment ---
+    if (payment_status === 'PAID') {
+      try {
+        const invoice = result.rows[0];
+        const entryId = uuidv4();
+        const BANK_ACCOUNT = '365aefa9-c424-49ae-8241-d9eaae3e89b0';
+        const AR_ACCOUNT = '7f8d95fa-476b-4fcc-a6de-9b9fdfdf03bb';
+
+        // Create Journal Entry
+        await client.query(`
+          INSERT INTO journal_entry (entry_id, entry_date, reference, description, status, currency_code, exchange_rate, updated_at)
+          VALUES ($1, CURRENT_TIMESTAMP, $2, $3, 'POSTED', 'INR', 1.0, CURRENT_TIMESTAMP)
+        `, [entryId, `PAY-${invoice.invoice_no}`, `Payment for Invoice ${invoice.invoice_no}`]);
+
+        // Debit Bank
+        await client.query(`
+          INSERT INTO journal_line (line_id, entry_id, account_id, debit, credit, description)
+          VALUES ($1, $2, $3, $4, 0, $5)
+        `, [uuidv4(), entryId, BANK_ACCOUNT, invoice.total_amount, `Cash Receipt for Invoice ${invoice.invoice_no}`]);
+
+        // Credit AR
+        await client.query(`
+          INSERT INTO journal_line (line_id, entry_id, account_id, debit, credit, description)
+          VALUES ($1, $2, $3, 0, $4, $5)
+        `, [uuidv4(), entryId, AR_ACCOUNT, invoice.total_amount, `Accounts Receivable cleared for ${invoice.invoice_no}`]);
+      } catch (finError) {
+        logger.error({ error: finError.message, invoiceId }, 'Finance integration failed for invoice payment');
+      }
+    }
+
     await client.query('COMMIT');
 
     logger.info({
@@ -406,9 +444,9 @@ export async function getCustomerInvoiceById(req, res) {
     const { invoiceId } = req.params;
 
     const invoiceQuery = `
-      SELECT ci.*, so.so_no as so_number
+      SELECT ci.*, so.order_number as so_number
       FROM customer_invoice ci
-      LEFT JOIN sales_order so ON ci.so_id = so.so_id
+      LEFT JOIN sales_order so ON ci.so_id = so.sales_order_id
       WHERE ci.invoice_id = $1
     `;
     const invoiceResult = await db.query(invoiceQuery, [invoiceId]);
@@ -444,9 +482,9 @@ export async function downloadInvoicePDF(req, res) {
 
     // Fetch invoice details
     const invoiceQuery = `
-      SELECT ci.*, so.so_no as so_number
+      SELECT ci.*, so.order_number as so_number
       FROM customer_invoice ci
-      LEFT JOIN sales_order so ON ci.so_id = so.so_id
+      LEFT JOIN sales_order so ON ci.so_id = so.sales_order_id
       WHERE ci.invoice_id = $1
     `;
     const invoiceResult = await db.query(invoiceQuery, [invoiceId]);
@@ -471,7 +509,8 @@ export async function downloadInvoicePDF(req, res) {
     // Set headers for file download
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=Invoice_${invoiceData.invoice_no}.pdf`);
-    res.send(pdfBuffer);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.end(pdfBuffer);
 
   } catch (error) {
     logger.error({ error: error.message }, 'Error in downloadInvoicePDF controller');

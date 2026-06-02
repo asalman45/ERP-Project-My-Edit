@@ -16,7 +16,7 @@ export async function createDispatch(req, res) {
   const client = await db.connect();
   try {
     await client.query('BEGIN');
-    
+
     const {
       so_id,
       so_number,
@@ -46,7 +46,7 @@ export async function createDispatch(req, res) {
     // 1. Get sales order details
     // Log the so_id being used for debugging
     logger.info({ so_id, so_id_type: typeof so_id }, 'Looking up sales order');
-    
+
     // sales_order table uses sales_order_id (UUID) as primary key
     // dispatch_order.so_id (TEXT) stores the UUID as text
     const soQuery = `
@@ -55,18 +55,18 @@ export async function createDispatch(req, res) {
         customer_id, 
         status
       FROM sales_order 
-      WHERE sales_order_id = CAST($1 AS uuid)
+      WHERE sales_order_id = $1
       LIMIT 1
     `;
-    
+
     let soResult;
     try {
       soResult = await client.query(soQuery, [so_id]);
     } catch (queryError) {
-      logger.error({ 
-        error: queryError.message, 
-        so_id, 
-        query: soQuery 
+      logger.error({
+        error: queryError.message,
+        so_id,
+        query: soQuery
       }, 'Error querying sales_order table');
       await client.query('ROLLBACK');
       return res.status(500).json({
@@ -74,7 +74,7 @@ export async function createDispatch(req, res) {
         error: `Database error: ${queryError.message}`
       });
     }
-    
+
     if (soResult.rows.length === 0) {
       await client.query('ROLLBACK');
       logger.warn({ so_id }, 'Sales order not found');
@@ -96,7 +96,7 @@ export async function createDispatch(req, res) {
 
     const dispatchOrderQuery = `
       INSERT INTO dispatch_order (
-        dispatch_id, dispatch_no, so_id, customer_id, location_id,
+        dispatch_id, dispatch_no, sales_order_id, customer_id, location_id,
         vehicle_no, driver_name, dispatch_date, created_by, status
       ) VALUES (
         $1, $2, $3::text, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8, 'DISPATCHED'
@@ -119,7 +119,7 @@ export async function createDispatch(req, res) {
 
     // 3. Create dispatch item
     const dispatchItemId = uuidv4();
-    
+
     // Get UOM from product
     const productQuery = `SELECT uom_id FROM product WHERE product_id = $1`;
     const productResult = await client.query(productQuery, [product_id]);
@@ -155,7 +155,7 @@ export async function createDispatch(req, res) {
         FROM inventory
         WHERE product_id = $1
           AND location_id = $2
-          AND status = 'AVAILABLE'
+          AND status = 'RESERVED'
         ORDER BY updated_at ASC
         FOR UPDATE
       `;
@@ -270,7 +270,7 @@ export async function createDispatch(req, res) {
         item_code,
         item_name
       FROM sales_order_item
-      WHERE sales_order_id = CAST($1 AS uuid)
+      WHERE sales_order_id = $1
     `;
     const salesOrderItemsResult = await client.query(salesOrderItemsQuery, [so_id]);
 
@@ -337,7 +337,7 @@ export async function createDispatch(req, res) {
     }
 
     const orderedQty = Number(salesOrderItem.quantity || 0);
-    
+
     // Calculate total shipped quantity from all dispatch_item records for this sales order item
     // d.so_id is TEXT storing UUID, di.product_id is also TEXT storing UUID
     // Need to cast both to UUID for comparison
@@ -345,16 +345,29 @@ export async function createDispatch(req, res) {
       SELECT COALESCE(SUM(di.qty), 0) as total_shipped
       FROM dispatch_order d
       JOIN dispatch_item di ON d.dispatch_id = di.dispatch_id
-      WHERE CAST(d.so_id AS uuid) = CAST($1 AS uuid)
-        AND CAST(di.product_id AS uuid) = CAST($2 AS uuid)
+      WHERE d.sales_order_id = $1
+        AND di.product_id = $2
     `;
     const shippedResult = await client.query(shippedQtyQuery, [so_id, product_id]);
     const currentShippedQty = Number(shippedResult.rows[0]?.total_shipped || 0);
     const newShippedQty = currentShippedQty + quantity;
-    
+
     // 6. Check if all items shipped, then update sales order status
     const allShipped = newShippedQty >= orderedQty;
-    
+
+    // ⭐ FIX 2: Persist qty_shipped back to sales_order_item
+    await client.query(`
+      UPDATE sales_order_item
+      SET qty_shipped = COALESCE(qty_shipped, 0) + $1
+      WHERE item_id = $2
+    `, [quantity, salesOrderItem.item_id]);
+
+    logger.info({
+      item_id: salesOrderItem.item_id,
+      added_qty: quantity,
+      new_total_shipped: newShippedQty
+    }, 'qty_shipped updated on sales_order_item');
+
     // Check if all items shipped, then update sales order status to DISPATCHED
     if (allShipped) {
       // Check all items for this sales order - see if all are fully dispatched
@@ -364,26 +377,26 @@ export async function createDispatch(req, res) {
           soi.quantity as ordered_qty,
           COALESCE(SUM(di.qty), 0) as shipped_qty
         FROM sales_order_item soi
-        LEFT JOIN dispatch_order d ON CAST(d.so_id AS uuid) = soi.sales_order_id
-        LEFT JOIN dispatch_item di ON d.dispatch_id = di.dispatch_id AND CAST(di.product_id AS uuid) = soi.product_id
-        WHERE soi.sales_order_id = CAST($1 AS uuid)
+        LEFT JOIN dispatch_order d ON d.sales_order_id = soi.sales_order_id
+        LEFT JOIN dispatch_item di ON d.dispatch_id = di.dispatch_id AND di.product_id = soi.product_id
+        WHERE soi.sales_order_id = $1
         GROUP BY soi.item_id, soi.quantity
       `;
       const allItemsResult = await client.query(allItemsQuery, [so_id]);
-      
-      const allFullyShipped = allItemsResult.rows.every(row => 
+
+      const allFullyShipped = allItemsResult.rows.every(row =>
         Number(row.shipped_qty) >= Number(row.ordered_qty)
       );
-      
+
       if (allFullyShipped && allItemsResult.rows.length > 0) {
         // Update sales order status to DISPATCHED
         // sales_order table uses sales_order_id (UUID) as primary key
         await client.query(`
           UPDATE sales_order 
           SET status = 'DISPATCHED'
-          WHERE sales_order_id = CAST($1 AS uuid)
+          WHERE sales_order_id = $1
         `, [so_id]);
-        
+
         logger.info({ so_id }, 'Sales order status updated to DISPATCHED');
       }
     }
@@ -432,7 +445,7 @@ export async function getDispatchRecords(req, res) {
       SELECT 
         d.dispatch_id,
         d.dispatch_no,
-        d.so_id,
+        d.sales_order_id as so_id,
         so.order_number as so_number,
         so.reference_number as po_number,
         c.company_name as customer_name,
@@ -448,7 +461,7 @@ export async function getDispatchRecords(req, res) {
         di.qty as quantity,
         u.code as uom_code
       FROM dispatch_order d
-      LEFT JOIN sales_order so ON d.so_id = so.sales_order_id::text
+      LEFT JOIN sales_order so ON d.sales_order_id = so.sales_order_id::text
       LEFT JOIN customer c ON d.customer_id = c.customer_id
       LEFT JOIN dispatch_item di ON d.dispatch_id = di.dispatch_id
       LEFT JOIN product p ON di.product_id = p.product_id
@@ -478,7 +491,7 @@ export async function getDispatchRecords(req, res) {
           items: []
         });
       }
-      
+
       if (row.product_id) {
         dispatchMap.get(row.dispatch_id).items.push({
           product_id: row.product_id,
@@ -539,7 +552,7 @@ export async function updateDispatchStatus(req, res) {
             ELSE dispatch_date 
           END
       WHERE dispatch_id = $2
-      RETURNING dispatch_id, dispatch_no, status, so_id
+      RETURNING dispatch_id, dispatch_no, status, sales_order_id as so_id
     `;
 
     const isDelivered = status === 'DELIVERED';
@@ -560,21 +573,21 @@ export async function updateDispatchStatus(req, res) {
         SELECT COUNT(*) as total, 
                COUNT(CASE WHEN status = 'DELIVERED' THEN 1 END) as delivered
         FROM dispatch_order
-        WHERE so_id = $1::text
+        WHERE sales_order_id = $1::text
       `;
       const checkResult = await db.query(checkQuery, [dispatch.so_id]);
       const { total, delivered } = checkResult.rows[0];
 
       if (parseInt(total) === parseInt(delivered)) {
-        // Update sales order status to DELIVERED (not COMPLETED - DELIVERED is the correct status)
-        // sales_order table uses sales_order_id (UUID) as primary key
+        // ⭐ FIX 3: All dispatches DELIVERED — advance SO to COMPLETED (final state)
+        // DELIVERED on the dispatch itself is enough; the SO lifecycle ends at COMPLETED.
         await db.query(`
           UPDATE sales_order 
-          SET status = 'DELIVERED'
-          WHERE sales_order_id = CAST($1 AS uuid)
+          SET status = 'COMPLETED'
+          WHERE sales_order_id = $1
         `, [dispatch.so_id]);
-        
-        logger.info({ so_id: dispatch.so_id }, 'Sales order status updated to DELIVERED');
+
+        logger.info({ so_id: dispatch.so_id }, 'All dispatches delivered — SO status set to COMPLETED');
       }
     }
 
@@ -613,7 +626,7 @@ export async function generateDispatchInvoicePDF(req, res) {
         d.driver_name,
         d.created_by,
         d.status,
-        d.so_id,
+        d.sales_order_id as so_id,
         c.customer_id,
         c.company_name as customer_name,
         c.customer_code,
@@ -630,7 +643,7 @@ export async function generateDispatchInvoicePDF(req, res) {
         so.total_amount as so_total_amount
       FROM dispatch_order d
       LEFT JOIN customer c ON d.customer_id = c.customer_id
-      LEFT JOIN sales_order so ON d.so_id = so.sales_order_id::text
+      LEFT JOIN sales_order so ON d.sales_order_id = so.sales_order_id::text
       WHERE d.dispatch_id = $1
     `;
 
@@ -667,7 +680,7 @@ export async function generateDispatchInvoicePDF(req, res) {
       LEFT JOIN oem o ON p.oem_id = o.oem_id
       LEFT JOIN model m ON p.model_id = m.model_id
       LEFT JOIN sales_order_item soi ON (
-        soi.sales_order_id = CAST($2 AS uuid)
+        soi.sales_order_id = $2
         AND (
           (soi.product_id IS NOT NULL AND soi.product_id::text = di.product_id::text)
           OR (soi.item_code IS NOT NULL AND soi.item_code = p.product_code)
@@ -696,10 +709,10 @@ export async function generateDispatchInvoicePDF(req, res) {
     `;
 
     const itemsResult = await db.query(
-      itemsQuery, 
+      itemsQuery,
       salesOrderId ? [dispatchId, salesOrderId] : [dispatchId]
     );
-    
+
     // Debug: Log the query results to verify unit_price
     logger.info({
       dispatchId,
@@ -712,7 +725,7 @@ export async function generateDispatchInvoicePDF(req, res) {
         standard_cost: row.standard_cost
       }))
     }, 'Dispatch invoice items query results');
-    
+
     // Map items with OEM/Model info
     const items = itemsResult.rows.map(item => ({
       product_id: item.product_id,
@@ -773,7 +786,7 @@ export async function generateDispatchInvoicePDF(req, res) {
     // Send PDF file
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${pdfResult.fileName}"`);
-    
+
     const pdfBuffer = fs.readFileSync(pdfResult.filePath);
     res.send(pdfBuffer);
 

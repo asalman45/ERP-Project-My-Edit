@@ -19,13 +19,14 @@ export async function getEmployees(req, res) {
 }
 
 export async function createEmployee(req, res) {
-    const { first_name, last_name, email, phone, department, designation, doj, base_salary, bank_account, pan_no } = req.body;
+    const { first_name, last_name, email, phone, department, designation, doj, base_salary, bank_account, pan_no, image_url } = req.body;
     try {
         const count = await prisma.employee.count();
         const emp_code = `EMP${(count + 1).toString().padStart(3, '0')}`;
         const employee = await prisma.employee.create({
-            data: { emp_code, first_name, last_name, email, phone, department, designation, doj: new Date(doj), base_salary, bank_account, pan_no }
+            data: { emp_code, first_name, last_name, email, phone, department, designation, doj: new Date(doj), base_salary, bank_account, pan_no, image_url }
         });
+
         res.json({ success: true, data: employee });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -50,6 +51,26 @@ export async function logAttendance(req, res) {
 }
 
 /**
+ * Get Payrolls (by month/year)
+ */
+export async function getPayrolls(req, res) {
+    const { month, year } = req.query;
+    try {
+        const where = {};
+        if (month) where.month = parseInt(month);
+        if (year) where.year = parseInt(year);
+        const payrolls = await prisma.payroll.findMany({
+            where,
+            include: { employee: true },
+            orderBy: { payroll_id: 'desc' }
+        });
+        res.json({ success: true, data: payrolls });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+}
+
+/**
  * Payroll Processing
  */
 export async function processPayroll(req, res) {
@@ -62,13 +83,23 @@ export async function processPayroll(req, res) {
             // Logic for calculating salary based on attendance would go here
             // For now, we take base salary as gross
             const gross = parseFloat(emp.base_salary);
-            const deductions = 0; // Simulate PF/ESI if needed
+
+            // Dynamic Tax Calculation
+            let taxRate = 0;
+            if (gross >= 100000) taxRate = 0.20;
+            else if (gross >= 50000) taxRate = 0.10;
+            else taxRate = 0.05;
+
+            const deductions = gross * taxRate;
             const net = gross - deductions;
+
+            // High-value Payroll requires strict Approval
+            const payrollStatus = gross >= 100000 ? 'PENDING_APPROVAL' : 'APPROVED';
 
             const payroll = await prisma.payroll.upsert({
                 where: { emp_id_month_year: { emp_id: emp.emp_id, month, year } },
-                update: { gross_salary: gross, deductions, net_salary: net },
-                create: { emp_id: emp.emp_id, month, year, gross_salary: gross, deductions, net_salary: net }
+                update: { gross_salary: gross, deductions, net_salary: net, status: payrollStatus },
+                create: { emp_id: emp.emp_id, month, year, gross_salary: gross, deductions, net_salary: net, status: payrollStatus }
             });
             payrolls.push(payroll);
         }
@@ -93,21 +124,35 @@ export async function paySalaries(req, res) {
                 include: { employee: true }
             });
 
-            if (payroll && payroll.status !== 'PAID') {
+            if (payroll && payroll.status === 'APPROVED') {
                 // 1. Create Journal Entry
                 const salaryExpAcc = await prisma.financialAccount.findFirst({ where: { code: 'EXP-SALARY' } });
-                const paymentAcc = await prisma.financialAccount.findUnique({ where: { account_id } }) ||
-                    await prisma.financialAccount.findFirst({ where: { category: 'BANK' } });
+                let paymentAcc = null;
+                if (account_id) {
+                    paymentAcc = await prisma.financialAccount.findUnique({ where: { account_id } });
+                }
+                if (!paymentAcc) {
+                    paymentAcc = await prisma.financialAccount.findFirst({ where: { category: 'BANK' } });
+                }
 
                 if (salaryExpAcc && paymentAcc) {
+                    // Check for Income Tax Payable account
+                    let taxAcc = await prisma.financialAccount.findFirst({ where: { name: { contains: 'Tax Payable', mode: 'insensitive' } } });
+                    if (!taxAcc) {
+                        taxAcc = await prisma.financialAccount.create({
+                            data: { code: '2100', name: 'Income Tax Payable', type: 'LIABILITY', category: 'OTHER_EXPENSE' }
+                        });
+                    }
+
                     const entry = await prisma.journalEntry.create({
                         data: {
                             reference: `SAL-${payroll.year}${payroll.month}-${payroll.employee.emp_code}`,
                             description: `Salary Payment - ${payroll.employee.first_name} ${payroll.employee.last_name}`,
                             lines: {
                                 create: [
-                                    { account_id: salaryExpAcc.account_id, debit: payroll.net_salary, credit: 0 },
-                                    { account_id: paymentAcc.account_id, debit: 0, credit: payroll.net_salary }
+                                    { account_id: salaryExpAcc.account_id, debit: payroll.gross_salary, credit: 0 },
+                                    { account_id: paymentAcc.account_id, debit: 0, credit: payroll.net_salary },
+                                    { account_id: taxAcc.account_id, debit: 0, credit: payroll.deductions }
                                 ]
                             }
                         }
@@ -130,10 +175,37 @@ export async function paySalaries(req, res) {
     }
 }
 
+/**
+ * Approve High-Value Payrolls
+ */
+export async function approvePayroll(req, res) {
+    const { payrollIds } = req.body;
+    try {
+        if (!payrollIds || !Array.isArray(payrollIds)) {
+            return res.status(400).json({ success: false, error: 'payrollIds array is required' });
+        }
+
+        const updated = await prisma.payroll.updateMany({
+            where: {
+                payroll_id: { in: payrollIds },
+                status: 'PENDING_APPROVAL'
+            },
+            data: { status: 'APPROVED' }
+        });
+
+        res.json({ success: true, approved_count: updated.count });
+    } catch (error) {
+        logger.error({ error }, 'Failed to approve payroll');
+        res.status(500).json({ success: false, error: error.message });
+    }
+}
+
 export default {
     getEmployees,
     createEmployee,
+    getPayrolls,
     logAttendance,
     processPayroll,
-    paySalaries
+    paySalaries,
+    approvePayroll
 };

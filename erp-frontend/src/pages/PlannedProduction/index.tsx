@@ -273,8 +273,10 @@ export default function PlannedProductionPage() {
                               onClick={() => handleRunMRP(plan.planned_production_id)}
                               disabled={runMRPMutation.isPending}
                               title="Run MRP Planning"
+                              className="gap-2"
                             >
                               <TrendingUp className="w-3 h-3 text-blue-600" />
+                              <span className="ml-2">Run MRP</span>
                             </Button>
                           )}
                           {plan.status === 'MRP_PLANNED' && (
@@ -407,7 +409,7 @@ export default function PlannedProductionPage() {
                       <Card className="p-3">
                         <div className="text-sm text-gray-600">Total Cost</div>
                         <div className="text-xl font-bold text-green-600">
-                          RS {selectedPlan.forecast_data.summary.total_cost?.toLocaleString() || '0'}
+                          Rs. {selectedPlan.forecast_data.summary.total_cost?.toLocaleString() || '0'}
                         </div>
                       </Card>
                     </div>
@@ -443,8 +445,8 @@ export default function PlannedProductionPage() {
                                   <Badge variant="secondary">0</Badge>
                                 )}
                               </TableCell>
-                              <TableCell>RS {parseFloat(req.unit_cost || 0).toFixed(2)}</TableCell>
-                              <TableCell>RS {parseFloat(req.total_cost || 0).toLocaleString()}</TableCell>
+                              <TableCell>Rs. {parseFloat(req.unit_cost || 0).toFixed(2)}</TableCell>
+                              <TableCell>Rs. {parseFloat(req.total_cost || 0).toLocaleString()}</TableCell>
                               <TableCell>
                                 {(req.quantity_shortage > 0 || req.shortage > 0) ? (
                                   <Badge variant="destructive">Shortage</Badge>

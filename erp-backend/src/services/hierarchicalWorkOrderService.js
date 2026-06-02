@@ -21,12 +21,12 @@ import { checkMaterialAvailability } from '../models/bom.model.js';
 export async function createMasterWorkOrder(params) {
   const { productId, quantity, dueDate, startDate, createdBy, customer, sales_order_ref, purchase_order_ref } = params;
   const client = await db.connect();
-  
+
   try {
     await client.query('BEGIN');
-    
+
     logger.info({ productId, quantity }, 'Creating Master Work Order (MWO)');
-    
+
     // Create Master Work Order only
     const woNo = `MWO-${Date.now()}`;
     const masterWOResult = await client.query(`
@@ -58,13 +58,13 @@ export async function createMasterWorkOrder(params) {
       sales_order_ref || null,
       purchase_order_ref || null
     ]);
-    
+
     const masterWO = masterWOResult.rows[0];
-    
+
     await client.query('COMMIT');
-    
+
     logger.info({ masterWOId: masterWO.wo_id, woNo: masterWO.wo_no }, 'Master work order created successfully');
-    
+
     return {
       success: true,
       data: {
@@ -78,7 +78,7 @@ export async function createMasterWorkOrder(params) {
         purchase_order_ref: purchase_order_ref
       }
     };
-    
+
   } catch (error) {
     await client.query('ROLLBACK');
     logger.error({ error: error.message }, 'Failed to create master work order');
@@ -102,23 +102,23 @@ export async function createMasterWorkOrder(params) {
 export async function createChildWorkOrder(params) {
   const { parent_wo_id, operation_type, quantity, createdBy, customer, sales_order_ref } = params;
   const client = await db.connect();
-  
+
   try {
     await client.query('BEGIN');
-    
+
     logger.info({ parent_wo_id, operation_type, quantity }, 'Creating Child Work Order');
-    
+
     // Get parent work order details
     const parentResult = await client.query(`
       SELECT product_id, scheduled_start, scheduled_end FROM work_order WHERE wo_id = $1
     `, [parent_wo_id]);
-    
+
     if (parentResult.rows.length === 0) {
       throw new Error('Parent work order not found');
     }
-    
+
     const parentWO = parentResult.rows[0];
-    
+
     // Create Child Work Order
     const woNo = `WO-${operation_type}-${Date.now()}`;
     const childWOResult = await client.query(`
@@ -128,7 +128,6 @@ export async function createChildWorkOrder(params) {
         product_id,
         quantity,
         parent_wo_id,
-        operation_type,
         scheduled_start,
         scheduled_end,
         status,
@@ -136,7 +135,7 @@ export async function createChildWorkOrder(params) {
         created_at,
         customer,
         sales_order_ref
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, $11, $12)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, $10, $11)
       RETURNING wo_id, wo_no
     `, [
       uuidv4(),
@@ -144,21 +143,20 @@ export async function createChildWorkOrder(params) {
       parentWO.product_id,
       quantity,
       parent_wo_id,
-      operation_type,
       parentWO.scheduled_start,
       parentWO.scheduled_end,
-      'PLANNED',
+      'PLANNED', // status
       createdBy,
       customer || null,
       sales_order_ref || null
     ]);
-    
+
     const childWO = childWOResult.rows[0];
-    
+
     await client.query('COMMIT');
-    
+
     logger.info({ childWOId: childWO.wo_id, woNo: childWO.wo_no }, 'Child work order created successfully');
-    
+
     return {
       success: true,
       data: {
@@ -172,7 +170,7 @@ export async function createChildWorkOrder(params) {
         sales_order_ref: sales_order_ref
       }
     };
-    
+
   } catch (error) {
     await client.query('ROLLBACK');
     logger.error({ error: error.message }, 'Failed to create child work order');
@@ -213,11 +211,11 @@ export async function getWorkOrderHierarchy(masterWOId) {
         CASE WHEN wo.parent_wo_id IS NULL THEN 0 ELSE 1 END,
         wo.created_at
     `, [masterWOId]);
-    
+
     const workOrders = result.rows;
     const masterWO = workOrders.find(wo => wo.wo_id === masterWOId);
     const childWOs = workOrders.filter(wo => wo.parent_wo_id === masterWOId);
-    
+
     return {
       success: true,
       data: {
@@ -226,7 +224,7 @@ export async function getWorkOrderHierarchy(masterWOId) {
         total_work_orders: workOrders.length
       }
     };
-    
+
   } catch (error) {
     logger.error({ error: error.message }, 'Failed to get work order hierarchy');
     throw error;
@@ -262,9 +260,9 @@ export async function getChildWorkOrders(parentWOId) {
       WHERE wo.parent_wo_id = $1
       ORDER BY wo.created_at
     `, [parentWOId]);
-    
+
     return result.rows;
-    
+
   } catch (error) {
     logger.error({ error: error.message }, 'Failed to get child work orders');
     throw error;
@@ -284,13 +282,13 @@ export async function checkWorkOrderDependencies(woId) {
       FROM work_order 
       WHERE wo_id = $1
     `, [woId]);
-    
+
     if (woResult.rows.length === 0) {
       throw new Error('Work order not found');
     }
-    
+
     const workOrder = woResult.rows[0];
-    
+
     // Define operation dependencies
     const dependencies = {
       'FORMING': ['CUTTING'],
@@ -300,9 +298,9 @@ export async function checkWorkOrderDependencies(woId) {
       'PACKAGING': ['PAINTING', 'QC'],
       'QC': ['ASSEMBLY', 'WELDING'] // QC after assembly or welding
     };
-    
+
     const requiredOperations = dependencies[workOrder.operation_type] || [];
-    
+
     if (requiredOperations.length === 0) {
       return {
         hasDependencies: false,
@@ -311,25 +309,25 @@ export async function checkWorkOrderDependencies(woId) {
         completedOperations: []
       };
     }
-    
+
     // Get all child work orders for the same parent
     const childrenResult = await db.query(`
       SELECT operation_type, status
       FROM work_order 
       WHERE parent_wo_id = $1 AND wo_id != $2
     `, [workOrder.parent_wo_id, woId]);
-    
+
     const allOperations = childrenResult.rows;
-    
+
     // Check which required operations are completed
-    const completedOperations = requiredOperations.filter(requiredOp => 
-      allOperations.some(op => 
+    const completedOperations = requiredOperations.filter(requiredOp =>
+      allOperations.some(op =>
         op.operation_type === requiredOp && op.status === 'COMPLETED'
       )
     );
-    
+
     const canStart = completedOperations.length === requiredOperations.length;
-    
+
     return {
       hasDependencies: true,
       canStart: canStart,
@@ -337,7 +335,7 @@ export async function checkWorkOrderDependencies(woId) {
       completedOperations: completedOperations,
       missingOperations: requiredOperations.filter(op => !completedOperations.includes(op))
     };
-    
+
   } catch (error) {
     logger.error({ error: error.message }, 'Failed to check work order dependencies');
     throw error;
@@ -357,13 +355,13 @@ export async function triggerNextWorkOrders(completedWOId) {
       FROM work_order 
       WHERE wo_id = $1
     `, [completedWOId]);
-    
+
     if (woResult.rows.length === 0) {
       throw new Error('Work order not found');
     }
-    
+
     const completedWO = woResult.rows[0];
-    
+
     // Define which operations can be triggered by this completion
     const triggers = {
       'CUTTING': ['FORMING'],
@@ -373,27 +371,27 @@ export async function triggerNextWorkOrders(completedWOId) {
       'PAINTING': ['PACKAGING'],
       'QC': ['PACKAGING']
     };
-    
+
     const triggeredOperations = triggers[completedWO.operation_type] || [];
-    
+
     if (triggeredOperations.length === 0) {
       return [];
     }
-    
+
     // Get all child work orders for the same parent
     const childrenResult = await db.query(`
       SELECT wo_id, operation_type, status
       FROM work_order 
       WHERE parent_wo_id = $1 AND status = 'PLANNED'
     `, [completedWO.parent_wo_id]);
-    
+
     const plannedOperations = childrenResult.rows;
-    
+
     // Find operations that can now be started
-    const canStartOperations = plannedOperations.filter(op => 
+    const canStartOperations = plannedOperations.filter(op =>
       triggeredOperations.includes(op.operation_type)
     );
-    
+
     // Update status to IN_PROGRESS for operations that can start
     const triggeredWOs = [];
     for (const op of canStartOperations) {
@@ -404,16 +402,16 @@ export async function triggerNextWorkOrders(completedWOId) {
             updated_at = CURRENT_TIMESTAMP
         WHERE wo_id = $1
       `, [op.wo_id]);
-      
+
       triggeredWOs.push({
         wo_id: op.wo_id,
         operation_type: op.operation_type,
         status: 'IN_PROGRESS'
       });
     }
-    
+
     return triggeredWOs;
-    
+
   } catch (error) {
     logger.error({ error: error.message }, 'Failed to trigger next work orders');
     throw error;
@@ -437,7 +435,7 @@ export async function calculateSheetAllocation(productId, quantity) {
       materialWaste: 0.05, // 5% waste
       costEstimate: quantity * 10 // Placeholder cost
     };
-    
+
   } catch (error) {
     logger.error({ error: error.message }, 'Failed to calculate sheet allocation');
     throw error;

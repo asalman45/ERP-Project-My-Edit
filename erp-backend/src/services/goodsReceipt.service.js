@@ -20,7 +20,7 @@ import { logger } from '../utils/logger.js';
  */
 export async function createGoodsReceipt(grnData) {
   const client = await db.connect();
-  
+
   try {
     await client.query('BEGIN');
 
@@ -47,10 +47,19 @@ export async function createGoodsReceipt(grnData) {
     const grn = grnResult.rows[0];
     logger.info({ grn_id: grn.grn_id, grn_no: grnNo }, 'GRN created');
 
+    // Get default valid UOM if needed (intercept invalid cached frontend requests)
+    const defaultUomQuery = await client.query(`SELECT uom_id FROM uom WHERE code = 'PCS' LIMIT 1`);
+    const defaultUomId = defaultUomQuery.rows.length > 0 ? defaultUomQuery.rows[0].uom_id : null;
+
     // 2. Create GRN items and update inventory
     const grnItems = [];
     for (const item of items) {
-      const { po_item_id, material_id, qty_received, uom_id, batch_no } = item;
+      let { po_item_id, material_id, qty_received, uom_id, batch_no } = item;
+
+      // Override known invalid UUID from cached frontend builds
+      if (!uom_id || uom_id === '88ed7640-5f9e-47c3-882c-a9bfbfbe0744') {
+        uom_id = defaultUomId;
+      }
 
       // Insert GRN item
       const grnItemQuery = `
@@ -104,6 +113,44 @@ export async function createGoodsReceipt(grnData) {
         logger.info({ material_id, qty_received }, 'New inventory record created');
       }
 
+      // --> HOOK: GRN Moving Average Recalculation
+      try {
+        let poPrice = 0;
+        if (po_item_id) {
+          const poItem = await client.query('SELECT unit_price FROM purchase_order_item WHERE po_item_id = $1', [po_item_id]);
+          if (poItem.rows.length > 0) poPrice = parseFloat(poItem.rows[0].unit_price) || 0;
+        }
+
+        if (poPrice > 0) {
+          const totalStockRes = await client.query(`SELECT COALESCE(SUM(quantity), 0) as total_qty FROM inventory WHERE material_id = $1`, [material_id]);
+          // Subtract qty_received because it was just added to inventory above
+          const currentQty = Math.max(0, parseFloat(totalStockRes.rows[0].total_qty) - qty_received);
+
+          const costRes = await client.query(`SELECT standard_cost, moving_average_cost FROM standard_cost_ledger WHERE material_id = $1 ORDER BY effective_date DESC LIMIT 1`, [material_id]);
+          let currentCost = 0;
+          let stdCost = poPrice;
+
+          if (costRes.rows.length > 0) {
+            currentCost = parseFloat(costRes.rows[0].moving_average_cost) || parseFloat(costRes.rows[0].standard_cost) || 0;
+            stdCost = parseFloat(costRes.rows[0].standard_cost) || poPrice;
+          }
+
+          const newQty = currentQty + qty_received;
+          const newMac = ((currentQty * currentCost) + (qty_received * poPrice)) / newQty;
+
+          await client.query(`
+            INSERT INTO standard_cost_ledger 
+            (cost_id, material_id, effective_date, standard_cost, moving_average_cost)
+            VALUES (gen_random_uuid(), $1, CURRENT_TIMESTAMP, $2, $3)
+          `, [material_id, stdCost, newMac]);
+
+          logger.info({ material_id, oldMac: currentCost, newMac, poPrice }, 'Moving Average Recalculated');
+        }
+      } catch (err) {
+        logger.error({ err, material_id }, 'Failed to recalculate MAC');
+      }
+      // <-- END HOOK
+
       // 4. Create inventory transaction record
       const inventoryTxnQuery = `
         INSERT INTO inventory_txn (
@@ -114,9 +161,9 @@ export async function createGoodsReceipt(grnData) {
         )
       `;
       await client.query(inventoryTxnQuery, [
-        material_id, 
-        qty_received, 
-        location_id, 
+        material_id,
+        qty_received,
+        location_id,
         `GRN ${grnNo} - PO ${po_id} - Batch: ${batch_no || 'N/A'}`
       ]);
 

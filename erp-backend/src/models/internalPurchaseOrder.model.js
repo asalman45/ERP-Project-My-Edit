@@ -46,6 +46,10 @@ export const createInternalPO = async (ipoData) => {
 
     const ipo = ipoResult.rows[0];
 
+    // Get default UOM if needed
+    const defaultUomQuery = await client.query(`SELECT uom_id FROM uom WHERE code = 'PCS' LIMIT 1`);
+    const defaultUomId = defaultUomQuery.rows.length > 0 ? defaultUomQuery.rows[0].uom_id : null;
+
     // Insert IPO items
     const itemPromises = items.map(item => {
       const itemQuery = `
@@ -53,7 +57,7 @@ export const createInternalPO = async (ipoData) => {
           ipo_item_id, ipo_id, material_id, item_name, description, quantity,
           unit_price, total_amount, uom_id, created_at
         ) VALUES (
-          gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP
+          gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, COALESCE($8, $9), CURRENT_TIMESTAMP
         ) RETURNING *
       `;
       
@@ -65,7 +69,8 @@ export const createInternalPO = async (ipoData) => {
         item.quantity,
         item.unit_price,
         item.quantity * item.unit_price,
-        item.uom_id || '88ed7640-5f9e-47c3-882c-a9bfbfbe0744' // Default to 'Pieces'
+        item.uom_id || null,
+        defaultUomId
       ]);
     });
 
@@ -112,14 +117,15 @@ export const createInternalPO = async (ipoData) => {
               `INSERT INTO purchase_order_item (
                 po_item_id, po_id, material_id, quantity, received_qty, unit_price, uom_id, created_at
               ) VALUES (
-                gen_random_uuid(), $1, $2, $3, 0, $4, $5, CURRENT_TIMESTAMP
+                gen_random_uuid(), $1, $2, $3, 0, $4, COALESCE($5, $6), CURRENT_TIMESTAMP
               )`,
               [
                 linkedPurchaseOrder.po_id,
                 item.material_id,
                 item.quantity,
                 item.unit_price,
-                item.uom_id || null
+                item.uom_id || null,
+                defaultUomId
               ]
             );
           }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PieChart, Loader2, Filter, Download, Building2, TrendingUp, Wallet, ArrowUpRight } from "lucide-react";
@@ -55,7 +55,7 @@ const DepartmentalOverheads: React.FC = () => {
                             <div className="p-2 bg-indigo-50 rounded-lg"><Wallet className="w-5 h-5 text-indigo-600" /></div>
                             <div>
                                 <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Global Overheads</div>
-                                <div className="text-2xl font-bold text-slate-900">₹{totalOverheads.toLocaleString()}</div>
+                                <div className="text-2xl font-bold text-slate-900">Rs. {totalOverheads.toLocaleString()}</div>
                             </div>
                         </div>
                         <p className="text-xs text-muted-foreground">Aggregate indirect expenditure for current period</p>
@@ -100,7 +100,7 @@ const DepartmentalOverheads: React.FC = () => {
                         </CardHeader>
                         <CardContent className="pt-6 space-y-6">
                             <div className="flex justify-between items-end">
-                                <div className="text-3xl font-black text-slate-800">₹{dept.total.toLocaleString()}</div>
+                                <div className="text-3xl font-black text-slate-800">Rs. {dept.total.toLocaleString()}</div>
                                 <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">{((dept.total / totalOverheads) * 100).toFixed(1)}% of total</div>
                             </div>
 
@@ -109,7 +109,7 @@ const DepartmentalOverheads: React.FC = () => {
                                     <div key={acc.name} className="space-y-1">
                                         <div className="flex justify-between text-xs font-medium text-slate-600">
                                             <span>{acc.name}</span>
-                                            <span className="font-bold text-slate-900">₹{acc.amount.toLocaleString()}</span>
+                                            <span className="font-bold text-slate-900">Rs. {acc.amount.toLocaleString()}</span>
                                         </div>
                                         <Progress value={(acc.amount / dept.total) * 100} className="h-1 bg-slate-100" />
                                     </div>

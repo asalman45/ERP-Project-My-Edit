@@ -1,0 +1,4 @@
+material_code,name,description,uom_code,hs_code
+STEEL-HS-001,Steel Sheet HS,High grade steel sheet with HS,KG,7208.51.00
+ALUM-HS-001,Aluminum Bar HS,Standard aluminum bar with HS,PC,7604.29.10
+COPPER-HS-001,Copper Wire HS,Standard copper wire with HS,MTR,7408.11.60

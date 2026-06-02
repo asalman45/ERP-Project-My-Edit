@@ -143,11 +143,135 @@ export async function generateInvoicePDF(invoiceData) {
         });
 
         await browser.close();
-        return pdfBuffer;
+        return Buffer.from(pdfBuffer);
 
     } catch (error) {
         if (browser) await browser.close();
         logger.error({ error: error.message }, 'Error in PDF generation service');
+        throw error;
+    }
+}
+
+/**
+ * Generate Sales Order PDF
+ */
+export async function generateSalesOrderPDF(soData) {
+    let browser;
+    try {
+        browser = await puppeteer.launch({
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+        const page = await browser.newPage();
+
+        const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Sales Order ${soData.order_number}</title>
+        <style>
+          body { font-family: 'Helvetica', 'Arial', sans-serif; color: #333; margin: 0; padding: 40px; }
+          .header { display: flex; justify-content: space-between; margin-bottom: 40px; border-bottom: 2px solid #3b82f6; padding-bottom: 20px; }
+          .company-info h1 { margin: 0; font-size: 28px; color: #1e40af; }
+          .details { text-align: right; }
+          .details h2 { margin: 0; font-size: 24px; color: #1e40af; }
+          
+          .section { margin-bottom: 30px; }
+          .section-title { border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 15px; font-size: 16px; font-weight: bold; }
+          
+          table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+          th { background: #f8fafc; text-align: left; padding: 12px; font-size: 14px; border-bottom: 2px solid #eee; }
+          td { padding: 12px; font-size: 14px; border-bottom: 1px solid #eee; }
+          
+          .totals { display: flex; justify-content: flex-end; }
+          .totals-table { width: 250px; }
+          .totals-table tr td:first-child { font-weight: bold; text-align: right; padding-right: 20px; }
+          .totals-table tr td:last-child { text-align: right; }
+          .grand-total { font-size: 18px; font-weight: bold; color: #1e40af; background: #eff6ff; }
+          
+          .footer { margin-top: 50px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666; text-align: center; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="company-info">
+            <h1>EPCML ERP</h1>
+            <p>Sales Order Document</p>
+          </div>
+          <div class="details">
+            <h2>SALES ORDER</h2>
+            <p><strong>Order No:</strong> ${soData.order_number}</p>
+            <p><strong>Date:</strong> ${new Date(soData.order_date).toLocaleDateString()}</p>
+            <p><strong>Status:</strong> ${soData.status}</p>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Customer Details:</div>
+          <p><strong>${soData.customer_name}</strong></p>
+          <p><strong>Reference:</strong> ${soData.reference_number || 'N/A'}</p>
+          <p><strong>Required Date:</strong> ${soData.required_date ? new Date(soData.required_date).toLocaleDateString() : 'N/A'}</p>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Item / Description</th>
+              <th style="width: 80px; text-align: center;">Qty</th>
+              <th style="width: 120px; text-align: right;">Unit Price (Rs)</th>
+              <th style="width: 120px; text-align: right;">Total (Rs)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${soData.items.map(item => `
+              <tr>
+                <td>${item.item_name || item.product_name || 'Product'}</td>
+                <td style="text-align: center;">${parseFloat(item.quantity || item.qty_ordered).toFixed(2)}</td>
+                <td style="text-align: right;">${parseFloat(item.unit_price).toLocaleString()}</td>
+                <td style="text-align: right;">${(parseFloat(item.quantity || item.qty_ordered) * parseFloat(item.unit_price)).toLocaleString()}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div class="totals">
+          <table class="totals-table">
+            <tr>
+              <td>Subtotal:</td>
+              <td>Rs ${parseFloat(soData.subtotal || (soData.total_amount - (soData.tax_amount || 0))).toLocaleString()}</td>
+            </tr>
+            <tr>
+              <td>Tax:</td>
+              <td>Rs ${parseFloat(soData.tax_amount || 0).toLocaleString()}</td>
+            </tr>
+            <tr class="grand-total">
+              <td>Grand Total:</td>
+              <td>Rs ${parseFloat(soData.total_amount).toLocaleString()}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="footer">
+          <p>This is a computer-generated Sales Order.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' }
+        });
+
+        await browser.close();
+        return Buffer.from(pdfBuffer);
+
+    } catch (error) {
+        if (browser) await browser.close();
+        logger.error({ error: error.message }, 'Error in Sales Order PDF generation');
         throw error;
     }
 }

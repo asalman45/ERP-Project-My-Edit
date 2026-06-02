@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileText, Download, Calendar, Filter, TrendingUp, AlertTriangle, Package, Factory } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -593,7 +593,7 @@ const InventoryReportContent: React.FC<InventoryReportContentProps> = ({
         />
         <StatsCard
           title="Total Value"
-          value={`₹${report.summary.estimated_total_value.toLocaleString()}`}
+          value={`Rs. ${report.summary.estimated_total_value.toLocaleString()}`}
           icon={TrendingUp}
         />
       </div>
@@ -813,12 +813,12 @@ const CostAnalysisReportContent: React.FC<CostAnalysisReportContentProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatsCard
           title="Total Material Cost"
-          value={`₹${report.total_material_cost.toLocaleString()}`}
+          value={`Rs. ${report.total_material_cost.toLocaleString()}`}
           icon={TrendingUp}
         />
         <StatsCard
           title="Total Wastage Cost"
-          value={`₹${report.total_wastage_cost.toLocaleString()}`}
+          value={`Rs. ${report.total_wastage_cost.toLocaleString()}`}
           icon={AlertTriangle}
         />
         <StatsCard
@@ -863,7 +863,7 @@ const CostAnalysisReportContent: React.FC<CostAnalysisReportContentProps> = ({
                       </div>
                       <div>
                         <p className="text-muted-foreground">Cost Savings</p>
-                        <p className="font-semibold">₹{item.estimated_cost_savings.toLocaleString()}</p>
+                        <p className="font-semibold">Rs. {item.estimated_cost_savings.toLocaleString()}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Efficiency</p>

@@ -23,16 +23,34 @@ export const createProduct = async (req, res) => {
 
   try {
     const product = await productModel.create(value);
+
+    // --> HOOK: Standard Cost Ledger Init
+    if (value.standard_cost && parseFloat(value.standard_cost) > 0) {
+      try {
+        const db = (await import('../utils/db.js')).default;
+        const { v4: uuidv4 } = await import('uuid');
+        await db.query(`
+          INSERT INTO standard_cost_ledger 
+          (cost_id, product_id, effective_date, standard_cost, moving_average_cost)
+          VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4)
+        `, [uuidv4(), product.product_id, parseFloat(value.standard_cost), parseFloat(value.standard_cost)]);
+        logger.info({ product_id: product.product_id, standard_cost: value.standard_cost }, 'Standard Cost initialized');
+      } catch (err) {
+        logger.error({ err }, 'Failed to initialize standard cost');
+      }
+    }
+    // <-- END HOOK
+
     logger.info({ product_id: product.product_id }, 'product created');
     return res.status(201).json({ data: product });
   } catch (err) {
     // Handle duplicate key constraint violations
     if (err.code === '23505' && err.constraint === 'product_product_code_key') {
-      return res.status(409).json({ 
-        error: `Product code '${value.product_code}' already exists. Please use a different product code.` 
+      return res.status(409).json({
+        error: `Product code '${value.product_code}' already exists. Please use a different product code.`
       });
     }
-    
+
     // Handle other database errors
     logger.error({ err, product_code: value.product_code }, 'Failed to create product');
     return res.status(500).json({ error: 'Failed to create product. Please try again.' });
@@ -47,11 +65,11 @@ export const updateProduct = async (req, res) => {
   } catch (err) {
     // Handle duplicate key constraint violations
     if (err.code === '23505' && err.constraint === 'product_product_code_key') {
-      return res.status(409).json({ 
-        error: `Product code '${req.body.product_code}' already exists. Please use a different product code.` 
+      return res.status(409).json({
+        error: `Product code '${req.body.product_code}' already exists. Please use a different product code.`
       });
     }
-    
+
     // Handle other database errors
     logger.error({ err, product_id: req.params.id }, 'Failed to update product');
     return res.status(500).json({ error: 'Failed to update product. Please try again.' });
@@ -67,39 +85,39 @@ export const deleteProduct = async (req, res) => {
 export const exportProducts = async (req, res) => {
   try {
     const { format = 'json' } = req.query;
-    
+
     // Get products data
-    const productsData = await productModel.findAll({ 
+    const productsData = await productModel.findAll({
       limit: 10000,
       offset: 0
     });
-    
+
     if (format === 'csv') {
       // Generate CSV content
-      const csvHeaders = 'Product ID,Product Code,Part Name,Description,OEM,Model,UOM,Standard Cost,Category,Min Stock,Max Stock,Reorder Qty,Created At\n';
+      const csvHeaders = 'Product ID,Product Code,Part Name,Description,HS Code,OEM,Model,UOM,Standard Cost,Category,Min Stock,Max Stock,Reorder Qty,Created At\n';
       const csvRows = productsData.map(product =>
-        `"${product.product_id}","${product.product_code}","${product.part_name}","${product.description || ''}","${product.oem_name || ''}","${product.model_name || ''}","${product.uom_code || ''}","${product.standard_cost || 0}","${product.category}","${product.min_stock || 0}","${product.max_stock || 0}","${product.reorder_qty || 0}","${product.created_at}"`
+        `"${product.product_id}","${product.product_code}","${product.part_name}","${product.description || ''}","${product.hs_code || ''}","${product.oem_name || ''}","${product.model_name || ''}","${product.uom_code || ''}","${product.standard_cost || 0}","${product.category}","${product.min_stock || 0}","${product.max_stock || 0}","${product.reorder_qty || 0}","${product.created_at}"`
       ).join('\n');
-      
+
       const csvContent = csvHeaders + csvRows;
-      
+
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename="products-${new Date().toISOString().split('T')[0]}.csv"`);
       return res.send(csvContent);
-      
+
     } else if (format === 'pdf') {
       try {
         // Generate PDF using Puppeteer
         const puppeteer = await import('puppeteer');
-        const browser = await puppeteer.default.launch({ 
+        const browser = await puppeteer.default.launch({
           headless: true,
           args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
-      
-      const page = await browser.newPage();
-      
-      // Create HTML content for PDF
-      const htmlContent = `
+
+        const page = await browser.newPage();
+
+        // Create HTML content for PDF
+        const htmlContent = `
         <!DOCTYPE html>
         <html>
         <head>
@@ -141,6 +159,7 @@ export const exportProducts = async (req, res) => {
                 <th>Code</th>
                 <th>Part Name</th>
                 <th>Description</th>
+                <th>HS Code</th>
                 <th>OEM</th>
                 <th>Model</th>
                 <th>UOM</th>
@@ -157,6 +176,7 @@ export const exportProducts = async (req, res) => {
                   <td>${product.product_code || ''}</td>
                   <td>${product.part_name || ''}</td>
                   <td>${product.description || ''}</td>
+                  <td>${product.hs_code || ''}</td>
                   <td>${product.oem_name || ''}</td>
                   <td>${product.model_name || ''}</td>
                   <td>${product.uom_code || ''}</td>
@@ -176,33 +196,33 @@ export const exportProducts = async (req, res) => {
         </body>
         </html>
       `;
-      
-      await page.setContent(htmlContent);
-      
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: {
-          top: '20mm',
-          right: '20mm',
-          bottom: '20mm',
-          left: '20mm'
-        }
-      });
-      
+
+        await page.setContent(htmlContent);
+
+        const pdfBuffer = await page.pdf({
+          format: 'A4',
+          printBackground: true,
+          margin: {
+            top: '20mm',
+            right: '20mm',
+            bottom: '20mm',
+            left: '20mm'
+          }
+        });
+
         await browser.close();
-        
+
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="products-${new Date().toISOString().split('T')[0]}.pdf"`);
         res.setHeader('Content-Length', pdfBuffer.length);
         return res.end(pdfBuffer);
-        
+
       } catch (pdfError) {
         logger.error({ error: pdfError }, 'Failed to generate PDF');
         await browser?.close();
-        return res.status(500).json({ 
-          error: 'Failed to generate PDF', 
-          message: 'PDF generation failed. Please try again or use CSV export instead.' 
+        return res.status(500).json({
+          error: 'Failed to generate PDF',
+          message: 'PDF generation failed. Please try again or use CSV export instead.'
         });
       }
     } else {

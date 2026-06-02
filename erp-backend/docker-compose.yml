@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_USER: empcl_user
       POSTGRES_PASSWORD: empcl_pass123
-      POSTGRES_DB: empcl_erp_db
+      POSTGRES_DB: erp_db
     ports:
       - "5433:5432"
     volumes:
@@ -21,6 +21,18 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin123
     ports:
       - "5051:80"
+    depends_on:
+      - postgres
+
+  backend:
+    build: .
+    container_name: empcl-erp-backend
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      - DATABASE_URL=postgresql://empcl_user:empcl_pass123@postgres:5432/erp_db
+      - NODE_ENV=development
     depends_on:
       - postgres
 

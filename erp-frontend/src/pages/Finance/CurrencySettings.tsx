@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Globe, RefreshCw, TrendingUp, Info } from "lucide-react";
@@ -84,7 +84,7 @@ const CurrencySettings: React.FC = () => {
                         <CardContent>
                             <div className="text-sm text-muted-foreground mb-4">1 {curr.code} =</div>
                             <div className="flex items-center gap-2">
-                                <span className="text-2xl font-bold font-mono">₹</span>
+                                <span className="text-2xl font-bold font-mono">Rs. </span>
                                 <Input
                                     type="number"
                                     defaultValue={curr.exchange_rate}

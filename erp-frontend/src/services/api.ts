@@ -22,7 +22,7 @@ async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  
+
   // Debug logging to track actual URLs being used
   console.log('🌐 API Request:', {
     url,
@@ -30,7 +30,7 @@ async function apiRequest<T>(
     endpoint,
     apiBaseUrl: API_BASE_URL
   });
-  
+
   const config: RequestInit = {
     headers: {
       'Content-Type': 'application/json',
@@ -50,7 +50,7 @@ async function apiRequest<T>(
 
   try {
     const response = await fetch(url, config);
-    
+
     // Debug logging for response
     console.log('📡 API Response:', {
       url: response.url,
@@ -58,7 +58,7 @@ async function apiRequest<T>(
       statusText: response.statusText,
       ok: response.ok
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new ApiError(
@@ -74,7 +74,7 @@ async function apiRequest<T>(
     }
 
     const data = await response.json();
-    
+
     // Handle backend response format { success, data, message }
     if (data.success === false) {
       throw new ApiError(
@@ -83,7 +83,7 @@ async function apiRequest<T>(
         data
       );
     }
-    
+
     return data.data || data;
   } catch (error) {
     console.error('❌ API Request Failed:', {
@@ -91,11 +91,11 @@ async function apiRequest<T>(
       error: error.message,
       errorType: error.constructor.name
     });
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
+
     // Handle network errors specifically
     if (error instanceof TypeError && error.message.includes('fetch')) {
       throw new ApiError(
@@ -104,7 +104,7 @@ async function apiRequest<T>(
         { originalError: error.message }
       );
     }
-    
+
     throw new ApiError(
       error instanceof Error ? error.message : 'Network error',
       0
@@ -125,24 +125,24 @@ export const authApi = {
 export const oemApi = {
   // Get all OEMs
   getAll: (): Promise<any[]> => apiRequest('/oems'),
-  
+
   // Get OEM by ID
   getById: (id: string): Promise<any> => apiRequest(`/oems/${id}`),
-  
+
   // Create new OEM
   create: (data: { oem_name: string; country?: string }): Promise<any> =>
     apiRequest('/oems', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Update OEM
   update: (id: string, data: Partial<{ oem_name: string; country: string }>): Promise<any> =>
     apiRequest(`/oems/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  
+
   // Delete OEM
   delete: (id: string): Promise<void> =>
     apiRequest(`/oems/${id}`, {
@@ -154,27 +154,27 @@ export const oemApi = {
 export const modelApi = {
   // Get all models
   getAll: (): Promise<any[]> => apiRequest('/models'),
-  
+
   // Get model by ID
   getById: (id: string): Promise<any> => apiRequest(`/models/${id}`),
-  
+
   // Get models by OEM
   getByOEM: (oemId: string): Promise<any[]> => apiRequest(`/models/oem/${oemId}`),
-  
+
   // Create new model
   create: (data: { model_name: string; oem_id: string; year?: string }): Promise<any> =>
     apiRequest('/models', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Update model
   update: (id: string, data: Partial<{ model_name: string; oem_id: string; year: string }>): Promise<any> =>
     apiRequest(`/models/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  
+
   // Delete model
   delete: (id: string): Promise<void> =>
     apiRequest(`/models/${id}`, {
@@ -186,24 +186,24 @@ export const modelApi = {
 export const uomApi = {
   // Get all UOMs
   getAll: (): Promise<any[]> => apiRequest('/uoms'),
-  
+
   // Get UOM by ID
   getById: (id: string): Promise<any> => apiRequest(`/uoms/${id}`),
-  
+
   // Create new UOM
   create: (data: { code: string; name: string }): Promise<any> =>
     apiRequest('/uoms', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Update UOM
   update: (id: string, data: Partial<{ code: string; name: string }>): Promise<any> =>
     apiRequest(`/uoms/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  
+
   // Delete UOM
   delete: (id: string): Promise<void> =>
     apiRequest(`/uoms/${id}`, {
@@ -218,14 +218,14 @@ export const productApi = {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/products${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Get product by ID
   getById: (id: string): Promise<any> => apiRequest(`/products/${id}`),
-  
+
   // Create new product
   create: (data: {
     product_code: string;
@@ -240,7 +240,7 @@ export const productApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Update product
   update: (id: string, data: Partial<{
     product_code: string;
@@ -255,7 +255,7 @@ export const productApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  
+
   // Delete product
   delete: (id: string): Promise<void> =>
     apiRequest(`/products/${id}`, {
@@ -275,13 +275,13 @@ export const productApi = {
           errorData
         );
       }
-      
+
       // Check if response is PDF
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/pdf')) {
         return response.arrayBuffer();
       }
-      
+
       // For other formats, return as JSON
       return response.json();
     });
@@ -327,6 +327,7 @@ export const dataTransformers = {
     uomId: backendProduct.uom_id,
     uomCode: backendProduct.uom_code || '',
     standardCost: backendProduct.standard_cost,
+    hsCode: backendProduct.hs_code || '',
     category: backendProduct.category,
     createdAt: backendProduct.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
   }),
@@ -361,6 +362,7 @@ export const dataTransformersToBackend = {
     model_id: frontendProduct.modelId,
     uom_id: frontendProduct.uomId,
     standard_cost: frontendProduct.standardCost,
+    hs_code: frontendProduct.hsCode || null,
     category: frontendProduct.category,
   }),
 };
@@ -368,12 +370,12 @@ export const dataTransformersToBackend = {
 // Scrap Management API functions
 export const scrapApi = {
   // Get all scrap inventory
-  getAll: (params?: { 
-    status?: string; 
-    location_id?: string; 
-    material_id?: string; 
-    limit?: number; 
-    offset?: number 
+  getAll: (params?: {
+    status?: string;
+    location_id?: string;
+    material_id?: string;
+    limit?: number;
+    offset?: number
   }): Promise<any[]> => {
     const searchParams = new URLSearchParams();
     if (params?.status) searchParams.set('status', params.status);
@@ -381,14 +383,14 @@ export const scrapApi = {
     if (params?.material_id) searchParams.set('material_id', params.material_id);
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/scrap${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Get scrap by ID
   getById: (id: string): Promise<any> => apiRequest(`/scrap/${id}`),
-  
+
   // Create new scrap
   create: (data: {
     blank_id?: string;
@@ -406,14 +408,14 @@ export const scrapApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Update scrap status
   updateStatus: (id: string, status: string): Promise<any> =>
     apiRequest(`/scrap/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
-  
+
   // Create scrap transaction
   createTransaction: (data: {
     scrap_id: string;
@@ -426,7 +428,7 @@ export const scrapApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Get scrap transactions
   getTransactions: (params?: {
     scrap_id?: string;
@@ -439,17 +441,17 @@ export const scrapApi = {
     if (params?.txn_type) searchParams.set('txn_type', params.txn_type);
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/scrap/transactions/list${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Get scrap by location
-  getByLocation: (locationId: string): Promise<any[]> => 
+  getByLocation: (locationId: string): Promise<any[]> =>
     apiRequest(`/scrap/location/${locationId}`),
-  
+
   // Get scrap by material
-  getByMaterial: (materialId: string): Promise<any[]> => 
+  getByMaterial: (materialId: string): Promise<any[]> =>
     apiRequest(`/scrap/material/${materialId}`),
 };
 
@@ -469,14 +471,14 @@ export const wastageApi = {
     if (params?.location_id) searchParams.set('location_id', params.location_id);
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/wastage${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Get wastage by ID
   getById: (id: string): Promise<any> => apiRequest(`/wastage/${id}`),
-  
+
   // Create wastage record
   create: (data: {
     wo_id: string;
@@ -491,7 +493,7 @@ export const wastageApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Update wastage record
   update: (id: string, data: {
     quantity?: number;
@@ -503,15 +505,15 @@ export const wastageApi = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
-  
+
   // Get wastage by work order
-  getByWorkOrder: (woId: string): Promise<any[]> => 
+  getByWorkOrder: (woId: string): Promise<any[]> =>
     apiRequest(`/wastage/work-order/${woId}`),
-  
+
   // Get wastage by material
-  getByMaterial: (materialId: string): Promise<any[]> => 
+  getByMaterial: (materialId: string): Promise<any[]> =>
     apiRequest(`/wastage/material/${materialId}`),
-  
+
   // Get wastage summary
   getSummary: (params?: {
     start_date?: string;
@@ -524,9 +526,40 @@ export const wastageApi = {
     if (params?.end_date) searchParams.set('end_date', params.end_date);
     if (params?.material_id) searchParams.set('material_id', params.material_id);
     if (params?.wo_id) searchParams.set('wo_id', params.wo_id);
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/wastage/summary${queryString ? `?${queryString}` : ''}`);
+  },
+};
+
+// Finance API functions
+export const financeApi = {
+  getPnL: (params?: { start_date?: string; end_date?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.start_date) searchParams.set('start_date', params.start_date);
+    if (params?.end_date) searchParams.set('end_date', params.end_date);
+    return apiRequest(`/finance/reporting/p-and-l?${searchParams.toString()}`);
+  },
+  getBalanceSheet: (date?: string) => {
+    const searchParams = new URLSearchParams();
+    if (date) searchParams.set('date', date);
+    return apiRequest(`/finance/reporting/balance-sheet?${searchParams.toString()}`);
+  },
+  getAPAging: () => apiRequest('/finance/reporting/ap-aging'),
+  getARAging: () => apiRequest('/finance/reporting/ar-aging'),
+  getTaxSummary: (params?: { start_date?: string; end_date?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.start_date) searchParams.set('start_date', params.start_date);
+    if (params?.end_date) searchParams.set('end_date', params.end_date);
+    return apiRequest(`/finance/reporting/tax-summary?${searchParams.toString()}`);
+  },
+  performYearEndClose: (data: { year: number; retained_earnings_account_id: string }) =>
+    apiRequest('/finance/year-end-close', { method: 'POST', body: JSON.stringify(data) }),
+  getExpenseSummary: (params?: { start_date?: string; end_date?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.start_date) searchParams.set('start_date', params.start_date);
+    if (params?.end_date) searchParams.set('end_date', params.end_date);
+    return apiRequest(`/finance/reporting/expense-summary?${searchParams.toString()}`);
   },
 };
 
@@ -543,15 +576,15 @@ export const scrapReuseApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Get reusable scrap
   getReusable: (materialId: string, locationId?: string): Promise<any[]> => {
-    const endpoint = locationId 
+    const endpoint = locationId
       ? `/scrap-reuse/reusable/${materialId}/${locationId}`
       : `/scrap-reuse/reusable/${materialId}`;
     return apiRequest(endpoint);
   },
-  
+
   // Get scrap reuse history
   getHistory: (params?: {
     material_id?: string;
@@ -568,11 +601,11 @@ export const scrapReuseApi = {
     if (params?.end_date) searchParams.set('end_date', params.end_date);
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/scrap-reuse/history${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Get scrap reuse savings
   getSavings: (params?: {
     start_date?: string;
@@ -583,7 +616,7 @@ export const scrapReuseApi = {
     if (params?.start_date) searchParams.set('start_date', params.start_date);
     if (params?.end_date) searchParams.set('end_date', params.end_date);
     if (params?.material_id) searchParams.set('material_id', params.material_id);
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/scrap-reuse/savings${queryString ? `?${queryString}` : ''}`);
   },
@@ -605,7 +638,7 @@ export const stockAdjustmentApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Get adjustment history
   getHistory: (params?: {
     product_id?: string;
@@ -624,11 +657,11 @@ export const stockAdjustmentApi = {
     if (params?.end_date) searchParams.set('end_date', params.end_date);
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/stock-adjustment/history${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Get stock levels
   getLevels: (params?: {
     product_id?: string;
@@ -641,11 +674,11 @@ export const stockAdjustmentApi = {
     if (params?.material_id) searchParams.set('material_id', params.material_id);
     if (params?.location_id) searchParams.set('location_id', params.location_id);
     if (params?.low_stock_only) searchParams.set('low_stock_only', params.low_stock_only.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/stock-adjustment/levels${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Get stock movement report
   getMovementReport: (params?: {
     product_id?: string;
@@ -660,7 +693,7 @@ export const stockAdjustmentApi = {
     if (params?.location_id) searchParams.set('location_id', params.location_id);
     if (params?.start_date) searchParams.set('start_date', params.start_date);
     if (params?.end_date) searchParams.set('end_date', params.end_date);
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/stock-adjustment/movement-report${queryString ? `?${queryString}` : ''}`);
   },
@@ -680,7 +713,7 @@ export const productionTrackingApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Update production step
   updateStep: (stepId: string, data: {
     completed_qty?: number;
@@ -693,11 +726,11 @@ export const productionTrackingApi = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
-  
+
   // Get production progress
   getProgress: (productionId: string): Promise<any> =>
     apiRequest(`/production-tracking/${productionId}/progress`),
-  
+
   // Get production orders
   getOrders: (params?: {
     status?: string;
@@ -714,11 +747,11 @@ export const productionTrackingApi = {
     if (params?.end_date) searchParams.set('end_date', params.end_date);
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/production-tracking/orders${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Get production efficiency
   getEfficiency: (params?: {
     start_date?: string;
@@ -729,7 +762,7 @@ export const productionTrackingApi = {
     if (params?.start_date) searchParams.set('start_date', params.start_date);
     if (params?.end_date) searchParams.set('end_date', params.end_date);
     if (params?.product_id) searchParams.set('product_id', params.product_id);
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/production-tracking/efficiency${queryString ? `?${queryString}` : ''}`);
   },
@@ -755,11 +788,11 @@ export const legacyReportsApi = {
     if (params?.location_id) searchParams.set('location_id', params.location_id);
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/reports/wastage${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Generate scrap report
   getScrapReport: (params?: {
     start_date?: string;
@@ -778,11 +811,11 @@ export const legacyReportsApi = {
     if (params?.status) searchParams.set('status', params.status);
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/reports/scrap${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Generate inventory report
   getInventoryReport: (params?: {
     product_id?: string;
@@ -795,11 +828,11 @@ export const legacyReportsApi = {
     if (params?.material_id) searchParams.set('material_id', params.material_id);
     if (params?.location_id) searchParams.set('location_id', params.location_id);
     if (params?.low_stock_only) searchParams.set('low_stock_only', params.low_stock_only.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/reports/inventory${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Generate production report
   getProductionReport: (params?: {
     start_date?: string;
@@ -816,11 +849,11 @@ export const legacyReportsApi = {
     if (params?.status) searchParams.set('status', params.status);
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/reports/production${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Generate cost analysis report
   getCostAnalysisReport: (params?: {
     start_date?: string;
@@ -833,7 +866,7 @@ export const legacyReportsApi = {
     if (params?.end_date) searchParams.set('end_date', params.end_date);
     if (params?.product_id) searchParams.set('product_id', params.product_id);
     if (params?.material_id) searchParams.set('material_id', params.material_id);
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/reports/cost-analysis${queryString ? `?${queryString}` : ''}`);
   },
@@ -843,24 +876,24 @@ export const legacyReportsApi = {
 export const materialApi = {
   // Get all materials
   getAll: (): Promise<any[]> => apiRequest('/materials'),
-  
+
   // Get material by ID
   getById: (id: string): Promise<any> => apiRequest(`/materials/${id}`),
-  
+
   // Create new material
   create: (data: { name: string; code: string; category: string }): Promise<any> =>
     apiRequest('/materials', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Update material
   update: (id: string, data: Partial<{ name: string; code: string; category: string }>): Promise<any> =>
     apiRequest(`/materials/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  
+
   // Delete material
   delete: (id: string): Promise<void> =>
     apiRequest(`/materials/${id}`, {
@@ -872,33 +905,35 @@ export const materialApi = {
 export const rawMaterialApi = {
   // Get all raw materials
   getAll: (): Promise<any[]> => apiRequest('/raw-materials'),
-  
+
   // Get raw material by ID
   getById: (id: string): Promise<any> => apiRequest(`/raw-materials/${id}`),
-  
+
   // Create new raw material
-  create: (data: { 
-    material_code: string; 
-    name: string; 
+  create: (data: {
+    material_code: string;
+    name: string;
     description?: string;
     uom_id?: string;
+    hs_code?: string;
   }): Promise<any> =>
     apiRequest('/raw-materials', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Update raw material
-  update: (id: string, data: Partial<{ 
-    name: string; 
+  update: (id: string, data: Partial<{
+    name: string;
     description?: string;
     uom_id?: string;
+    hs_code?: string;
   }>): Promise<any> =>
     apiRequest(`/raw-materials/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  
+
   // Delete raw material
   delete: (id: string): Promise<void> =>
     apiRequest(`/raw-materials/${id}`, {
@@ -918,7 +953,7 @@ export const rawMaterialApi = {
           errorData
         );
       }
-      
+
       // Always return as JSON since backend returns JSON
       return response.json();
     });
@@ -947,29 +982,40 @@ export const rawMaterialApi = {
 export const locationApi = {
   // Get all locations
   getAll: (): Promise<any[]> => apiRequest('/locations'),
-  
+
   // Get location by ID
   getById: (id: string): Promise<any> => apiRequest(`/locations/${id}`),
-  
+
   // Create new location
   create: (data: { code: string; name: string; type: string }): Promise<any> =>
     apiRequest('/locations', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Update location
   update: (id: string, data: Partial<{ code: string; name: string; type: string }>): Promise<any> =>
     apiRequest(`/locations/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  
+
   // Delete location
   delete: (id: string): Promise<void> =>
     apiRequest(`/locations/${id}`, {
       method: 'DELETE',
     }),
+};
+
+// QC API functions
+export const qcApi = {
+  createStandard: (data: any) => apiRequest('/qc/standards', { method: 'POST', body: JSON.stringify(data) }),
+  getInspections: () => apiRequest('/qc/inspections'),
+  performInspection: (data: any) => apiRequest('/qc/inspections', { method: 'POST', body: JSON.stringify(data) }),
+  logRejection: (data: any) => apiRequest('/qc/rejections', { method: 'POST', body: JSON.stringify(data) }),
+  getAnalytics: () => apiRequest('/qc/analytics'),
+  createCAPA: (data: { inspection_id: string; issue_description: string; root_cause?: string; corrective_action: string; preventive_action?: string; assigned_to?: string; due_date?: string }) =>
+    apiRequest('/qc/capa', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // Work Order API functions
@@ -979,14 +1025,14 @@ export const workOrderApi = {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/work-orders${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Get work order by ID
   getById: (id: string): Promise<any> => apiRequest(`/work-orders/${id}`),
-  
+
   // Create new work order
   create: (data: {
     wo_no: string;
@@ -1001,7 +1047,7 @@ export const workOrderApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Update work order
   update: (id: string, data: Partial<{
     wo_no: string;
@@ -1016,7 +1062,7 @@ export const workOrderApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  
+
   // Delete work order
   delete: (id: string): Promise<void> =>
     apiRequest(`/work-orders/${id}`, {
@@ -1061,25 +1107,25 @@ export const workOrderApi = {
 // Purchase Order API functions
 export const purchaseOrderApi = {
   // Get all purchase orders
-  getAll: (params?: { 
-    limit?: number; 
-    offset?: number; 
-    supplier_id?: string; 
-    status?: string 
+  getAll: (params?: {
+    limit?: number;
+    offset?: number;
+    supplier_id?: string;
+    status?: string
   }): Promise<any[]> => {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
     if (params?.supplier_id) searchParams.set('supplier_id', params.supplier_id);
     if (params?.status) searchParams.set('status', params.status);
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/purchase-orders${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Get purchase order by ID
   getById: (id: string): Promise<any> => apiRequest(`/purchase-orders/${id}`),
-  
+
   // Create new purchase order
   create: (data: {
     po_no: string;
@@ -1095,7 +1141,7 @@ export const purchaseOrderApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Update purchase order
   update: (id: string, data: Partial<{
     po_no: string;
@@ -1111,24 +1157,24 @@ export const purchaseOrderApi = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
-  
+
   // Update purchase order status
   updateStatus: (id: string, status: string): Promise<any> =>
     apiRequest(`/purchase-orders/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
-  
+
   // Delete purchase order
   delete: (id: string): Promise<void> =>
     apiRequest(`/purchase-orders/${id}`, {
       method: 'DELETE',
     }),
-  
+
   // Get PO items
-  getItems: (poId: string): Promise<any[]> => 
+  getItems: (poId: string): Promise<any[]> =>
     apiRequest(`/purchase-orders/${poId}/items`),
-  
+
   // Add PO item
   addItem: (poId: string, data: {
     product_id?: string;
@@ -1142,7 +1188,7 @@ export const purchaseOrderApi = {
       method: 'POST',
       body: JSON.stringify({ ...data, po_id: poId }),
     }),
-  
+
   // Update PO item
   updateItem: (itemId: string, data: {
     quantity?: number;
@@ -1153,7 +1199,7 @@ export const purchaseOrderApi = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
-  
+
   // Delete PO item
   deleteItem: (itemId: string): Promise<void> =>
     apiRequest(`/purchase-orders/items/${itemId}`, {
@@ -1165,10 +1211,10 @@ export const purchaseOrderApi = {
 export const supplierApi = {
   // Get all suppliers
   getAll: (): Promise<any[]> => apiRequest('/suppliers'),
-  
+
   // Get supplier by ID
   getById: (id: string): Promise<any> => apiRequest(`/suppliers/${id}`),
-  
+
   // Create new supplier
   create: (data: {
     code: string;
@@ -1183,7 +1229,7 @@ export const supplierApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Update supplier
   update: (id: string, data: Partial<{
     supplier_name: string;
@@ -1202,7 +1248,7 @@ export const supplierApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  
+
   // Delete supplier
   delete: (id: string): Promise<void> =>
     apiRequest(`/suppliers/${id}`, {
@@ -1222,13 +1268,13 @@ export const supplierApi = {
           errorData
         );
       }
-      
+
       // Check if response is PDF
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/pdf')) {
         return response.arrayBuffer();
       }
-      
+
       // For other formats, return as JSON
       return response.json();
     });
@@ -1255,10 +1301,10 @@ export const supplierApi = {
 // Inventory API functions
 export const inventoryApi = {
   // Get all inventory items
-  getAll: (params?: { 
-    limit?: number; 
-    offset?: number; 
-    product_id?: string; 
+  getAll: (params?: {
+    limit?: number;
+    offset?: number;
+    product_id?: string;
     material_id?: string;
     location_id?: string;
   }): Promise<any[]> => {
@@ -1268,14 +1314,14 @@ export const inventoryApi = {
     if (params?.product_id) searchParams.set('product_id', params.product_id);
     if (params?.material_id) searchParams.set('material_id', params.material_id);
     if (params?.location_id) searchParams.set('location_id', params.location_id);
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/inventory${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Get inventory by ID
   getById: (id: string): Promise<any> => apiRequest(`/inventory/${id}`),
-  
+
   // Get inventory transactions
   getTransactions: (params?: {
     limit?: number;
@@ -1296,11 +1342,11 @@ export const inventoryApi = {
     if (params?.location_id) searchParams.set('location_id', params.location_id);
     if (params?.start_date) searchParams.set('start_date', params.start_date);
     if (params?.end_date) searchParams.set('end_date', params.end_date);
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/inventory/transactions${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Create inventory transaction
   createTransaction: (data: {
     product_id?: string;
@@ -1315,7 +1361,7 @@ export const inventoryApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Get inventory levels
   getLevels: (params?: {
     product_id?: string;
@@ -1326,13 +1372,13 @@ export const inventoryApi = {
     if (params?.product_id) searchParams.set('product_id', params.product_id);
     if (params?.material_id) searchParams.set('material_id', params.material_id);
     if (params?.location_id) searchParams.set('location_id', params.location_id);
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/inventory/levels${queryString ? `?${queryString}` : ''}`);
   },
 
   // === NEW COMPREHENSIVE INVENTORY MANAGEMENT API ENDPOINTS ===
-  
+
   // Stock In Operations
   stockIn: (data: {
     material_id: string;
@@ -1365,7 +1411,7 @@ export const inventoryApi = {
     if (params?.location_id) searchParams.set('location_id', params.location_id);
     if (params?.start_date) searchParams.set('start_date', params.start_date);
     if (params?.end_date) searchParams.set('end_date', params.end_date);
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/inventory/stock-in/history${queryString ? `?${queryString}` : ''}`);
   },
@@ -1420,7 +1466,7 @@ export const inventoryApi = {
     if (params?.wo_id) searchParams.set('wo_id', params.wo_id);
     if (params?.start_date) searchParams.set('start_date', params.start_date);
     if (params?.end_date) searchParams.set('end_date', params.end_date);
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/inventory/stock-out/history${queryString ? `?${queryString}` : ''}`);
   },
@@ -1473,7 +1519,7 @@ export const inventoryApi = {
     if (params?.wo_id) searchParams.set('wo_id', params.wo_id);
     if (params?.start_date) searchParams.set('start_date', params.start_date);
     if (params?.end_date) searchParams.set('end_date', params.end_date);
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/inventory/wastage${queryString ? `?${queryString}` : ''}`);
   },
@@ -1533,7 +1579,7 @@ export const inventoryApi = {
     if (params?.wo_id) searchParams.set('wo_id', params.wo_id);
     if (params?.start_date) searchParams.set('start_date', params.start_date);
     if (params?.end_date) searchParams.set('end_date', params.end_date);
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/inventory/finished-goods${queryString ? `?${queryString}` : ''}`);
   },
@@ -1555,7 +1601,7 @@ export const inventoryApi = {
     if (params?.wo_id) searchParams.set('wo_id', params.wo_id);
     if (params?.start_date) searchParams.set('start_date', params.start_date);
     if (params?.end_date) searchParams.set('end_date', params.end_date);
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/inventory/finished-goods/history${queryString ? `?${queryString}` : ''}`);
   },
@@ -1606,7 +1652,7 @@ export const inventoryApi = {
     if (params?.location_id) searchParams.set('location_id', params.location_id);
     if (params?.start_date) searchParams.set('start_date', params.start_date);
     if (params?.end_date) searchParams.set('end_date', params.end_date);
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/inventory/reentry/history${queryString ? `?${queryString}` : ''}`);
   },
@@ -1622,7 +1668,7 @@ export const inventoryApi = {
     if (params?.offset) searchParams.set('offset', params.offset.toString());
     if (params?.material_id) searchParams.set('material_id', params.material_id);
     if (params?.location_id) searchParams.set('location_id', params.location_id);
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/inventory/reentry/available${queryString ? `?${queryString}` : ''}`);
   },
@@ -1654,7 +1700,7 @@ export const inventoryApi = {
     if (params?.location_id) searchParams.set('location_id', params.location_id);
     if (params?.min_quantity) searchParams.set('min_quantity', params.min_quantity.toString());
     if (params?.max_quantity) searchParams.set('max_quantity', params.max_quantity.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/inventory/current-stock/all${queryString ? `?${queryString}` : ''}`);
   },
@@ -1670,7 +1716,7 @@ export const inventoryApi = {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/inventory/current-stock/low-stock${queryString ? `?${queryString}` : ''}`);
   },
@@ -1682,7 +1728,7 @@ export const inventoryApi = {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/inventory/current-stock/zero-stock${queryString ? `?${queryString}` : ''}`);
   },
@@ -1722,13 +1768,13 @@ export const inventoryApi = {
           errorData
         );
       }
-      
+
       // Check if response is PDF
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/pdf')) {
         return response.arrayBuffer();
       }
-      
+
       // For other formats, return as JSON
       return response.json();
     });
@@ -1750,13 +1796,13 @@ export const finishedGoodsApi = {
           errorData
         );
       }
-      
+
       // Check if response is CSV
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('text/csv')) {
         return response.text();
       }
-      
+
       // For other formats, return as JSON
       return response.json();
     });
@@ -1791,7 +1837,7 @@ export const procurementRequestApi = {
     if (params?.requested_by) searchParams.set('requested_by', params.requested_by);
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/procurement${queryString ? `?${queryString}` : ''}`);
   },
@@ -1828,13 +1874,13 @@ export const procurementRequestApi = {
           errorData
         );
       }
-      
+
       // Check if response is PDF
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/pdf')) {
         return response.arrayBuffer();
       }
-      
+
       // For other formats, return as blob
       return response.blob();
     });
@@ -1935,7 +1981,7 @@ export const reportsApi = {
         queryParams.set('format', format);
       }
       const endpoint = `/reports/${reportType}?${queryParams}`;
-      
+
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'GET',
       });
@@ -1954,7 +2000,7 @@ export const reportsApi = {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       return { success: true };
     } catch (error) {
       console.error('Download failed:', error);
@@ -1968,7 +2014,7 @@ export const bomApi = {
   // Get BOM with sub-assemblies
   getWithSubAssemblies: (productId: string): Promise<any> =>
     apiRequest(`/bom/${productId}/sub-assemblies`),
-  
+
   // Add sub-assembly to BOM
   addSubAssembly: (productId: string, data: {
     material_id: string;
@@ -1982,7 +2028,7 @@ export const bomApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Calculate material consumption
   calculateConsumption: (productId: string, data: {
     sheetType: string;
@@ -1993,15 +2039,15 @@ export const bomApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Get process flow
   getProcessFlow: (productId: string): Promise<any> =>
     apiRequest(`/bom/${productId}/process-flow`),
-  
+
   // Get reusable materials
   getReusableMaterials: (productId: string): Promise<any> =>
     apiRequest(`/bom/${productId}/reusable-materials`),
-  
+
   // Optimize material usage
   optimizeUsage: (productId: string, data: {
     quantity: number;
@@ -2059,11 +2105,11 @@ export const bomApi = {
 // Blank Specification API functions
 export const blankSpecApi = {
   // Get all blank specifications
-  getAll: (params?: { 
-    product_id?: string; 
-    sub_assembly_name?: string; 
-    limit?: number; 
-    offset?: number 
+  getAll: (params?: {
+    product_id?: string;
+    sub_assembly_name?: string;
+    limit?: number;
+    offset?: number
   }): Promise<any[]> => {
     const searchParams = new URLSearchParams();
     if (params?.sub_assembly_name) searchParams.set('subAssemblyName', params.sub_assembly_name);
@@ -2082,10 +2128,10 @@ export const blankSpecApi = {
 
     return apiRequest('/blank-specs');
   },
-  
+
   // Get blank spec by ID
   getById: (id: string): Promise<any> => apiRequest(`/blank-specs/${id}`),
-  
+
   // Create blank specification
   create: (data: {
     product_id: string;
@@ -2101,7 +2147,7 @@ export const blankSpecApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Update blank specification
   update: (id: string, data: Partial<{
     width_mm: number;
@@ -2114,13 +2160,13 @@ export const blankSpecApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  
+
   // Delete blank specification
   delete: (id: string): Promise<void> =>
     apiRequest(`/blank-specs/${id}`, {
       method: 'DELETE',
     }),
-  
+
   // Calculate sheet utilization
   calculateUtilization: (productId: string, data: {
     sheetType: string;
@@ -2136,23 +2182,23 @@ export const blankSpecApi = {
 // Process Flow API functions
 export const processFlowApi = {
   // Get all process flows
-  getAll: (params?: { 
-    product_id?: string; 
-    limit?: number; 
-    offset?: number 
+  getAll: (params?: {
+    product_id?: string;
+    limit?: number;
+    offset?: number
   }): Promise<any[]> => {
     const searchParams = new URLSearchParams();
     if (params?.product_id) searchParams.set('product_id', params.product_id);
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/process-flows${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Get process flow by ID
   getById: (id: string): Promise<any> => apiRequest(`/process-flows/${id}`),
-  
+
   // Create process flow
   create: (data: {
     product_id: string;
@@ -2169,7 +2215,7 @@ export const processFlowApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Update process flow
   update: (id: string, data: Partial<{
     step_no: number;
@@ -2185,7 +2231,7 @@ export const processFlowApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  
+
   // Delete process flow
   delete: (id: string): Promise<void> =>
     apiRequest(`/process-flows/${id}`, {
@@ -2196,12 +2242,12 @@ export const processFlowApi = {
 // Enhanced Scrap Inventory API functions
 export const enhancedScrapApi = {
   // Get all scrap inventory
-  getAll: (params?: { 
-    status?: string; 
-    location_id?: string; 
-    material_id?: string; 
-    limit?: number; 
-    offset?: number 
+  getAll: (params?: {
+    status?: string;
+    location_id?: string;
+    material_id?: string;
+    limit?: number;
+    offset?: number
   }): Promise<any[]> => {
     const searchParams = new URLSearchParams();
     if (params?.status) searchParams.set('status', params.status);
@@ -2209,14 +2255,14 @@ export const enhancedScrapApi = {
     if (params?.material_id) searchParams.set('material_id', params.material_id);
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/scrap-inventory${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Get scrap by ID
   getById: (id: string): Promise<any> => apiRequest(`/scrap-inventory/${id}`),
-  
+
   // Create scrap item
   create: (data: {
     material_id: string;
@@ -2233,7 +2279,7 @@ export const enhancedScrapApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Update scrap item
   update: (id: string, data: Partial<{
     width_mm: number;
@@ -2248,13 +2294,13 @@ export const enhancedScrapApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  
+
   // Delete scrap item
   delete: (id: string): Promise<void> =>
     apiRequest(`/scrap-inventory/${id}`, {
       method: 'DELETE',
     }),
-  
+
   // Find reusable scrap
   findReusable: (productId: string, params?: {
     material_id?: string;
@@ -2263,11 +2309,11 @@ export const enhancedScrapApi = {
     const searchParams = new URLSearchParams();
     if (params?.material_id) searchParams.set('material_id', params.material_id);
     if (params?.location_id) searchParams.set('location_id', params.location_id);
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/scrap-inventory/reusable/${productId}${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Record scrap consumption
   recordConsumption: (data: {
     scrap_id: string;
@@ -2280,7 +2326,7 @@ export const enhancedScrapApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Get available scrap
   getAvailable: (params?: {
     material_id?: string;
@@ -2295,11 +2341,11 @@ export const enhancedScrapApi = {
     if (params?.min_width) searchParams.set('min_width', params.min_width.toString());
     if (params?.min_length) searchParams.set('min_length', params.min_length.toString());
     if (params?.min_thickness) searchParams.set('min_thickness', params.min_thickness.toString());
-    
+
     const queryString = searchParams.toString();
     return apiRequest(`/scrap-inventory/available${queryString ? `?${queryString}` : ''}`);
   },
-  
+
   // Get scrap summary
   getSummary: (): Promise<any> => apiRequest('/scrap-inventory/summary'),
 };
@@ -2330,7 +2376,7 @@ export const exportReport = async (reportType: string, params: any = {}) => {
   try {
     const queryParams = new URLSearchParams(params).toString();
     const endpoint = `/reports/${reportType}${queryParams ? `?${queryParams}` : ''}`;
-    
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'GET',
       headers: {
@@ -2575,16 +2621,16 @@ export const sheetOptimizationApi = {
 export const mrpApi = {
   // Get products for MRP planning
   getProducts: (): Promise<any> => apiRequest('/mrp-api/products'),
-  
+
   // Get sales orders for MRP planning
   getSalesOrders: (): Promise<any> => apiRequest('/mrp-api/sales-orders'),
-  
+
   // Get sales order items for a specific sales order
   getSalesOrderItems: (salesOrderId: string): Promise<any> => apiRequest(`/mrp-api/sales-orders/${salesOrderId}/items`),
-  
+
   // Get suppliers for MRP planning
   getSuppliers: (): Promise<any> => apiRequest('/mrp-api/suppliers'),
-  
+
   // Run MRP calculation
   runMRP: (data: {
     product_id: string;
@@ -2594,17 +2640,17 @@ export const mrpApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Generate purchase requisitions from MRP requirements
   generatePurchaseRequisitions: (data: {
     requirements: any[];
-    selected_suppliers: {[prId: string]: string};
+    selected_suppliers: { [prId: string]: string };
   }): Promise<any> =>
     apiRequest('/mrp-api/generate-prs', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   // Convert purchase requisition to purchase order
   convertPRToPO: (data: {
     pr_data: any;
@@ -2638,16 +2684,242 @@ export const qualityAssuranceApi = {
       if (contentType && contentType.includes('application/pdf')) {
         return response.arrayBuffer();
       }
-      
+
       // Check if response is CSV
       if (contentType && contentType.includes('text/csv')) {
         return response.text();
       }
-      
+
       // For other formats, return as JSON
       return response.json();
     });
   },
+};
+
+// Detailed Reports API functions (New Excel/PDF capable)
+export const detailedReportsApi = {
+  getSalesOrderReport: (params?: any) => {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined) searchParams.set(key, params[key]);
+      });
+    }
+    return apiRequest(`/reports/detailed/sales-orders?${searchParams.toString()}`);
+  },
+  downloadSalesOrderReport: (format: 'pdf' | 'excel', params?: any) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set('format', format);
+    if (params) {
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined) searchParams.set(key, params[key]);
+      });
+    }
+    return fetch(`${API_BASE_URL}/reports/detailed/sales-orders?${searchParams.toString()}`)
+      .then(res => res.blob());
+  },
+  getExpenseReport: (params?: any) => {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined) searchParams.set(key, params[key]);
+      });
+    }
+    return apiRequest(`/reports/detailed/expenses?${searchParams.toString()}`);
+  },
+  downloadExpenseReport: (format: 'pdf' | 'excel', params?: any) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set('format', format);
+    if (params) {
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined) searchParams.set(key, params[key]);
+      });
+    }
+    return fetch(`${API_BASE_URL}/reports/detailed/expenses?${searchParams.toString()}`)
+      .then(res => res.blob());
+  },
+  getIncomeReport: (params?: any) => {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined) searchParams.set(key, params[key]);
+      });
+    }
+    return apiRequest(`/reports/detailed/income?${searchParams.toString()}`);
+  },
+  downloadIncomeReport: (format: 'pdf' | 'excel', params?: any) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set('format', format);
+    if (params) {
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined) searchParams.set(key, params[key]);
+      });
+    }
+    return fetch(`${API_BASE_URL}/reports/detailed/income?${searchParams.toString()}`)
+      .then(res => res.blob());
+  },
+  getSalesTaxReport: (params?: any) => {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined) searchParams.set(key, params[key]);
+      });
+    }
+    return apiRequest(`/reports/detailed/sales-tax?${searchParams.toString()}`);
+  },
+  downloadSalesTaxReport: (format: 'pdf' | 'excel', params?: any) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set('format', format);
+    if (params) {
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined) searchParams.set(key, params[key]);
+      });
+    }
+    return fetch(`${API_BASE_URL}/reports/detailed/sales-tax?${searchParams.toString()}`)
+      .then(res => res.blob());
+  },
+  getDispatchReport: (params?: any) => {
+    const searchParams = new URLSearchParams();
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return apiRequest(`/reports/detailed/dispatch?${searchParams.toString()}`);
+  },
+  downloadDispatchReport: (format: 'pdf' | 'excel', params?: any) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set('format', format);
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return fetch(`${API_BASE_URL}/reports/detailed/dispatch?${searchParams.toString()}`).then(res => res.blob());
+  },
+  getInvoicingReport: (params?: any) => {
+    const searchParams = new URLSearchParams();
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return apiRequest(`/reports/detailed/invoicing?${searchParams.toString()}`);
+  },
+  downloadInvoicingReport: (format: 'pdf' | 'excel', params?: any) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set('format', format);
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return fetch(`${API_BASE_URL}/reports/detailed/invoicing?${searchParams.toString()}`).then(res => res.blob());
+  },
+  getPaymentReport: (params?: any) => {
+    const searchParams = new URLSearchParams();
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return apiRequest(`/reports/detailed/payment?${searchParams.toString()}`);
+  },
+  downloadPaymentReport: (format: 'pdf' | 'excel', params?: any) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set('format', format);
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return fetch(`${API_BASE_URL}/reports/detailed/payment?${searchParams.toString()}`).then(res => res.blob());
+  },
+  getProductionReport: (params?: any) => {
+    const searchParams = new URLSearchParams();
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return apiRequest(`/reports/detailed/production?${searchParams.toString()}`);
+  },
+  downloadProductionReport: (format: 'pdf' | 'excel', params?: any) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set('format', format);
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return fetch(`${API_BASE_URL}/reports/detailed/production?${searchParams.toString()}`).then(res => res.blob());
+  },
+  getTrackingReport: (params?: any) => {
+    const searchParams = new URLSearchParams();
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return apiRequest(`/reports/detailed/tracking?${searchParams.toString()}`);
+  },
+  downloadTrackingReport: (format: 'pdf' | 'excel', params?: any) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set('format', format);
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return fetch(`${API_BASE_URL}/reports/detailed/tracking?${searchParams.toString()}`).then(res => res.blob());
+  },
+  getWorkOrderReport: (params?: any) => {
+    const searchParams = new URLSearchParams();
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return apiRequest(`/reports/detailed/work-order?${searchParams.toString()}`);
+  },
+  downloadWorkOrderReport: (format: 'pdf' | 'excel', params?: any) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set('format', format);
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return fetch(`${API_BASE_URL}/reports/detailed/work-order?${searchParams.toString()}`).then(res => res.blob());
+  },
+  getProcessFlowReport: (params?: any) => {
+    const searchParams = new URLSearchParams();
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return apiRequest(`/reports/detailed/process-flow?${searchParams.toString()}`);
+  },
+  downloadProcessFlowReport: (format: 'pdf' | 'excel', params?: any) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set('format', format);
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return fetch(`${API_BASE_URL}/reports/detailed/process-flow?${searchParams.toString()}`).then(res => res.blob());
+  },
+  getFinishedGoodsReport: (params?: any) => {
+    const searchParams = new URLSearchParams();
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return apiRequest(`/reports/detailed/finished-goods?${searchParams.toString()}`);
+  },
+  downloadFinishedGoodsReport: (format: 'pdf' | 'excel', params?: any) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set('format', format);
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return fetch(`${API_BASE_URL}/reports/detailed/finished-goods?${searchParams.toString()}`).then(res => res.blob());
+  },
+  getBOMReport: (params?: any) => {
+    const searchParams = new URLSearchParams();
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return apiRequest(`/reports/detailed/bom?${searchParams.toString()}`);
+  },
+  downloadBOMReport: (format: 'pdf' | 'excel', params?: any) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set('format', format);
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return fetch(`${API_BASE_URL}/reports/detailed/bom?${searchParams.toString()}`).then(res => res.blob());
+  },
+  getReceiptSalesReport: (params?: any) => {
+    const searchParams = new URLSearchParams();
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return apiRequest(`/reports/detailed/receipt-sales?${searchParams.toString()}`);
+  },
+  downloadReceiptSalesReport: (format: 'pdf' | 'excel', params?: any) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set('format', format);
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return fetch(`${API_BASE_URL}/reports/detailed/receipt-sales?${searchParams.toString()}`).then(res => res.blob());
+  },
+  getCustomerLedgerReport: (params?: any) => {
+    const searchParams = new URLSearchParams();
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return apiRequest(`/reports/detailed/customer-ledger?${searchParams.toString()}`);
+  },
+  downloadCustomerLedgerReport: (format: 'pdf' | 'excel', params?: any) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set('format', format);
+    if (params) { Object.keys(params).forEach(key => { if (params[key] !== undefined) searchParams.set(key, params[key]); }); }
+    return fetch(`${API_BASE_URL}/reports/detailed/customer-ledger?${searchParams.toString()}`).then(res => res.blob());
+  }
+};
+
+
+// Returns API functions
+export const returnsApi = {
+  createSalesReturn: (data: { so_id: string; items: { product_id: string; quantity: number; unit_price: number }[]; reason?: string; return_to_status?: string }) =>
+    apiRequest('/returns/sales', { method: 'POST', body: JSON.stringify(data) }),
+
+  createPurchaseReturn: (data: { po_id: string; items: { material_id: string; quantity: number; unit_price: number }[]; reason?: string }) =>
+    apiRequest('/returns/purchase', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// Inventory Operations API functions (Cycle Counting & Downtime)
+export const operationsApi = {
+  getPhysicalInventorySnapshot: () => apiRequest('/operations/physical/start'),
+
+  submitPhysicalCounts: (data: { counts: { inventory_id: string; counted_quantity: number | null }[]; notes?: string }) =>
+    apiRequest('/operations/physical/submit', { method: 'POST', body: JSON.stringify(data) }),
+
+  logMachineDowntime: (data: { asset_id: string; start_time: string; end_time?: string; reason_code: string; description?: string }) =>
+    apiRequest('/operations/downtime', { method: 'POST', body: JSON.stringify(data) })
 };
 
 export { ApiError, apiRequest };

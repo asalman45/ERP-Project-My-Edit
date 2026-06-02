@@ -14,16 +14,16 @@ import procurementRequestService from '../../services/procurementRequest.service
 export async function runMRP(req, res) {
   try {
     const { salesOrderId, productId, quantity, requiredByDate, createdBy } = req.body;
-    
+
     if (!salesOrderId && (!productId || !quantity)) {
       return res.status(400).json({
         success: false,
         error: 'Either salesOrderId or (productId + quantity) is required'
       });
     }
-    
+
     logger.info({ salesOrderId, productId, quantity }, 'API: Running MRP');
-    
+
     const result = await mrpService.runMRP({
       salesOrderId,
       productId,
@@ -31,13 +31,13 @@ export async function runMRP(req, res) {
       requiredByDate,
       createdBy: createdBy || 'system'
     });
-    
+
     res.json({
       success: true,
       data: result,
       message: `MRP run completed. ${result.summary.total_shortages} shortage(s) identified.`
     });
-    
+
   } catch (error) {
     logger.error({ error, body: req.body }, 'API: Error running MRP');
     res.status(500).json({
@@ -54,16 +54,16 @@ export async function runMRP(req, res) {
 export async function getMRPResults(req, res) {
   try {
     const { salesOrderId } = req.params;
-    
+
     logger.info({ salesOrderId }, 'API: Fetching MRP results');
-    
+
     const result = await mrpService.getMRPResults(salesOrderId);
-    
+
     res.json({
       success: true,
       data: result
     });
-    
+
   } catch (error) {
     logger.error({ error, salesOrderId: req.params.salesOrderId }, 'API: Error fetching MRP results');
     res.status(500).json({
@@ -81,24 +81,24 @@ export async function getMRPResults(req, res) {
 export async function generatePurchaseRequisitions(req, res) {
   try {
     const { salesOrderId } = req.body;
-    
+
     if (!salesOrderId) {
       return res.status(400).json({
         success: false,
         error: 'Sales Order ID is required'
       });
     }
-    
+
     logger.info({ salesOrderId }, 'API: Generating purchase requisitions');
-    
+
     const prIds = await mrpService.generatePurchaseRequisitions(salesOrderId);
-    
+
     res.json({
       success: true,
       data: { purchase_requisition_ids: prIds },
       message: `${prIds.length} purchase requisition(s) generated successfully`
     });
-    
+
   } catch (error) {
     logger.error({ error, body: req.body }, 'API: Error generating purchase requisitions');
     res.status(500).json({
@@ -116,30 +116,30 @@ export async function getMaterialRequisitions(req, res) {
   try {
     const { salesOrderId } = req.params;
     const { status } = req.query;
-    
+
     logger.info({ salesOrderId, status }, 'API: Fetching material requisitions');
-    
+
     let query = `
       SELECT * FROM material_requisition
       WHERE sales_order_id = $1
     `;
     const params = [salesOrderId];
-    
+
     if (status) {
       query += ` AND status = $2`;
       params.push(status);
     }
-    
+
     query += ` ORDER BY priority DESC, material_type, material_name`;
-    
+
     const result = await db.query(query, params);
-    
+
     res.json({
       success: true,
       data: result.rows,
       total: result.rowCount
     });
-    
+
   } catch (error) {
     logger.error({ error, salesOrderId: req.params.salesOrderId }, 'API: Error fetching material requisitions');
     res.status(500).json({
@@ -156,9 +156,9 @@ export async function getMaterialRequisitions(req, res) {
 export async function getMaterialShortages(req, res) {
   try {
     const { salesOrderId } = req.params;
-    
+
     logger.info({ salesOrderId }, 'API: Fetching material shortages');
-    
+
     const query = `
       SELECT 
         material_id,
@@ -177,13 +177,13 @@ export async function getMaterialShortages(req, res) {
         AND quantity_shortage > 0
       ORDER BY priority DESC, shortage_cost DESC
     `;
-    
+
     const result = await db.query(query, [salesOrderId]);
-    
-    const totalCost = result.rows.reduce((sum, row) => 
+
+    const totalCost = result.rows.reduce((sum, row) =>
       sum + parseFloat(row.shortage_cost || 0), 0
     );
-    
+
     res.json({
       success: true,
       data: {
@@ -195,7 +195,7 @@ export async function getMaterialShortages(req, res) {
         }
       }
     });
-    
+
   } catch (error) {
     logger.error({ error, salesOrderId: req.params.salesOrderId }, 'API: Error fetching material shortages');
     res.status(500).json({
@@ -213,27 +213,26 @@ export async function getMaterialShortages(req, res) {
 export async function runMRPForProduct(req, res) {
   try {
     const { product_id, quantity } = req.body;
-    
+
     if (!product_id || !quantity) {
       return res.status(400).json({
         success: false,
         error: 'Product ID and quantity are required'
       });
     }
-    
+
     logger.info({ product_id, quantity }, 'API: Running MRP for product');
-    
-    // Get BOM items for the product
+
     const bomQuery = `
       SELECT 
-        b.item_name,
+        m.name as item_name,
         b.quantity,
-        b.operation_code,
+        'OP-01' as operation_code,
         b.step_sequence,
-        b.is_critical,
-        b.scrap_allowance_pct,
-        b.reference_type,
-        b.reference_id,
+        true as is_critical,
+        0 as scrap_allowance_pct,
+        CASE WHEN bs.blank_id IS NOT NULL THEN 'BLANK' ELSE 'MATERIAL' END as reference_type,
+        bs.blank_id as reference_id,
         bs.blank_id,
         bs.width_mm,
         bs.length_mm,
@@ -242,68 +241,34 @@ export async function runMRPForProduct(req, res) {
         bs.pcs_per_sheet,
         bs.sheet_util_pct,
         bs.sheet_type,
-        bs.material_type as blank_material_type,
+        null as blank_material_type,
         m.material_id,
         m.name as material_name,
-        m.material_type,
-        m.unit_cost,
-        -- Use material_id from BOM directly, or find material for blanks
-        -- Prefer materials that exist in raw_material table
-        COALESCE(b.material_id, m.material_id,
-          (SELECT m2.material_id FROM material m2 
-           INNER JOIN raw_material rm ON m2.material_code = rm.material_code
-           WHERE (m2.name ILIKE '%' || bs.sheet_type || '%' OR m2.material_type::text = bs.material_type)
-           LIMIT 1),
-          (SELECT m2.material_id FROM material m2 
-           INNER JOIN raw_material rm ON m2.material_code = rm.material_code
-           WHERE m2.name ILIKE '%Sheet%' AND m2.material_type = 'RAW_MATERIAL'
-           LIMIT 1)
-        ) as final_material_id,
-        COALESCE(m.name,
-          (SELECT m2.name FROM material m2 
-           INNER JOIN raw_material rm ON m2.material_code = rm.material_code
-           WHERE m2.material_id = b.material_id
-           LIMIT 1),
-          (SELECT m2.name FROM material m2 
-           INNER JOIN raw_material rm ON m2.material_code = rm.material_code
-           WHERE (m2.name ILIKE '%' || bs.sheet_type || '%' OR m2.material_type::text = bs.material_type)
-           LIMIT 1),
-          (SELECT m2.name FROM material m2 
-           INNER JOIN raw_material rm ON m2.material_code = rm.material_code
-           WHERE m2.name ILIKE '%Sheet%' AND m2.material_type = 'RAW_MATERIAL'
-           LIMIT 1)
-        ) as final_material_name,
-        COALESCE(m.unit_cost, 
-          (SELECT m2.unit_cost FROM material m2 
-           INNER JOIN raw_material rm ON m2.material_code = rm.material_code
-           WHERE (m2.name ILIKE '%' || bs.sheet_type || '%' OR m2.material_type::text = bs.material_type)
-           LIMIT 1),
-          (SELECT m2.unit_cost FROM material m2 
-           INNER JOIN raw_material rm ON m2.material_code = rm.material_code
-           WHERE m2.name ILIKE '%Sheet%' AND m2.material_type = 'RAW_MATERIAL'
-           LIMIT 1),
-          0
-        ) as final_unit_cost
+        m.category as material_type,
+        0 as unit_cost,
+        m.material_id as final_material_id,
+        m.name as final_material_name,
+        0 as final_unit_cost
       FROM bom b
-      LEFT JOIN blank_spec bs ON b.reference_id = bs.blank_id AND b.reference_type = 'BLANK'
       LEFT JOIN material m ON b.material_id = m.material_id
+      LEFT JOIN blank_spec bs ON b.product_id = bs.product_id AND b.sub_assembly_name = bs.sub_assembly_name
       WHERE b.product_id = $1
       ORDER BY b.step_sequence
     `;
-    
+
     const bomResult = await db.query(bomQuery, [product_id]);
-    
+
     if (bomResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'No BOM found for this product'
       });
     }
-    
+
     // Calculate material requirements
     const requirements = [];
     let totalCost = 0;
-    
+
     // Get current inventory for all materials (aggregated across all locations)
     const inventoryQuery = `
       SELECT 
@@ -313,17 +278,17 @@ export async function runMRPForProduct(req, res) {
       GROUP BY material_id
     `;
     const inventoryResult = await db.query(inventoryQuery);
-    
+
     // Create inventory map for quick lookup
     const inventoryMap = new Map();
     inventoryResult.rows.forEach(inv => {
       inventoryMap.set(inv.material_id, parseFloat(inv.total_available));
     });
-    
+
     // Collect all material IDs to fetch names from database (always fetch to ensure accuracy)
     const materialIdsToLookup = new Set();
     const materialNameMap = new Map();
-    
+
     // First, add material names that were already joined in the query
     bomResult.rows.forEach(item => {
       if (item.material_id && item.material_name) {
@@ -336,7 +301,7 @@ export async function runMRPForProduct(req, res) {
         materialIdsToLookup.add(item.material_id);
       }
     });
-    
+
     // Batch fetch remaining material names from database
     if (materialIdsToLookup.size > 0) {
       const materialIdsArray = Array.from(materialIdsToLookup);
@@ -348,33 +313,33 @@ export async function runMRPForProduct(req, res) {
         materialNameMap.set(row.material_id, row.name);
       });
     }
-    
+
     for (const bomItem of bomResult.rows) {
       const requiredQuantity = Math.ceil(quantity * bomItem.quantity * (1 + (bomItem.scrap_allowance_pct || 0) / 100));
-      
+
       // For blank specs, calculate sheets needed
       if (bomItem.pcs_per_sheet && bomItem.pcs_per_sheet > 0) {
         const sheetsNeeded = Math.ceil(requiredQuantity / bomItem.pcs_per_sheet);
         const unitCost = parseFloat(bomItem.final_unit_cost) || 0;
         const sheetWeight = sheetsNeeded * (bomItem.blank_weight_kg * bomItem.pcs_per_sheet);
         const sheetCost = sheetWeight * unitCost;
-        
+
         // Get available inventory for this material (aggregated across all locations)
         const availableQuantity = inventoryMap.get(bomItem.final_material_id) || 0;
         const shortage = Math.max(0, sheetsNeeded - availableQuantity);
-        
+
         // Always use the material name from the database (never use item_name from BOM)
         // Try final_material_id first, then material_id, then final_material_name from query
-        let actualMaterialName = materialNameMap.get(bomItem.final_material_id) 
+        let actualMaterialName = materialNameMap.get(bomItem.final_material_id)
           || materialNameMap.get(bomItem.material_id)
           || bomItem.final_material_name
           || bomItem.material_name;
-        
+
         // If still no material name found, use a generic description but never item_name
         if (!actualMaterialName) {
           actualMaterialName = `Material (${bomItem.width_mm}×${bomItem.length_mm}×${bomItem.thickness_mm}mm)`;
         }
-        
+
         requirements.push({
           material_id: bomItem.final_material_id,
           material_name: actualMaterialName,
@@ -386,27 +351,27 @@ export async function runMRPForProduct(req, res) {
           total_cost: sheetCost,
           is_critical: bomItem.is_critical
         });
-        
+
         totalCost += sheetCost;
       } else {
         // For raw materials
         const unitCost = parseFloat(bomItem.unit_cost) || 0;
         const materialCost = requiredQuantity * unitCost;
-        
+
         // Get available inventory for this material (aggregated across all locations)
         const availableQuantity = inventoryMap.get(bomItem.material_id) || 0;
         const shortage = Math.max(0, requiredQuantity - availableQuantity);
-        
+
         // Always use the material name from the database (never use item_name from BOM)
         // Try material_id first, then final_material_name from query
         let actualMaterialName = materialNameMap.get(bomItem.material_id)
           || bomItem.material_name;
-        
+
         // Never use item_name as fallback - if no material name found, use a generic name
         if (!actualMaterialName) {
           actualMaterialName = 'Unknown Material';
         }
-        
+
         requirements.push({
           material_id: bomItem.material_id,
           material_name: actualMaterialName,
@@ -418,11 +383,11 @@ export async function runMRPForProduct(req, res) {
           total_cost: materialCost,
           is_critical: bomItem.is_critical
         });
-        
+
         totalCost += materialCost;
       }
     }
-    
+
     res.json({
       success: true,
       requirements,
@@ -433,7 +398,7 @@ export async function runMRPForProduct(req, res) {
         critical_shortages: requirements.filter(r => r.is_critical && r.shortage > 0).length
       }
     });
-    
+
   } catch (error) {
     logger.error({ error, body: req.body }, 'API: Error running MRP for product');
     res.status(500).json({
@@ -641,7 +606,7 @@ export async function getProductsForMRP(req, res) {
       const soQuantity = parseInt(product.total_production_quantity) || 0;
       const plannedQuantity = parseInt(product.planned_production_quantity) || 0;
       const totalQuantity = soQuantity + plannedQuantity;
-      
+
       return {
         product_id: product.product_id,
         product_code: product.product_code,
@@ -880,7 +845,7 @@ export async function convertPRToPO(req, res) {
 
     const prNo = `PR-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
     const prNotes = `Material: ${pr.material_name}, Quantity: ${pr.quantity} ${pr.unit}`;
-    
+
     const prResult = await db.query(prQuery, [
       pr.pr_id, prNo, prNotes
     ]);
@@ -891,7 +856,7 @@ export async function convertPRToPO(req, res) {
     const poId = `PO-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
 
     // Find the correct material_id based on the PR material_name (do this ONCE for both procurement request and PO item)
-    logger.info({ 
+    logger.info({
       pr_material_name: pr.material_name,
       pr_id: pr.pr_id,
       po_id: poId
@@ -902,7 +867,7 @@ export async function convertPRToPO(req, res) {
     const materialResult = await db.query(materialQuery, [`%${pr.material_name}%`]);
     let materialId = materialResult.rows.length > 0 ? materialResult.rows[0].material_id : null;
 
-    logger.info({ 
+    logger.info({
       searched_material: pr.material_name,
       found_material_id: materialId,
       found_material_name: materialResult.rows.length > 0 ? materialResult.rows[0].name : null,
@@ -915,11 +880,11 @@ export async function convertPRToPO(req, res) {
       const fallbackQuery = `SELECT material_id FROM material LIMIT 1`;
       const fallbackResult = await db.query(fallbackQuery);
       materialId = fallbackResult.rows.length > 0 ? fallbackResult.rows[0].material_id : null;
-      
+
       if (materialId) {
-        logger.warn({ 
+        logger.warn({
           fallback_material_id: materialId,
-          original_material_name: pr.material_name 
+          original_material_name: pr.material_name
         }, 'Using fallback material - original material name not found');
       }
     }
@@ -954,7 +919,7 @@ export async function convertPRToPO(req, res) {
     `;
 
     const finalUnitCost = unit_cost || pr.unit_cost || 0;
-    
+
     // Get a valid supplier ID from the database if none provided
     let supplierId = supplier_id;
     if (!supplierId) {
@@ -967,10 +932,10 @@ export async function convertPRToPO(req, res) {
     const orderDate = new Date(); // Today's date for when PO was created
     const expectedDate = new Date(pr.required_date); // PR's required date as expected delivery
 
-    logger.info({ 
-      pr_required_date: pr.required_date, 
-      order_date: orderDate, 
-      expected_date: expectedDate 
+    logger.info({
+      pr_required_date: pr.required_date,
+      order_date: orderDate,
+      expected_date: expectedDate
     }, 'PO date mapping');
 
     const poResult = await db.query(poQuery, [
@@ -989,7 +954,7 @@ export async function convertPRToPO(req, res) {
       ) RETURNING po_item_id
     `;
 
-    logger.info({ 
+    logger.info({
       po_id: purchaseOrderId,
       material_id: materialId,
       material_name: pr.material_name,

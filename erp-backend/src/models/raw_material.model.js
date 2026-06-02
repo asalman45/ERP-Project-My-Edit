@@ -41,24 +41,24 @@ export const findByMaterialCode = async (materialCode) => {
 
 export const create = async (payload) => {
   const {
-    material_code, name, description, uom_id
+    material_code, name, description, uom_id, hs_code
   } = payload;
   
   try {
     // First, create the Material record with generated UUID
     const materialRes = await db.query(
-      `INSERT INTO material (material_id, material_code, name, description, category, uom_id)
-       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
+      `INSERT INTO material (material_id, material_code, name, description, hs_code, category, uom_id)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [material_code, name, description, 'RAW_MATERIAL', uom_id]
+      [material_code, name, description, hs_code || null, 'RAW_MATERIAL', uom_id]
     );
     
     // Then, create the RawMaterial record with generated UUID
     const rawMaterialRes = await db.query(
-      `INSERT INTO raw_material (raw_material_id, material_code, name, description, uom_id, created_at, updated_at)
-       VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW(), NOW())
+      `INSERT INTO raw_material (raw_material_id, material_code, name, description, hs_code, uom_id, created_at, updated_at)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW())
        RETURNING *`,
-      [material_code, name, description, uom_id]
+      [material_code, name, description, hs_code || null, uom_id]
     );
     
     // Return the raw material with joined data
@@ -91,7 +91,7 @@ export const update = async (rawMaterialId, payload) => {
     
     // Update the Material record
     const materialKeys = Object.keys(payload).filter(key => 
-      ['name', 'description', 'uom_id'].includes(key)
+      ['name', 'description', 'uom_id', 'hs_code'].includes(key)
     );
     
     if (materialKeys.length > 0) {
@@ -106,7 +106,7 @@ export const update = async (rawMaterialId, payload) => {
     
     // Update the RawMaterial record
     const rawMaterialKeys = Object.keys(payload).filter(key => 
-      ['name', 'description', 'uom_id'].includes(key)
+      ['name', 'description', 'uom_id', 'hs_code'].includes(key)
     );
     
     if (rawMaterialKeys.length > 0) {

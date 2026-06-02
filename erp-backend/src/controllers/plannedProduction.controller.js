@@ -10,7 +10,7 @@ import { logger } from '../utils/logger.js';
 export const createPlannedProduction = async (req, res) => {
   try {
     const planData = req.body;
-    
+
     // Validate required fields
     if (!planData.product_id || !planData.quantity_planned || !planData.start_date) {
       return res.status(400).json({
@@ -18,20 +18,20 @@ export const createPlannedProduction = async (req, res) => {
         error: 'Product ID, quantity planned, and start date are required'
       });
     }
-    
+
     const plannedProduction = await plannedProductionModel.createPlannedProduction(planData);
-    
+
     logger.info({
       planned_production_id: plannedProduction.planned_production_id,
       plan_number: plannedProduction.plan_number
     }, 'Planned production created via API');
-    
+
     res.status(201).json({
       success: true,
       message: 'Planned production created successfully',
       data: plannedProduction
     });
-    
+
   } catch (error) {
     logger.error({ error: error.message, body: req.body }, 'Failed to create planned production');
     res.status(500).json({
@@ -56,9 +56,9 @@ export const getAllPlannedProductions = async (req, res) => {
       start_date_from: req.query.start_date_from,
       start_date_to: req.query.start_date_to
     };
-    
+
     const plannedProductions = await plannedProductionModel.getAllPlannedProductions(filters);
-    
+
     res.json({
       success: true,
       data: plannedProductions,
@@ -68,7 +68,7 @@ export const getAllPlannedProductions = async (req, res) => {
         count: plannedProductions.length
       }
     });
-    
+
   } catch (error) {
     logger.error({ error: error.message, stack: error.stack, query: req.query }, 'Failed to get planned productions');
     res.status(500).json({
@@ -87,21 +87,21 @@ export const getPlannedProductionById = async (req, res) => {
   try {
     const { id } = req.params;
     const plannedProduction = await plannedProductionModel.getPlannedProductionById(id);
-    
+
     if (!plannedProduction) {
       return res.status(404).json({
         success: false,
         message: 'Planned production not found'
       });
     }
-    
+
     res.json({
       success: true,
       data: plannedProduction
     });
-    
+
   } catch (error) {
-    logger.error({ error: error.message, id: req.params.id }, 
+    logger.error({ error: error.message, id: req.params.id },
       'Failed to get planned production by ID');
     res.status(500).json({
       success: false,
@@ -119,19 +119,19 @@ export const updatePlannedProduction = async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
-    
+
     const plannedProduction = await plannedProductionModel.updatePlannedProduction(id, updateData);
-    
+
     logger.info({ planned_production_id: id }, 'Planned production updated via API');
-    
+
     res.json({
       success: true,
       message: 'Planned production updated successfully',
       data: plannedProduction
     });
-    
+
   } catch (error) {
-    logger.error({ error: error.message, id: req.params.id, body: req.body }, 
+    logger.error({ error: error.message, id: req.params.id, body: req.body },
       'Failed to update planned production');
     res.status(500).json({
       success: false,
@@ -149,23 +149,23 @@ export const deletePlannedProduction = async (req, res) => {
   try {
     const { id } = req.params;
     const plannedProduction = await plannedProductionModel.deletePlannedProduction(id);
-    
+
     logger.info({ planned_production_id: id }, 'Planned production deleted via API');
-    
+
     res.json({
       success: true,
       message: 'Planned production deleted successfully',
       data: plannedProduction
     });
-    
+
   } catch (error) {
-    logger.error({ error: error.message, id: req.params.id }, 
+    logger.error({ error: error.message, id: req.params.id },
       'Failed to delete planned production');
-    
-    const statusCode = error.message.includes('not found') ? 404 
-                     : error.message.includes('Cannot delete') ? 400 
-                     : 500;
-    
+
+    const statusCode = error.message.includes('not found') ? 404
+      : error.message.includes('Cannot delete') ? 400
+        : 500;
+
     res.status(statusCode).json({
       success: false,
       message: error.message || 'Failed to delete planned production',
@@ -182,20 +182,20 @@ export const runMRPPlanning = async (req, res) => {
   try {
     const { id } = req.params;
     const { created_by } = req.body;
-    
+
     const result = await plannedProductionModel.runMRPForPlannedProduction(
       id,
       created_by || 'system'
     );
-    
+
     logger.info({ planned_production_id: id }, 'MRP planning completed via API');
-    
+
     res.json({
       success: true,
       message: 'MRP planning completed successfully',
       data: result
     });
-    
+
   } catch (error) {
     logger.error({ error: error.message, params: req.params }, 'Failed to run MRP planning');
     res.status(500).json({
@@ -214,28 +214,28 @@ export const convertToWorkOrders = async (req, res) => {
   try {
     const { id } = req.params;
     const { created_by = 'system' } = req.body;
-    
+
     const result = await plannedProductionModel.convertPlannedProductionToWorkOrders(id, created_by);
-    
+
     logger.info({
       planned_production_id: id,
       work_order_id: result.work_order.master_wo_id
     }, 'Planned production converted to work orders via API');
-    
+
     res.json({
       success: true,
       message: 'Planned production converted to work orders successfully',
       data: result
     });
-    
+
   } catch (error) {
-    logger.error({ error: error.message, id: req.params.id }, 
+    logger.error({ error: error.message, id: req.params.id },
       'Failed to convert planned production to work orders');
-    
-    const statusCode = error.message.includes('not found') ? 404 
-                     : error.message.includes('Cannot convert') ? 400 
-                     : 500;
-    
+
+    const statusCode = error.message.includes('not found') ? 404
+      : error.message.includes('Cannot convert') ? 400
+        : 500;
+
     res.status(statusCode).json({
       success: false,
       message: error.message || 'Failed to convert planned production to work orders',
@@ -252,17 +252,17 @@ export const markCompleted = async (req, res) => {
   try {
     const { id } = req.params;
     const plannedProduction = await plannedProductionModel.markPlannedProductionCompleted(id);
-    
+
     logger.info({ planned_production_id: id }, 'Planned production marked as completed via API');
-    
+
     res.json({
       success: true,
       message: 'Planned production marked as completed',
       data: plannedProduction
     });
-    
+
   } catch (error) {
-    logger.error({ error: error.message, id: req.params.id }, 
+    logger.error({ error: error.message, id: req.params.id },
       'Failed to mark planned production as completed');
     res.status(500).json({
       success: false,
@@ -280,14 +280,14 @@ export const getMaterialRequirements = async (req, res) => {
   try {
     const { id } = req.params;
     const materialRequirements = await plannedProductionModel.getMaterialRequirements(id);
-    
+
     res.json({
       success: true,
       data: materialRequirements
     });
-    
+
   } catch (error) {
-    logger.error({ error: error.message, id: req.params.id }, 
+    logger.error({ error: error.message, id: req.params.id },
       'Failed to get material requirements');
     res.status(500).json({
       success: false,
@@ -303,6 +303,7 @@ export default {
   getPlannedProductionById,
   updatePlannedProduction,
   deletePlannedProduction,
+  runMRPPlanning,
   convertToWorkOrders,
   markCompleted,
   getMaterialRequirements

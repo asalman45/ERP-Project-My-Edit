@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  Package, 
-  AlertTriangle, 
-  TrendingUp, 
-  Clock, 
-  CheckCircle, 
+import {
+  Package,
+  AlertTriangle,
+  TrendingUp,
+  Clock,
+  CheckCircle,
   XCircle,
   Loader2,
   Bell,
@@ -82,7 +82,7 @@ const SmartInventoryDashboard: React.FC = () => {
   const loadSmartData = async () => {
     try {
       setLoading(true);
-      
+
       const [
         alertsResponse,
         suggestionsResponse,
@@ -156,8 +156,8 @@ const SmartInventoryDashboard: React.FC = () => {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={loadSmartData}
                 className="bg-white/50 hover:bg-white/70 border-white/30 transition-all duration-300 hover:scale-105"
               >
@@ -197,7 +197,7 @@ const SmartInventoryDashboard: React.FC = () => {
             value={reorderSuggestions.length}
             icon={Package}
             color="blue"
-            subtitle={`$${reorderSuggestions.reduce((sum, s) => sum + s.estimated_cost, 0).toLocaleString()} estimated cost`}
+            subtitle={`Rs. ${reorderSuggestions.reduce((sum, s) => sum + s.estimated_cost, 0).toLocaleString()} estimated cost`}
           />
         </div>
         <div className="animate-in slide-in-from-bottom-4 duration-700 delay-300">
@@ -225,28 +225,28 @@ const SmartInventoryDashboard: React.FC = () => {
         <Tabs defaultValue="alerts" className="w-full">
           <div className="p-6 border-b border-white/20 bg-gradient-to-r from-white/40 to-white/20">
             <TabsList className="grid w-full grid-cols-4 bg-white/50 backdrop-blur-sm border border-white/30 rounded-xl p-1">
-              <TabsTrigger 
-                value="alerts" 
+              <TabsTrigger
+                value="alerts"
                 className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-red-700 transition-all duration-300 hover:scale-105"
               >
                 <AlertTriangle className="w-4 h-4" />
                 Stock Alerts
               </TabsTrigger>
-              <TabsTrigger 
+              <TabsTrigger
                 value="reorder"
                 className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 transition-all duration-300 hover:scale-105"
               >
                 <Package className="w-4 h-4" />
                 Reorder
               </TabsTrigger>
-              <TabsTrigger 
+              <TabsTrigger
                 value="expiry"
                 className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-orange-700 transition-all duration-300 hover:scale-105"
               >
                 <Clock className="w-4 h-4" />
                 Expiry
               </TabsTrigger>
-              <TabsTrigger 
+              <TabsTrigger
                 value="audit"
                 className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-purple-700 transition-all duration-300 hover:scale-105"
               >
@@ -268,7 +268,7 @@ const SmartInventoryDashboard: React.FC = () => {
                   {lowStockAlerts.length} Items Need Attention
                 </Badge>
               </div>
-              
+
               {lowStockAlerts.length === 0 ? (
                 <div className="text-center py-12">
                   <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -278,7 +278,7 @@ const SmartInventoryDashboard: React.FC = () => {
               ) : (
                 <div className="space-y-3">
                   {lowStockAlerts.map((alert, index) => (
-                    <div 
+                    <div
                       key={alert.inventory_id}
                       className={cn(
                         "p-4 rounded-xl border transition-all duration-300 hover:shadow-md",
@@ -305,7 +305,7 @@ const SmartInventoryDashboard: React.FC = () => {
                           <Badge className={cn(
                             "mb-2",
                             alert.urgency === 'CRITICAL' ? 'bg-red-500' :
-                            alert.urgency === 'HIGH' ? 'bg-orange-500' : 'bg-yellow-500'
+                              alert.urgency === 'HIGH' ? 'bg-orange-500' : 'bg-yellow-500'
                           )}>
                             {alert.urgency}
                           </Badge>
@@ -332,11 +332,11 @@ const SmartInventoryDashboard: React.FC = () => {
                 <div className="text-right">
                   <p className="text-sm text-gray-500">Total Estimated Cost</p>
                   <p className="text-lg font-bold text-blue-600">
-                    ${reorderSuggestions.reduce((sum, s) => sum + s.estimated_cost, 0).toLocaleString()}
+                    Rs. {reorderSuggestions.reduce((sum, s) => sum + s.estimated_cost, 0).toLocaleString()}
                   </p>
                 </div>
               </div>
-              
+
               {reorderSuggestions.length === 0 ? (
                 <div className="text-center py-12">
                   <Package className="w-16 h-16 text-blue-500 mx-auto mb-4" />
@@ -346,7 +346,7 @@ const SmartInventoryDashboard: React.FC = () => {
               ) : (
                 <div className="space-y-3">
                   {reorderSuggestions.slice(0, 10).map((suggestion, index) => (
-                    <div 
+                    <div
                       key={suggestion.inventory_id}
                       className="p-4 bg-white/50 rounded-xl border border-white/30 hover:bg-white/70 transition-all duration-300"
                     >
@@ -368,7 +368,7 @@ const SmartInventoryDashboard: React.FC = () => {
                         </div>
                         <div className="text-right">
                           <p className="text-lg font-bold text-blue-600">
-                            ${suggestion.estimated_cost.toFixed(2)}
+                            Rs. {suggestion.estimated_cost.toFixed(2)}
                           </p>
                           <p className="text-sm text-gray-500">
                             Priority: {suggestion.priority_score}
@@ -397,7 +397,7 @@ const SmartInventoryDashboard: React.FC = () => {
                   {expiryWarnings.length} Batches Expiring
                 </Badge>
               </div>
-              
+
               {expiryWarnings.length === 0 ? (
                 <div className="text-center py-12">
                   <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -407,7 +407,7 @@ const SmartInventoryDashboard: React.FC = () => {
               ) : (
                 <div className="space-y-3">
                   {expiryWarnings.map((warning, index) => (
-                    <div 
+                    <div
                       key={warning.batch_id}
                       className={cn(
                         "p-4 rounded-xl border transition-all duration-300 hover:shadow-md",
@@ -434,7 +434,7 @@ const SmartInventoryDashboard: React.FC = () => {
                           <Badge className={cn(
                             "mb-2",
                             warning.urgency === 'CRITICAL' ? 'bg-red-500' :
-                            warning.urgency === 'HIGH' ? 'bg-orange-500' : 'bg-yellow-500'
+                              warning.urgency === 'HIGH' ? 'bg-orange-500' : 'bg-yellow-500'
                           )}>
                             {warning.urgency}
                           </Badge>
@@ -465,7 +465,7 @@ const SmartInventoryDashboard: React.FC = () => {
                   </p>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Action Breakdown */}
                 <ChartCard title="Activity Breakdown" description="Recent system activities by type">

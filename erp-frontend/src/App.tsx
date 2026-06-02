@@ -1,4 +1,4 @@
-﻿import React, { lazy } from "react";
+import React, { lazy } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { CommandPalette } from "@/components/CommandPalette";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -56,9 +56,9 @@ const CashForecast = lazy(() => import("@/pages/Finance/CashForecast"));
 const ExpenseManagement = lazy(() => import("@/pages/Finance/ExpenseManagement"));
 const BudgetManagement = lazy(() => import("@/pages/Finance/BudgetManagement"));
 const CurrencySettings = lazy(() => import("@/pages/Finance/CurrencySettings"));
-const CrmPipeline = lazy(() => import("@/pages/CRM/CrmPipeline"));
-const LeadCenter = lazy(() => import("@/pages/CRM/LeadCenter"));
-const QuotationCenter = lazy(() => import("@/pages/CRM/QuotationCenter"));
+const CustomerLedger = lazy(() => import("@/pages/Finance/CustomerLedger"));
+const AuditLogs = lazy(() => import("@/pages/Settings/AuditLogs"));
+
 const EmployeeRegistry = lazy(() => import("@/pages/HR/EmployeeRegistry"));
 const PayrollPortal = lazy(() => import("@/pages/HR/PayrollPortal"));
 const QCInspections = lazy(() => import("@/pages/QC/QCInspections"));
@@ -435,6 +435,14 @@ const App = () => (
                 }
               />
               <Route
+                path="finance/customer-ledger"
+                element={
+                  <RouteWrapper>
+                    <CustomerLedger />
+                  </RouteWrapper>
+                }
+              />
+              <Route
                 path="finance/cash-forecast"
                 element={
                   <RouteWrapper>
@@ -466,30 +474,7 @@ const App = () => (
                   </RouteWrapper>
                 }
               />
-              <Route
-                path="crm/pipeline"
-                element={
-                  <RouteWrapper>
-                    <CrmPipeline />
-                  </RouteWrapper>
-                }
-              />
-              <Route
-                path="crm/leads"
-                element={
-                  <RouteWrapper>
-                    <LeadCenter />
-                  </RouteWrapper>
-                }
-              />
-              <Route
-                path="crm/quotations"
-                element={
-                  <RouteWrapper>
-                    <QuotationCenter />
-                  </RouteWrapper>
-                }
-              />
+
               <Route
                 path="hr/employees"
                 element={
@@ -543,6 +528,14 @@ const App = () => (
                 element={
                   <RouteWrapper>
                     <AssetMaintenance />
+                  </RouteWrapper>
+                }
+              />
+              <Route
+                path="settings/audit-logs"
+                element={
+                  <RouteWrapper>
+                    <AuditLogs />
                   </RouteWrapper>
                 }
               />

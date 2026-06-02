@@ -21,6 +21,7 @@ router.get('/oem-list', salesOrderController.getOEMsFromProducts);
 router.get('/oem/:oemId/products', salesOrderController.getProductCodesByOEM);
 
 // Sales Order by ID routes (must be after specific routes)
+router.get('/:id/pdf', salesOrderController.downloadSalesOrderPDF);
 router.get('/:id', salesOrderController.getSalesOrderById);
 router.patch('/:id/status', salesOrderController.updateSalesOrderStatus);
 router.post('/:id/convert-to-work-orders', salesOrderController.convertToWorkOrders);

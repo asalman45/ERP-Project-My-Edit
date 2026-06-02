@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import cors from 'cors';
 import 'express-async-errors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { createServer } from 'http';
 import { logger } from './utils/logger.js';
 import socketService from './services/socket.service.js';
@@ -44,6 +46,12 @@ import plannedProductionRoutes from './routes/plannedProduction.routes.js';
 import internalPurchaseOrderRoutes from './routes/internalPurchaseOrder.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import financeRoutes from './routes/finance.routes.js';
+import returnsRoutes from './routes/returns.routes.js';
+import inventoryOperationsRoutes from './routes/inventoryOperations.routes.js';
+import invoiceRoutes from './routes/invoice.routes.js';
+import dashboardRoutes from './routes/dashboard.routes.js';
+import auditTrailRoutes from './routes/auditTrail.routes.js';
+import batchTrackingRoutes from './routes/batchTracking.routes.js';
 
 // Dual-BOM API routes
 import bomApiRoutes from './routes/bomApi.routes.js';
@@ -54,6 +62,9 @@ import crmRoutes from './routes/crm.routes.js';
 import hrRoutes from './routes/hr.routes.js';
 import qcRoutes from './routes/qc.routes.js';
 import assetRoutes from './routes/asset.routes.js';
+import auditRoutes from './routes/audit.routes.js';
+import uploadRoutes from './routes/upload.routes.js';
+import { initBackupCron } from './services/backup.service.js';
 
 // Test import controller
 import { importSampleBOMData, getSampleBOMData } from './controllers/testImport.controller.js';
@@ -87,6 +98,13 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '2mb' }));
+
+// Static file serving for uploads (images, documents)
+const __filename_main = fileURLToPath(import.meta.url);
+const __dirname_main = path.dirname(__filename_main);
+const uploadsPath = path.join(__dirname_main, '..', 'uploads');
+console.log('Static uploads path:', uploadsPath);
+app.use('/uploads', express.static(uploadsPath));
 
 app.get('/health', (req, res) => res.json({ status: 'ok', ts: new Date() }));
 
@@ -131,12 +149,22 @@ app.use('/api/crm', crmRoutes);
 app.use('/api/hr', hrRoutes);
 app.use('/api/qc', qcRoutes);
 app.use('/api/assets', assetRoutes);
+app.use('/api/audit', auditRoutes);
+app.use('/api/returns', returnsRoutes);
+app.use('/api/operations', inventoryOperationsRoutes);
+app.use('/api/invoices', invoiceRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/audit-trail', auditTrailRoutes);
+app.use('/api/batch-tracking', batchTrackingRoutes);
 
 // Dual-BOM API routes
 app.use('/api/bom-api', bomApiRoutes);
 app.use('/api/mrp', mrpApiRoutes);
 app.use('/api/mrp-api', mrpApiRoutes);
 app.use('/api/production', productionApiRoutes);
+
+// Upload & Document Management routes
+app.use('/api', uploadRoutes);
 
 // New comprehensive inventory API routes
 app.use('/api', inventoryApiRoutes);
@@ -163,4 +191,8 @@ const server = createServer(app);
 socketService.initialize(server);
 
 // Start server
-server.listen(PORT, () => logger.info({ port: PORT }, 'Server started with WebSocket support'));
+server.listen(PORT, () => {
+  logger.info({ port: PORT }, 'Server started with WebSocket support');
+  // Initialize backup cron job
+  initBackupCron();
+});

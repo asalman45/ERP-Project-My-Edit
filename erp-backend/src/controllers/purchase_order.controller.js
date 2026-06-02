@@ -6,8 +6,8 @@ import { logger } from '../utils/logger.js';
 
 export const listPurchaseOrders = async (req, res) => {
   const { limit = 50, offset = 0, supplier_id, status } = req.query;
-  const rows = await poModel.findAll({ 
-    limit: Number(limit), 
+  const rows = await poModel.findAll({
+    limit: Number(limit),
     offset: Number(offset),
     supplier_id,
     status
@@ -18,11 +18,11 @@ export const listPurchaseOrders = async (req, res) => {
 export const getPurchaseOrder = async (req, res) => {
   const po = await poModel.findById(req.params.id);
   if (!po) return res.status(404).json({ error: 'Purchase order not found' });
-  
+
   // Get PO items
   const items = await poItemModel.findByPOId(req.params.id);
-  
-  return res.json({ 
+
+  return res.json({
     data: {
       ...po,
       items: items
@@ -41,11 +41,11 @@ export const createPurchaseOrder = async (req, res) => {
   } catch (err) {
     // Handle duplicate key constraint violations
     if (err.code === '23505' && err.constraint === 'purchase_order_po_no_key') {
-      return res.status(409).json({ 
-        error: `Purchase order number '${value.po_no}' already exists. Please use a different PO number.` 
+      return res.status(409).json({
+        error: `Purchase order number '${value.po_no}' already exists. Please use a different PO number.`
       });
     }
-    
+
     // Handle other database errors
     logger.error({ err, po_no: value.po_no }, 'Failed to create purchase order');
     return res.status(500).json({ error: 'Failed to create purchase order. Please try again.' });
@@ -60,11 +60,11 @@ export const updatePurchaseOrder = async (req, res) => {
   } catch (err) {
     // Handle duplicate key constraint violations
     if (err.code === '23505' && err.constraint === 'purchase_order_po_no_key') {
-      return res.status(409).json({ 
-        error: `Purchase order number '${req.body.po_no}' already exists. Please use a different PO number.` 
+      return res.status(409).json({
+        error: `Purchase order number '${req.body.po_no}' already exists. Please use a different PO number.`
       });
     }
-    
+
     // Handle other database errors
     logger.error({ err, po_id: req.params.id }, 'Failed to update purchase order');
     return res.status(500).json({ error: 'Failed to update purchase order. Please try again.' });
@@ -74,32 +74,32 @@ export const updatePurchaseOrder = async (req, res) => {
 export const deletePurchaseOrder = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const deletedPO = await poModel.remove(id);
-    
-    logger.info({ 
+
+    logger.info({
       po_id: id,
-      po_no: deletedPO.po_no 
+      po_no: deletedPO.po_no
     }, 'Purchase order deleted');
-    
+
     return res.json({
       success: true,
       data: deletedPO,
       message: 'Purchase order deleted successfully'
     });
   } catch (error) {
-    logger.error({ 
-      error: error.message, 
-      po_id: req.params.id 
+    logger.error({
+      error: error.message,
+      po_id: req.params.id
     }, 'Failed to delete purchase order');
-    
+
     if (error.message === 'Purchase order not found') {
       return res.status(404).json({
         success: false,
         error: 'Purchase order not found'
       });
     }
-    
+
     return res.status(500).json({
       success: false,
       error: error.message || 'Failed to delete purchase order'
@@ -114,7 +114,7 @@ export const updateStatus = async (req, res) => {
   try {
     const po = await poModel.update(req.params.id, value);
     if (!po) return res.status(404).json({ error: 'Purchase order not found' });
-    
+
     logger.info({ po_id: req.params.id, status: value.status }, 'purchase order status updated');
     return res.json({ data: po });
   } catch (err) {
@@ -136,6 +136,13 @@ export const addPOItem = async (req, res) => {
   try {
     const item = await poItemModel.create(value);
     logger.info({ po_item_id: item.po_item_id, po_id: value.po_id }, 'PO item added');
+
+    // High-Value PO detection
+    const poDetails = await poModel.findById(value.po_id);
+    if (poDetails && parseFloat(poDetails.total_amount) > 100000 && poDetails.status === 'OPEN') {
+      await poModel.update(value.po_id, { status: 'PENDING_APPROVAL' });
+    }
+
     return res.status(201).json({ data: item });
   } catch (err) {
     logger.error({ err, po_id: value.po_id }, 'Failed to add PO item');
@@ -157,4 +164,46 @@ export const updatePOItem = async (req, res) => {
 export const deletePOItem = async (req, res) => {
   await poItemModel.remove(req.params.itemId);
   return res.status(204).send();
+};
+
+export const approvePurchaseOrder = async (req, res) => {
+  try {
+    const { logActivity } = await import('../services/audit.service.js');
+    const po = await poModel.update(req.params.id, { status: 'OPEN' });
+    if (!po) return res.status(404).json({ error: 'Purchase order not found' });
+
+    await logActivity({
+      userId: req.user ? req.user.user_id : 'system',
+      action: 'APPROVE',
+      entityType: 'PurchaseOrder',
+      entityId: req.params.id,
+      newValues: JSON.stringify({ status: 'OPEN' })
+    });
+
+    return res.json({ data: po });
+  } catch (err) {
+    logger.error({ err, po_id: req.params.id }, 'Failed to approve purchase order');
+    return res.status(500).json({ error: 'Failed to approve purchase order. Please try again.' });
+  }
+};
+
+export const rejectPurchaseOrder = async (req, res) => {
+  try {
+    const { logActivity } = await import('../services/audit.service.js');
+    const po = await poModel.update(req.params.id, { status: 'CANCELLED' });
+    if (!po) return res.status(404).json({ error: 'Purchase order not found' });
+
+    await logActivity({
+      userId: req.user ? req.user.user_id : 'system',
+      action: 'REJECT',
+      entityType: 'PurchaseOrder',
+      entityId: req.params.id,
+      newValues: JSON.stringify({ status: 'CANCELLED' })
+    });
+
+    return res.json({ data: po });
+  } catch (err) {
+    logger.error({ err, po_id: req.params.id }, 'Failed to reject purchase order');
+    return res.status(500).json({ error: 'Failed to reject purchase order. Please try again.' });
+  }
 };

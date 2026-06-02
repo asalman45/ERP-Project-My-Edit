@@ -15,16 +15,29 @@ export const findByProductId = async (productId) => {
 };
 
 export const addMaterial = async (payload) => {
-  const { product_id, material_id, quantity } = payload;
-  const res = await db.query(
-    `INSERT INTO bom (product_id, material_id, quantity)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (product_id, material_id) 
-     DO UPDATE SET quantity = EXCLUDED.quantity
+  const { product_id, material_id, quantity, sub_assembly_name } = payload;
+  const subName = sub_assembly_name || null;
+
+  // PostgreSQL cannot match NULL = NULL in ON CONFLICT, so use
+  // an explicit upsert: try UPDATE first, INSERT if no match.
+  const update = await db.query(
+    `UPDATE bom SET quantity = $3
+     WHERE product_id = $1
+       AND material_id = $2
+       AND sub_assembly_name IS NOT DISTINCT FROM $4
      RETURNING *`,
-    [product_id, material_id, quantity]
+    [product_id, material_id, quantity, subName]
   );
-  return res.rows[0];
+
+  if (update.rows.length > 0) return update.rows[0];
+
+  const insert = await db.query(
+    `INSERT INTO bom (bom_id, product_id, material_id, quantity, sub_assembly_name)
+     VALUES (gen_random_uuid(), $1, $2, $3, $4)
+     RETURNING *`,
+    [product_id, material_id, quantity, subName]
+  );
+  return insert.rows[0];
 };
 
 export const removeMaterial = async (productId, materialId) => {
@@ -74,22 +87,22 @@ export const addSubAssembly = async (payload) => {
 
 export const removeSubAssembly = async (productId, subAssemblyName) => {
   console.log('🔍 Attempting to delete sub-assembly:', { productId, subAssemblyName });
-  
+
   // First, let's check what sub-assemblies exist for this product
   const checkRes = await db.query(
     'SELECT DISTINCT sub_assembly_name FROM bom WHERE product_id = $1',
     [productId]
   );
   console.log('📋 Existing sub-assemblies for product:', checkRes.rows);
-  
+
   // Try exact match first
   let res = await db.query(
     'DELETE FROM bom WHERE product_id = $1 AND sub_assembly_name = $2',
     [productId, subAssemblyName]
   );
-  
+
   console.log('🗑️ Exact match delete result:', { rowCount: res.rowCount, subAssemblyName });
-  
+
   // If no exact match, try case-insensitive match
   if (res.rowCount === 0) {
     console.log('🔄 Trying case-insensitive match...');
@@ -99,7 +112,7 @@ export const removeSubAssembly = async (productId, subAssemblyName) => {
     );
     console.log('🗑️ Case-insensitive delete result:', { rowCount: res.rowCount, subAssemblyName });
   }
-  
+
   // If still no match, try trimmed match
   if (res.rowCount === 0) {
     console.log('🔄 Trying trimmed match...');
@@ -109,7 +122,7 @@ export const removeSubAssembly = async (productId, subAssemblyName) => {
     );
     console.log('🗑️ Trimmed delete result:', { rowCount: res.rowCount, subAssemblyName });
   }
-  
+
   return res.rowCount > 0;
 };
 
@@ -128,7 +141,7 @@ export const getProcessFlowByProductId = async (productId) => {
 // Maximum BOM functionality
 export const getMaximumBom = async (productId) => {
   console.log('🔍 Getting Maximum BOM for product:', productId);
-  
+
   const res = await db.query(
     `SELECT b.*, m.material_code, m.name as material_name, m.grade, m.thickness, m.unit_cost,
             u.code as uom_code, u.name as uom_name
@@ -139,14 +152,14 @@ export const getMaximumBom = async (productId) => {
      ORDER BY b.step_sequence, b.sub_assembly_name, b.material_id`,
     [productId]
   );
-  
+
   console.log(`📋 Found ${res.rows.length} Maximum BOM items`);
   return res.rows;
 };
 
 export const checkMaterialAvailability = async (productId, requiredQuantity = 1) => {
   console.log('🔍 Checking material availability for product:', productId, 'quantity:', requiredQuantity);
-  
+
   // Get BOM requirements
   const bomRes = await db.query(
     `SELECT b.*, m.material_code, m.name as material_name, m.unit_cost
@@ -156,10 +169,10 @@ export const checkMaterialAvailability = async (productId, requiredQuantity = 1)
      ORDER BY b.step_sequence`,
     [productId]
   );
-  
+
   const shortages = [];
   const availableMaterials = [];
-  
+
   for (const bomItem of bomRes.rows) {
     // Check current stock
     const stockRes = await db.query(
@@ -168,10 +181,10 @@ export const checkMaterialAvailability = async (productId, requiredQuantity = 1)
        WHERE material_id = $1 AND quantity > 0`,
       [bomItem.material_id]
     );
-    
+
     const currentStock = parseFloat(stockRes.rows[0].available_stock);
     const requiredQty = parseFloat(bomItem.quantity) * requiredQuantity;
-    
+
     if (currentStock < requiredQty) {
       const shortage = {
         material_id: bomItem.material_id,
@@ -183,7 +196,7 @@ export const checkMaterialAvailability = async (productId, requiredQuantity = 1)
         sub_assembly_name: bomItem.sub_assembly_name,
         is_critical: bomItem.is_critical || false
       };
-      
+
       // Check for incoming POs (optional; schema may vary)
       let incomingQty = 0;
       try {
@@ -203,7 +216,7 @@ export const checkMaterialAvailability = async (productId, requiredQuantity = 1)
       shortage.incoming_quantity = incomingQty;
       shortage.total_available = currentStock + incomingQty;
       shortage.still_short = Math.max(0, requiredQty - (currentStock + incomingQty));
-      
+
       shortages.push(shortage);
     } else {
       availableMaterials.push({
@@ -216,7 +229,7 @@ export const checkMaterialAvailability = async (productId, requiredQuantity = 1)
       });
     }
   }
-  
+
   return {
     has_shortages: shortages.length > 0,
     shortages: shortages,
@@ -228,7 +241,7 @@ export const checkMaterialAvailability = async (productId, requiredQuantity = 1)
 
 export const findSubstituteMaterials = async (materialId, grade, thickness) => {
   console.log('🔄 Finding substitute materials for:', { materialId, grade, thickness });
-  
+
   // Fallback: select active materials excluding the same id; no grade/thickness dependency
   const res = await db.query(
     `SELECT m.*, 0 as priority
@@ -237,25 +250,25 @@ export const findSubstituteMaterials = async (materialId, grade, thickness) => {
      ORDER BY m.name ASC`,
     [materialId]
   );
-  
+
   return res.rows;
 };
 
 export const generateProductionRecipe = async (productId, requiredQuantity = 1) => {
   console.log('🎯 Generating production recipe for product:', productId, 'quantity:', requiredQuantity);
-  
+
   // Get Maximum BOM
   const maximumBom = await getMaximumBom(productId);
-  
+
   // Check availability
   const availability = await checkMaterialAvailability(productId, requiredQuantity);
-  
+
   const recipe = [];
   const substitutions = [];
-  
+
   for (const bomItem of maximumBom) {
     const requiredQty = parseFloat(bomItem.quantity) * requiredQuantity;
-    
+
     // Check if primary material is available
     const stockRes = await db.query(
       `SELECT COALESCE(SUM(quantity), 0) as available_stock
@@ -263,9 +276,9 @@ export const generateProductionRecipe = async (productId, requiredQuantity = 1) 
        WHERE material_id = $1 AND quantity > 0`,
       [bomItem.material_id]
     );
-    
+
     const currentStock = parseFloat(stockRes.rows[0].available_stock);
-    
+
     if (currentStock >= requiredQty) {
       // Use primary material
       recipe.push({
@@ -281,13 +294,13 @@ export const generateProductionRecipe = async (productId, requiredQuantity = 1) 
     } else {
       // Try to find substitutes
       const substitutes = await findSubstituteMaterials(
-        bomItem.material_id, 
-        bomItem.grade, 
+        bomItem.material_id,
+        bomItem.grade,
         bomItem.thickness
       );
-      
+
       let substituteFound = false;
-      
+
       for (const substitute of substitutes) {
         const subStockRes = await db.query(
           `SELECT COALESCE(SUM(quantity), 0) as available_stock
@@ -295,9 +308,9 @@ export const generateProductionRecipe = async (productId, requiredQuantity = 1) 
            WHERE material_id = $1 AND quantity > 0`,
           [substitute.material_id]
         );
-        
+
         const subStock = parseFloat(subStockRes.rows[0].available_stock);
-        
+
         if (subStock >= requiredQty) {
           // Use substitute
           recipe.push({
@@ -311,18 +324,18 @@ export const generateProductionRecipe = async (productId, requiredQuantity = 1) 
             sub_assembly_name: bomItem.sub_assembly_name,
             original_material_id: bomItem.material_id
           });
-          
+
           substitutions.push({
             original: bomItem,
             substitute: substitute,
             reason: `Shortage of ${bomItem.material_code}`
           });
-          
+
           substituteFound = true;
           break;
         }
       }
-      
+
       if (!substituteFound) {
         // No substitute available - mark as shortage
         recipe.push({
@@ -339,7 +352,7 @@ export const generateProductionRecipe = async (productId, requiredQuantity = 1) 
       }
     }
   }
-  
+
   return {
     recipe: recipe,
     substitutions: substitutions,
@@ -351,9 +364,9 @@ export const generateProductionRecipe = async (productId, requiredQuantity = 1) 
 
 export const saveRecipeSnapshot = async (workOrderId, productId, recipe) => {
   console.log('💾 Saving recipe snapshot for work order:', workOrderId);
-  
+
   const snapshots = [];
-  
+
   for (const item of recipe) {
     const res = await db.query(
       `INSERT INTO production_recipe_snapshots 
@@ -372,16 +385,16 @@ export const saveRecipeSnapshot = async (workOrderId, productId, recipe) => {
         !item.is_substitute
       ]
     );
-    
+
     snapshots.push(res.rows[0]);
   }
-  
+
   return snapshots;
 };
 
 export const createShortageAlert = async (poId, productId, shortages) => {
   console.log('🚨 Creating shortage alert for PO:', poId, 'product:', productId);
-  
+
   const alertData = {
     po_id: poId,
     product_id: productId,
@@ -391,14 +404,14 @@ export const createShortageAlert = async (poId, productId, shortages) => {
     details: JSON.stringify(shortages),
     status: 'pending'
   };
-  
+
   const res = await db.query(
     `INSERT INTO shortage_alerts (po_id, product_id, alert_type, severity, message, details, status)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
-    [alertData.po_id, alertData.product_id, alertData.alert_type, alertData.severity, 
-     alertData.message, alertData.details, alertData.status]
+    [alertData.po_id, alertData.product_id, alertData.alert_type, alertData.severity,
+    alertData.message, alertData.details, alertData.status]
   );
-  
+
   return res.rows[0];
 };

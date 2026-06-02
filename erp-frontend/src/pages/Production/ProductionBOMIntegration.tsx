@@ -142,7 +142,7 @@ const ProductionBOMIntegration: React.FC = () => {
         selectedProductionOrder,
         selectedProduct
       );
-      
+
       toast({
         title: "Success",
         description: result.message || "BOM processed for production order",
@@ -250,11 +250,11 @@ const ProductionBOMIntegration: React.FC = () => {
 
     try {
       const data = await productionMaterialConsumptionApi.getByProductionOrder(selectedProductionOrder);
-      
+
       // Create CSV content
       let csvContent = 'Sub Assembly,Material,Planned Qty,Consumed Qty,Scrap Qty,Efficiency %,Type\n';
       (data.data || []).forEach((consumption: MaterialConsumption) => {
-        const efficiency = consumption.planned_quantity > 0 
+        const efficiency = consumption.planned_quantity > 0
           ? ((consumption.consumed_quantity / consumption.planned_quantity) * 100).toFixed(2)
           : '0.00';
         csvContent += `"${consumption.sub_assembly_name}","${consumption.material_name}","${consumption.planned_quantity}","${consumption.consumed_quantity}","${consumption.scrap_quantity}","${efficiency}","${consumption.consumption_type}"\n`;
@@ -348,8 +348,8 @@ const ProductionBOMIntegration: React.FC = () => {
               </Select>
             </div>
             <div className="flex items-end">
-              <Button 
-                onClick={processBOMForProduction} 
+              <Button
+                onClick={processBOMForProduction}
                 disabled={!selectedProduct || !selectedProductionOrder || loading}
                 className="w-full"
               >
@@ -372,9 +372,9 @@ const ProductionBOMIntegration: React.FC = () => {
             <div className="p-4 bg-blue-50 rounded-lg">
               <h3 className="font-semibold text-blue-900">{selectedProductData.part_name}</h3>
               <p className="text-blue-700 text-sm">
-                Product: {selectedProductData.product_code} | 
-                Order: {selectedOrderData.production_order_number} | 
-                Quantity: {selectedOrderData.qty_ordered} | 
+                Product: {selectedProductData.product_code} |
+                Order: {selectedOrderData.production_order_number} |
+                Quantity: {selectedOrderData.qty_ordered} |
                 Status: {selectedOrderData.status}
               </p>
             </div>
@@ -461,7 +461,7 @@ const ProductionBOMIntegration: React.FC = () => {
                             {consumption.scrap_quantity}
                           </td>
                           <td className="border border-gray-300 p-2 text-center">
-                            <Badge 
+                            <Badge
                               variant={consumption.efficiency_ratio > 90 ? "default" : "destructive"}
                             >
                               {consumption.efficiency_ratio.toFixed(1)}%
@@ -535,11 +535,11 @@ const ProductionBOMIntegration: React.FC = () => {
                                 Score: {recommendation.recommendation_score}/100
                               </p>
                               <p className="text-sm text-green-600">
-                                Save: ${recommendation.potential_savings.toFixed(2)}
+                                Save: Rs. {recommendation.potential_savings.toFixed(2)}
                               </p>
                             </div>
-                            <Button 
-                              size="sm" 
+                            <Button
+                              size="sm"
                               onClick={() => reuseScrap(recommendation.scrap_id, recommendation.available_quantity)}
                               className="mt-2"
                             >

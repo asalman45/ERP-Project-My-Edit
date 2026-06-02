@@ -112,7 +112,7 @@ export const GRNReceiveModal: React.FC<GRNReceiveModalProps> = ({
             po_item_id: item.po_item_id,
             material_id: item.material_id,
             qty_received: numQty,
-            uom_id: "88ed7640-5f9e-47c3-882c-a9bfbfbe0744", // Default UOM: Pieces
+            uom_id: "845a02bf-b9af-4aaa-b6f6-2ab9374d3a12", // Default UOM: Pieces (Valid DB ID)
             batch_no: receivingItems[item.po_item_id].batch
           };
         });

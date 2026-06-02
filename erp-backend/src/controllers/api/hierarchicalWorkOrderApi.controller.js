@@ -1,9 +1,9 @@
 // src/controllers/api/hierarchicalWorkOrderApi.controller.js
 // API Controller for Hierarchical Work Orders
 
-import { 
-  createMasterWorkOrder, 
-  createChildWorkOrder, 
+import {
+  createMasterWorkOrder,
+  createChildWorkOrder,
   getWorkOrderHierarchy,
   getChildWorkOrders,
   checkWorkOrderDependencies,
@@ -23,16 +23,16 @@ import { v4 as uuidv4 } from 'uuid';
 export async function generateHierarchicalWOs(req, res) {
   try {
     const { productId, quantity, dueDate, startDate, createdBy, customer, sales_order_ref, purchase_order_ref } = req.body;
-    
+
     if (!productId || !quantity) {
       return res.status(400).json({
         success: false,
         error: 'Product ID and quantity are required'
       });
     }
-    
+
     logger.info({ productId, quantity }, 'API: Creating Master Work Order (MWO)');
-    
+
     const result = await createMasterWorkOrder({
       productId,
       quantity,
@@ -43,13 +43,13 @@ export async function generateHierarchicalWOs(req, res) {
       sales_order_ref,
       purchase_order_ref
     });
-    
+
     res.json({
       success: true,
       data: result.data,
       message: 'Master Work Order (MWO) created successfully'
     });
-    
+
   } catch (error) {
     logger.error({ error, body: req.body }, 'API: Error creating master work order');
     res.status(500).json({
@@ -66,16 +66,16 @@ export async function generateHierarchicalWOs(req, res) {
 export async function getHierarchy(req, res) {
   try {
     const { woId } = req.params;
-    
+
     logger.info({ woId }, 'API: Fetching work order hierarchy');
-    
+
     const result = await getWorkOrderHierarchy(woId);
-    
+
     res.json({
       success: true,
       data: result
     });
-    
+
   } catch (error) {
     logger.error({ error, woId: req.params.woId }, 'API: Error fetching hierarchy');
     res.status(500).json({
@@ -92,17 +92,17 @@ export async function getHierarchy(req, res) {
 export async function getChildren(req, res) {
   try {
     const { woId } = req.params;
-    
+
     logger.info({ woId }, 'API: Fetching child work orders');
-    
+
     const children = await getChildWorkOrders(woId);
-    
+
     res.json({
       success: true,
       data: children,
       total: children.length
     });
-    
+
   } catch (error) {
     logger.error({ error, woId: req.params.woId }, 'API: Error fetching children');
     res.status(500).json({
@@ -119,16 +119,16 @@ export async function getChildren(req, res) {
 export async function checkDependencies(req, res) {
   try {
     const { woId } = req.params;
-    
+
     logger.info({ woId }, 'API: Checking work order dependencies');
-    
+
     const result = await checkWorkOrderDependencies(woId);
-    
+
     res.json({
       success: true,
       data: result
     });
-    
+
   } catch (error) {
     logger.error({ error, woId: req.params.woId }, 'API: Error checking dependencies');
     res.status(500).json({
@@ -145,17 +145,17 @@ export async function checkDependencies(req, res) {
 export async function triggerNext(req, res) {
   try {
     const { woId } = req.params;
-    
+
     logger.info({ woId }, 'API: Triggering next work orders');
-    
+
     const triggeredWOs = await triggerNextWorkOrders(woId);
-    
+
     res.json({
       success: true,
       data: { triggered_work_orders: triggeredWOs },
       message: `${triggeredWOs.length} work order(s) triggered`
     });
-    
+
   } catch (error) {
     logger.error({ error, woId: req.params.woId }, 'API: Error triggering next work orders');
     res.status(500).json({
@@ -173,23 +173,23 @@ export async function triggerNext(req, res) {
 export async function calculateSheets(req, res) {
   try {
     const { productId, quantity } = req.body;
-    
+
     if (!productId || !quantity) {
       return res.status(400).json({
         success: false,
         error: 'Product ID and quantity are required'
       });
     }
-    
+
     logger.info({ productId, quantity }, 'API: Calculating sheet allocation');
-    
+
     const result = await calculateSheetAllocation(productId, quantity);
-    
+
     res.json({
       success: true,
       data: result
     });
-    
+
   } catch (error) {
     logger.error({ error, body: req.body }, 'API: Error calculating sheet allocation');
     res.status(500).json({
@@ -207,21 +207,21 @@ export async function calculateSheets(req, res) {
 export async function createWorkOrder(req, res) {
   try {
     let { parent_wo_id, operation_type, quantity, customer, sales_order_ref, createdBy } = req.body;
-    
+
     // Accept operation_type as-is (no mapping, use exact name provided)
     if (operation_type) {
       operation_type = operation_type.trim(); // Just trim whitespace, keep exact name
     }
-    
+
     if (!parent_wo_id || !operation_type || !quantity) {
       return res.status(400).json({
         success: false,
         error: 'Parent WO ID, operation type, and quantity are required'
       });
     }
-    
+
     logger.info({ parent_wo_id, operation_type, quantity }, 'API: Creating child work order');
-    
+
     const result = await createChildWorkOrder({
       parent_wo_id,
       operation_type,
@@ -230,13 +230,13 @@ export async function createWorkOrder(req, res) {
       customer,
       sales_order_ref
     });
-    
+
     res.json({
       success: true,
       data: result.data,
       message: 'Child work order created successfully'
     });
-    
+
   } catch (error) {
     logger.error({ error, body: req.body }, 'API: Error creating child work order');
     res.status(500).json({
@@ -253,7 +253,7 @@ export async function createWorkOrder(req, res) {
 export async function getWorkOrders(req, res) {
   try {
     const { status } = req.query;
-    
+
     let query = `
       SELECT 
         wo.wo_id,
@@ -274,25 +274,36 @@ export async function getWorkOrders(req, res) {
       FROM work_order wo
       LEFT JOIN product p ON wo.product_id = p.product_id
     `;
-    
+
     const params = [];
-    
+
     if (status) {
       query += ` WHERE wo.status = $1`;
       params.push(status);
     }
-    
+
     query += ` ORDER BY wo.created_at DESC`;
-    
+
     const result = await db.query(query, params);
-    
+
+    // Safely map the raw rows to ensure the frontend doesn't crash on nulls
+    const safeWorkOrders = result.rows.map(row => ({
+      ...row,
+      product_name: row?.product_name || 'Unknown Product',
+      customer: row?.customer || null,
+      sales_order_ref: row?.sales_order_ref || null,
+      parent_wo_id: row?.parent_wo_id || null,
+      operation_type: row?.operation_type || 'STANDARD'
+    }));
+
     res.json({
       success: true,
-      workOrders: result.rows
+      workOrders: safeWorkOrders
     });
-    
+
   } catch (error) {
-    logger.error({ error }, 'API: Error fetching work orders');
+    console.error('CRITICAL ERROR in getWorkOrders:', error.message);
+    logger.error({ error, stack: error.stack }, 'API: Error fetching work orders');
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to fetch work orders'
@@ -312,17 +323,17 @@ export async function deleteWorkOrder(req, res) {
   try {
     const { woId } = req.params;
     const client = await db.connect();
-    
+
     try {
       await client.query('BEGIN');
-      
+
       // Check if work order exists
       const woCheck = await client.query(`
         SELECT wo_id, wo_no, parent_wo_id, status
         FROM work_order 
         WHERE wo_id = $1
       `, [woId]);
-      
+
       if (woCheck.rows.length === 0) {
         await client.query('ROLLBACK');
         return res.status(404).json({
@@ -330,10 +341,10 @@ export async function deleteWorkOrder(req, res) {
           error: 'Work order not found'
         });
       }
-      
+
       const workOrder = woCheck.rows[0];
       const isParent = !workOrder.parent_wo_id;
-      
+
       // If this is a parent work order, delete all child work orders first
       let deletedChildrenCount = 0;
       if (isParent) {
@@ -343,15 +354,15 @@ export async function deleteWorkOrder(req, res) {
           FROM work_order 
           WHERE parent_wo_id = $1
         `, [woId]);
-        
+
         if (childrenCheck.rows.length > 0) {
           deletedChildrenCount = childrenCheck.rows.length;
-          logger.info({ 
-            parent_wo_id: woId, 
+          logger.info({
+            parent_wo_id: woId,
             parent_wo_no: workOrder.wo_no,
-            children_count: deletedChildrenCount 
+            children_count: deletedChildrenCount
           }, 'Deleting parent work order: will also delete child work orders');
-          
+
           // Delete child work orders (cascade will handle related records)
           await client.query(`
             DELETE FROM work_order 
@@ -360,47 +371,47 @@ export async function deleteWorkOrder(req, res) {
         }
       } else {
         // This is a child work order being deleted independently
-        logger.info({ 
-          child_wo_id: woId, 
+        logger.info({
+          child_wo_id: woId,
           child_wo_no: workOrder.wo_no,
           parent_wo_id: workOrder.parent_wo_id
         }, 'Deleting child work order independently (parent will remain)');
       }
-      
+
       // Delete work order steps (if any)
       await client.query(`
         DELETE FROM work_order_step 
         WHERE wo_id = $1
       `, [woId]);
-      
+
       // Delete work order items (if any)
       await client.query(`
         DELETE FROM work_order_item 
         WHERE wo_id = $1
       `, [woId]);
-      
+
       // Delete the work order itself
       const deleteResult = await client.query(`
         DELETE FROM work_order 
         WHERE wo_id = $1
         RETURNING wo_id, wo_no
       `, [woId]);
-      
+
       await client.query('COMMIT');
-      
-      logger.info({ 
-        wo_id: woId, 
+
+      logger.info({
+        wo_id: woId,
         wo_no: workOrder.wo_no,
         was_parent: isParent,
         deleted_children: deletedChildrenCount
       }, 'Work order deleted successfully');
-      
+
       const message = isParent && deletedChildrenCount > 0
         ? `Parent work order and ${deletedChildrenCount} child work order(s) deleted successfully`
         : isParent
-        ? 'Parent work order deleted successfully'
-        : 'Child work order deleted successfully';
-      
+          ? 'Parent work order deleted successfully'
+          : 'Child work order deleted successfully';
+
       res.json({
         success: true,
         message: message,
@@ -411,14 +422,14 @@ export async function deleteWorkOrder(req, res) {
           deleted_children_count: deletedChildrenCount
         }
       });
-      
+
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
     } finally {
       client.release();
     }
-    
+
   } catch (error) {
     logger.error({ error: error.message, woId: req.params.woId }, 'API: Error deleting work order');
     res.status(500).json({
@@ -432,34 +443,34 @@ export async function updateWorkOrderStatus(req, res) {
   try {
     const { woId } = req.params;
     const { status } = req.body;
-    
+
     if (!status) {
       return res.status(400).json({
         success: false,
         error: 'Status is required'
       });
     }
-    
+
     logger.info({ woId, status }, 'API: Updating work order status');
-    
+
     // Get work order details before updating
     const woQuery = `
       SELECT wo_id, wo_no, status, product_id, quantity, parent_wo_id, operation_type
       FROM work_order 
       WHERE wo_id = $1
     `;
-    
+
     const woResult = await db.query(woQuery, [woId]);
-    
+
     if (woResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Work order not found'
       });
     }
-    
+
     const workOrder = woResult.rows[0];
-    
+
     logger.info({
       woId,
       currentStatus: workOrder.status,
@@ -468,11 +479,11 @@ export async function updateWorkOrderStatus(req, res) {
       isChildWO: !!workOrder.parent_wo_id,
       willCheckQA: status === 'COMPLETED' && !!workOrder.parent_wo_id
     }, 'Work order status update details');
-    
+
     // Update work order status with automatic date updates
     let updateQuery = '';
     let queryParams = [];
-    
+
     if (status === 'IN_PROGRESS') {
       // Set start date when starting work order (only if not already set)
       updateQuery = `
@@ -503,9 +514,9 @@ export async function updateWorkOrderStatus(req, res) {
       `;
       queryParams = [status, woId];
     }
-    
+
     const result = await db.query(updateQuery, queryParams);
-    
+
     // ✅ NEW: Auto-calculate scrap when cutting work order is completed
     if (status === 'COMPLETED' && workOrder.operation_type === 'CUTTING') {
       // Run scrap calculation asynchronously (don't block work order completion)
@@ -517,15 +528,15 @@ export async function updateWorkOrderStatus(req, res) {
             FROM scrap_inventory si
             WHERE si.reference = $1
           `, [woId]);
-          
+
           if (parseInt(existingScrapCheck.rows[0].scrap_count) > 0) {
-            logger.info({ 
-              workOrderId: woId, 
-              existingScrapCount: existingScrapCheck.rows[0].scrap_count 
+            logger.info({
+              workOrderId: woId,
+              existingScrapCount: existingScrapCheck.rows[0].scrap_count
             }, 'Scrap already calculated for this work order, skipping duplicate calculation');
             return;
           }
-          
+
           // 1. Get material issued for this work order
           const materialIssueQuery = await db.query(`
             SELECT 
@@ -537,17 +548,17 @@ export async function updateWorkOrderStatus(req, res) {
               AND womi.status = 'ISSUED'
             LIMIT 1
           `, [woId]);
-          
+
           if (materialIssueQuery.rows.length === 0) {
             logger.warn({ workOrderId: woId }, 'No material issued found for scrap calculation');
             return;
           }
-          
+
           const materialIssued = materialIssueQuery.rows[0];
-          
+
           // 2. Get work order quantity (total pieces to produce)
           const woQuantity = parseFloat(workOrder.quantity) || 0;
-          
+
           // 3. Get ALL blank_specs with BOM quantity for this product
           // BOM tells us how many of each sub-assembly is needed per finished product
           const blankSpecQuery = await db.query(`
@@ -575,14 +586,14 @@ export async function updateWorkOrderStatus(req, res) {
             WHERE bs.product_id = $1
             ORDER BY bs.sub_assembly_name
           `, [workOrder.product_id]);
-          
+
           if (blankSpecQuery.rows.length === 0) {
             logger.warn({ workOrderId: woId, productId: workOrder.product_id }, 'No blank spec found for scrap calculation');
             return;
           }
-          
+
           const blankSpecs = blankSpecQuery.rows;
-          
+
           logger.info({
             workOrderId: woId,
             productId: workOrder.product_id,
@@ -595,34 +606,34 @@ export async function updateWorkOrderStatus(req, res) {
               bom_qty: bs.bom_quantity_per_unit
             }))
           }, 'Processing scrap for multiple sub-assemblies with BOM quantities');
-          
+
           // 4. Calculate scrap for EACH sub-assembly and collect data by material_id
           const scrapDataByMaterial = {}; // Group by material_id
-          
+
           for (const blankSpec of blankSpecs) {
             // ✅ FIX: First calculate total blanks needed using BOM quantity
             // blanks_needed = woQuantity × bom_quantity_per_unit
             const bomQty = parseFloat(blankSpec.bom_quantity_per_unit) || 1;
             const blanksNeeded = woQuantity * bomQty;
-            
+
             // Then calculate sheets needed
             const pcsPerSheet = blankSpec.pcs_per_sheet || 1;
             const sheetsForThisSubAssembly = Math.ceil(blanksNeeded / pcsPerSheet);
-            
+
             if (sheetsForThisSubAssembly <= 0) {
               continue;
             }
-            
+
             // ✅ Get scrap data (doesn't create records yet)
             const scrapData = await generateScrapFromCutting({
               workOrderId: woId,
               blankId: blankSpec.blank_id,
               sheetsProcessed: sheetsForThisSubAssembly
             });
-            
+
             // ✅ Group by material_id
             const materialId = scrapData.material_id || 'UNKNOWN';
-            
+
             if (!scrapDataByMaterial[materialId]) {
               scrapDataByMaterial[materialId] = {
                 material_id: scrapData.material_id,
@@ -638,7 +649,7 @@ export async function updateWorkOrderStatus(req, res) {
                 cutting_direction: scrapData.cutting_direction
               };
             }
-            
+
             // ✅ Combine weights
             scrapDataByMaterial[materialId].total_weight_kg += scrapData.weight_kg;
             scrapDataByMaterial[materialId].total_sheets += scrapData.sheets_processed;
@@ -653,7 +664,7 @@ export async function updateWorkOrderStatus(req, res) {
               blank_length: scrapData.blank_length
             });
             scrapDataByMaterial[materialId].blank_ids.push(scrapData.blank_id);
-            
+
             logger.info({
               workOrderId: woId,
               subAssembly: blankSpec.sub_assembly_name,
@@ -666,20 +677,20 @@ export async function updateWorkOrderStatus(req, res) {
               scrapWeight: scrapData.weight_kg.toFixed(2)
             }, 'Scrap calculated for sub-assembly (BOM qty considered)');
           }
-          
+
           // ✅ Create combined scrap records by material_id
           const dbClient = await db.connect();
           try {
             await dbClient.query('BEGIN');
-            
+
             const createdScrapIds = [];
-            
+
             for (const [materialId, combinedData] of Object.entries(scrapDataByMaterial)) {
               const scrapId = uuidv4();
-              
+
               // Round total weight to 2 decimals
               const roundedWeight = Math.round(combinedData.total_weight_kg * 100) / 100;
-              
+
               // Create scrap inventory record (ONE per material_id)
               await dbClient.query(`
                 INSERT INTO scrap_inventory (
@@ -706,7 +717,7 @@ export async function updateWorkOrderStatus(req, res) {
                 'AVAILABLE',
                 combinedData.cutting_direction || 'HORIZONTAL'
               ]);
-              
+
               // ✅ Create ONE scrap origin record per scrap_id (scrap_id is unique constraint)
               // Use first sub-assembly's data, but note that this scrap contains multiple sub-assemblies
               const firstSubAssembly = combinedData.sub_assemblies[0];
@@ -734,7 +745,7 @@ export async function updateWorkOrderStatus(req, res) {
                   `${firstSubAssembly.blank_width}×${firstSubAssembly.blank_length}`,
                   combinedData.cutting_direction || 'HORIZONTAL'
                 ]);
-                
+
                 logger.info({
                   workOrderId: woId,
                   scrapId: scrapId,
@@ -744,9 +755,9 @@ export async function updateWorkOrderStatus(req, res) {
                   note: 'scrap_origin created with first sub-assembly (scrap_id is unique constraint)'
                 }, 'Created scrap_origin record (combined material)');
               }
-              
+
               createdScrapIds.push(scrapId);
-              
+
               logger.info({
                 workOrderId: woId,
                 materialId: materialId,
@@ -760,9 +771,9 @@ export async function updateWorkOrderStatus(req, res) {
                 }))
               }, 'Created combined scrap record by material_id');
             }
-            
+
             await dbClient.query('COMMIT');
-            
+
             logger.info({
               workOrderId: woId,
               woQuantity,
@@ -771,7 +782,7 @@ export async function updateWorkOrderStatus(req, res) {
               totalScrapGeneratedKg: Object.values(scrapDataByMaterial).reduce((sum, d) => sum + d.total_weight_kg, 0).toFixed(2),
               materialIssued: materialIssued.quantity_issued
             }, 'Auto-calculated and combined scrap by material_id');
-            
+
           } catch (error) {
             await dbClient.query('ROLLBACK');
             logger.error({ error, workOrderId: woId }, 'Error creating combined scrap records');
@@ -779,14 +790,14 @@ export async function updateWorkOrderStatus(req, res) {
           } finally {
             dbClient.release();
           }
-          
+
         } catch (error) {
           logger.error({ error, workOrderId: woId }, 'Error auto-calculating scrap for cutting work order');
           // Don't throw - scrap calculation failure shouldn't fail work order completion
         }
       })();
     }
-    
+
     // If this is a child work order being marked as COMPLETED, check if all children are done
     let qaTransferResult = null;
     if (status === 'COMPLETED' && workOrder.parent_wo_id) {
@@ -800,10 +811,10 @@ export async function updateWorkOrderStatus(req, res) {
           WHERE parent_wo_id = $1
           ORDER BY created_at
         `;
-        
+
         const childrenResult = await db.query(childrenQuery, [workOrder.parent_wo_id]);
         const allChildren = childrenResult.rows;
-        
+
         logger.info({
           parentWOId: workOrder.parent_wo_id,
           totalChildren: allChildren.length,
@@ -816,10 +827,10 @@ export async function updateWorkOrderStatus(req, res) {
           completedCount: allChildren.filter(c => c.status === 'COMPLETED').length,
           allStatuses: allChildren.map(c => c.status)
         }, 'Child work orders status check');
-        
+
         // Check if all children are COMPLETED (including the one we just updated)
         const allCompleted = allChildren.length > 0 && allChildren.every(child => child.status === 'COMPLETED');
-        
+
         logger.info({
           parentWOId: workOrder.parent_wo_id,
           totalChildren: allChildren.length,
@@ -832,7 +843,7 @@ export async function updateWorkOrderStatus(req, res) {
             OTHER: allChildren.filter(c => !['COMPLETED', 'IN_PROGRESS', 'PLANNED'].includes(c.status)).map(c => c.status)
           }
         }, 'Child work orders completion analysis');
-        
+
         if (allCompleted) {
           // Get parent work order details
           const parentQuery = `
@@ -840,12 +851,12 @@ export async function updateWorkOrderStatus(req, res) {
             FROM work_order 
             WHERE wo_id = $1
           `;
-          
+
           const parentResult = await db.query(parentQuery, [workOrder.parent_wo_id]);
-          
+
           if (parentResult.rows.length > 0) {
             const parentWO = parentResult.rows[0];
-            
+
             // Validate quantity before moving to QA
             if (!parentWO.quantity || parentWO.quantity <= 0) {
               logger.error({
@@ -855,82 +866,82 @@ export async function updateWorkOrderStatus(req, res) {
                 quantity: parentWO.quantity,
                 message: 'Cannot move product to QA: work order quantity is zero or invalid'
               }, 'QA transfer skipped - invalid quantity');
-              
+
               // Skip QA transfer but continue with work order status update
               // QA transfer will be skipped, but work order status update will proceed
             } else {
-            
-            logger.info({
-              parentWOId: workOrder.parent_wo_id,
-              parentWONo: parentWO.wo_no,
-              productId: parentWO.product_id,
-              quantity: parentWO.quantity,
-              message: 'All child work orders completed, preparing to move product to QA'
-            }, 'QA transfer starting');
-            
-            // Move finished product to QA section using fixed location
-            const { receiveFinishedGoods, getOrCreateLocation, QA_CODE, FINISHED_GOODS_CODE } = await import('../../services/inventory.service.js');
-            
-            // Get or create QA location
-            const qaLocationId = await getOrCreateLocation(QA_CODE, 'Quality Assurance Section', 'QA');
-            
-            // Get FINISHED-GOODS location ID (source location)
-            const finishedGoodsLocationId = await getOrCreateLocation(FINISHED_GOODS_CODE, 'Finished Goods Warehouse', 'FINISHED_GOODS');
-            
-            logger.info({
-              qaLocationId,
-              qaLocationCode: QA_CODE,
-              finishedGoodsLocationId,
-              finishedGoodsCode: FINISHED_GOODS_CODE,
-              message: 'Locations retrieved/created'
-            }, 'QA transfer locations ready');
-            
-            // Transfer finished goods from FINISHED-GOODS to QA location
-            // This will create a proper TRANSFER transaction instead of a new RECEIVE
-            try {
-              qaTransferResult = await receiveFinishedGoods(
-                parentWO.product_id,
-                parentWO.quantity,
-                qaLocationId,
-                {
-                  woId: workOrder.parent_wo_id,
-                  createdBy: 'system',
-                  reference: `QA-TRANSFER-${workOrder.parent_wo_id}`,
-                  fromLocationId: finishedGoodsLocationId // This triggers transfer instead of receive
-                }
-              );
-            } catch (qaError) {
-              logger.error({
-                error: qaError.message,
-                stack: qaError.stack,
+
+              logger.info({
                 parentWOId: workOrder.parent_wo_id,
+                parentWONo: parentWO.wo_no,
                 productId: parentWO.product_id,
                 quantity: parentWO.quantity,
-                qaLocationId
-              }, 'Failed to transfer product to QA');
-              
-              // Re-throw if it's a critical error, but allow work order status update to complete
-              if (qaError.message.includes('must be positive')) {
-                logger.warn({
+                message: 'All child work orders completed, preparing to move product to QA'
+              }, 'QA transfer starting');
+
+              // Move finished product to QA section using fixed location
+              const { receiveFinishedGoods, getOrCreateLocation, QA_CODE, FINISHED_GOODS_CODE } = await import('../../services/inventory.service.js');
+
+              // Get or create QA location
+              const qaLocationId = await getOrCreateLocation(QA_CODE, 'Quality Assurance Section', 'QA');
+
+              // Get FINISHED-GOODS location ID (source location)
+              const finishedGoodsLocationId = await getOrCreateLocation(FINISHED_GOODS_CODE, 'Finished Goods Warehouse', 'FINISHED_GOODS');
+
+              logger.info({
+                qaLocationId,
+                qaLocationCode: QA_CODE,
+                finishedGoodsLocationId,
+                finishedGoodsCode: FINISHED_GOODS_CODE,
+                message: 'Locations retrieved/created'
+              }, 'QA transfer locations ready');
+
+              // Transfer finished goods from FINISHED-GOODS to QA location
+              // This will create a proper TRANSFER transaction instead of a new RECEIVE
+              try {
+                qaTransferResult = await receiveFinishedGoods(
+                  parentWO.product_id,
+                  parentWO.quantity,
+                  qaLocationId,
+                  {
+                    woId: workOrder.parent_wo_id,
+                    createdBy: 'system',
+                    reference: `QA-TRANSFER-${workOrder.parent_wo_id}`,
+                    fromLocationId: finishedGoodsLocationId // This triggers transfer instead of receive
+                  }
+                );
+              } catch (qaError) {
+                logger.error({
+                  error: qaError.message,
+                  stack: qaError.stack,
                   parentWOId: workOrder.parent_wo_id,
-                  quantity: parentWO.quantity
-                }, 'QA transfer failed due to invalid quantity, but work order status updated');
-                // Continue without QA transfer
-              } else {
-                throw qaError;
+                  productId: parentWO.product_id,
+                  quantity: parentWO.quantity,
+                  qaLocationId
+                }, 'Failed to transfer product to QA');
+
+                // Re-throw if it's a critical error, but allow work order status update to complete
+                if (qaError.message.includes('must be positive')) {
+                  logger.warn({
+                    parentWOId: workOrder.parent_wo_id,
+                    quantity: parentWO.quantity
+                  }, 'QA transfer failed due to invalid quantity, but work order status updated');
+                  // Continue without QA transfer
+                } else {
+                  throw qaError;
+                }
               }
-            }
-            
-            logger.info({
-              parentWOId: workOrder.parent_wo_id,
-              parentWONo: parentWO.wo_no,
-              productId: parentWO.product_id,
-              quantity: parentWO.quantity,
-              qaLocationId,
-              qaTransferSuccess: qaTransferResult?.success,
-              inventoryId: qaTransferResult?.inventory?.inventory_id,
-              transactionId: qaTransferResult?.transaction?.txn_id
-            }, 'Finished product moved to QA section');
+
+              logger.info({
+                parentWOId: workOrder.parent_wo_id,
+                parentWONo: parentWO.wo_no,
+                productId: parentWO.product_id,
+                quantity: parentWO.quantity,
+                qaLocationId,
+                qaTransferSuccess: qaTransferResult?.success,
+                inventoryId: qaTransferResult?.inventory?.inventory_id,
+                transactionId: qaTransferResult?.transaction?.txn_id
+              }, 'Finished product moved to QA section');
             }
           } else {
             logger.warn({
@@ -947,16 +958,16 @@ export async function updateWorkOrderStatus(req, res) {
           }, 'QA transfer skipped - waiting for all children');
         }
       } catch (qaError) {
-        logger.error({ 
-          error: qaError.message, 
+        logger.error({
+          error: qaError.message,
           stack: qaError.stack,
           woId,
-          parentWOId: workOrder?.parent_wo_id 
+          parentWOId: workOrder?.parent_wo_id
         }, 'Failed to move product to QA section');
         // Don't fail the status update if QA transfer fails
       }
     }
-    
+
     res.json({
       success: true,
       workOrder: result.rows[0],
@@ -966,7 +977,7 @@ export async function updateWorkOrderStatus(req, res) {
       } : null,
       message: 'Work order status updated successfully'
     });
-    
+
   } catch (error) {
     logger.error({ error, woId: req.params.woId }, 'API: Error updating work order status');
     res.status(500).json({
@@ -990,7 +1001,7 @@ export async function exportWorkOrders(req, res) {
   try {
     const { format = 'csv' } = req.query;
     const { status } = req.query;
-    
+
     let query = `
       SELECT 
         wo.wo_id,
@@ -1018,19 +1029,19 @@ export async function exportWorkOrders(req, res) {
       LEFT JOIN model m ON p.model_id = m.model_id
       LEFT JOIN uom u ON wo.uom_id = u.uom_id
     `;
-    
+
     const params = [];
-    
+
     if (status) {
       query += ` WHERE wo.status = $1`;
       params.push(status);
     }
-    
+
     query += ` ORDER BY wo.created_at DESC`;
-    
+
     const result = await db.query(query, params);
     const workOrders = result.rows;
-    
+
     // Helper function to format date for Excel (DD/MM/YYYY)
     const formatDateForExcel = (dateString) => {
       if (!dateString) return '';
@@ -1199,7 +1210,7 @@ export async function exportWorkOrders(req, res) {
       const centerPadding = Math.floor(numColumns / 2) - 1;
       const leftPadding = Array(centerPadding).fill('').map(c => `"${c}"`).join(',');
       const rightPadding = Array(numColumns - centerPadding - 1).fill('').map(c => `"${c}"`).join(',');
-      
+
       // Company info with spacing for emphasis (using uppercase for bold effect)
       const companyHeader = `${leftPadding},"ENTERPRISING MANUFACTURING CO PVT. LTD.",${rightPadding}`;
       const companyInfo = `${leftPadding},"Factory: Plot #9, Sector 26, Korangi Industrial Area, Karachi - Pakistan - 74900",${rightPadding}`;
@@ -1207,18 +1218,18 @@ export async function exportWorkOrders(req, res) {
       const companyTax = `${leftPadding},"NTN No: 7268945-5 | Sales Tax No: 3277-87612-9785",${rightPadding}`;
       const reportTitle = `${leftPadding},"WORK ORDERS REPORT",${rightPadding}`;
       const reportMeta = `${leftPadding},"Generated on: ${new Date().toLocaleDateString('en-GB')} | Total Records: ${exportData.length}",${rightPadding}`;
-      
+
       const csvContent = companyHeader + '\n' +
-                        companyInfo + '\n' +
-                        companyContact + '\n' +
-                        companyTax + '\n' +
-                        emptyCells + '\n' +
-                        reportTitle + '\n' +
-                        reportMeta + '\n' +
-                        emptyCells + '\n' +
-                        headers.join(',') + '\n' +
-                        csvRows.join('\n');
-      
+        companyInfo + '\n' +
+        companyContact + '\n' +
+        companyTax + '\n' +
+        emptyCells + '\n' +
+        reportTitle + '\n' +
+        reportMeta + '\n' +
+        emptyCells + '\n' +
+        headers.join(',') + '\n' +
+        csvRows.join('\n');
+
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename="work-orders-${new Date().toISOString().split('T')[0]}.csv"`);
       return res.send(csvContent);

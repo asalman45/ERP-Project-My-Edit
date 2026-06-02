@@ -6,8 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Layers, 
+import {
+  Layers,
   Download,
   Search,
   AlertCircle,
@@ -80,7 +80,7 @@ const BOMStandardDisplay: React.FC = () => {
   const [isCalculating, setIsCalculating] = useState(false);
   const [lastCalculationTime, setLastCalculationTime] = useState(0);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [subAssemblyToDelete, setSubAssemblyToDelete] = useState<{id: string, name: string} | null>(null);
+  const [subAssemblyToDelete, setSubAssemblyToDelete] = useState<{ id: string, name: string } | null>(null);
 
   // Type guard functions
   const isCircular = (type: string): type is 'circular' => type === 'circular';
@@ -89,15 +89,14 @@ const BOMStandardDisplay: React.FC = () => {
   // Memoized layout visualization to prevent unnecessary re-renders
   const memoizedLayoutVisualization = useMemo(() => {
     if (!layoutData) return null;
-    
+
     if (isCircular(cuttingType)) {
       return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Square Grid Layout */}
           <div
-            className={`cursor-pointer transition-all duration-200 ${
-              optimizationMethod === 'square_grid' ? 'ring-4 ring-blue-500 rounded-lg shadow-xl' : 'hover:ring-2 hover:ring-blue-300 rounded-lg'
-            }`}
+            className={`cursor-pointer transition-all duration-200 ${optimizationMethod === 'square_grid' ? 'ring-4 ring-blue-500 rounded-lg shadow-xl' : 'hover:ring-2 hover:ring-blue-300 rounded-lg'
+              }`}
             onClick={() => setOptimizationMethod('square_grid')}
           >
             <div className="w-full overflow-hidden">
@@ -112,9 +111,8 @@ const BOMStandardDisplay: React.FC = () => {
 
           {/* Hexagonal Layout */}
           <div
-            className={`cursor-pointer transition-all duration-200 ${
-              optimizationMethod === 'hexagonal' ? 'ring-4 ring-purple-500 rounded-lg shadow-xl' : 'hover:ring-2 hover:ring-purple-300 rounded-lg'
-            }`}
+            className={`cursor-pointer transition-all duration-200 ${optimizationMethod === 'hexagonal' ? 'ring-4 ring-purple-500 rounded-lg shadow-xl' : 'hover:ring-2 hover:ring-purple-300 rounded-lg'
+              }`}
             onClick={() => setOptimizationMethod('hexagonal')}
           >
             <div className="w-full overflow-hidden">
@@ -129,9 +127,8 @@ const BOMStandardDisplay: React.FC = () => {
 
           {/* Smart Layout */}
           <div
-            className={`cursor-pointer transition-all duration-200 ${
-              optimizationMethod === 'smart' ? 'ring-4 ring-green-500 rounded-lg shadow-xl' : 'hover:ring-2 hover:ring-green-300 rounded-lg'
-            }`}
+            className={`cursor-pointer transition-all duration-200 ${optimizationMethod === 'smart' ? 'ring-4 ring-green-500 rounded-lg shadow-xl' : 'hover:ring-2 hover:ring-green-300 rounded-lg'
+              }`}
             onClick={() => setOptimizationMethod('smart')}
           >
             <div className="w-full overflow-hidden">
@@ -150,9 +147,8 @@ const BOMStandardDisplay: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Horizontal Layout */}
           <div
-            className={`cursor-pointer transition-all duration-200 ${
-              selectedCuttingMode === 'horizontal' ? 'ring-4 ring-blue-500 rounded-lg shadow-xl' : 'hover:ring-2 hover:ring-blue-300 rounded-lg'
-            }`}
+            className={`cursor-pointer transition-all duration-200 ${selectedCuttingMode === 'horizontal' ? 'ring-4 ring-blue-500 rounded-lg shadow-xl' : 'hover:ring-2 hover:ring-blue-300 rounded-lg'
+              }`}
             onClick={() => setSelectedCuttingMode('horizontal')}
           >
             <div className="w-full overflow-hidden">
@@ -167,9 +163,8 @@ const BOMStandardDisplay: React.FC = () => {
 
           {/* Vertical Layout */}
           <div
-            className={`cursor-pointer transition-all duration-200 ${
-              selectedCuttingMode === 'vertical' ? 'ring-4 ring-purple-500 rounded-lg shadow-xl' : 'hover:ring-2 hover:ring-purple-300 rounded-lg'
-            }`}
+            className={`cursor-pointer transition-all duration-200 ${selectedCuttingMode === 'vertical' ? 'ring-4 ring-purple-500 rounded-lg shadow-xl' : 'hover:ring-2 hover:ring-purple-300 rounded-lg'
+              }`}
             onClick={() => setSelectedCuttingMode('vertical')}
           >
             <div className="w-full overflow-hidden">
@@ -184,9 +179,8 @@ const BOMStandardDisplay: React.FC = () => {
 
           {/* Smart Layout */}
           <div
-            className={`cursor-pointer transition-all duration-200 ${
-              selectedCuttingMode === 'smart' ? 'ring-4 ring-green-500 rounded-lg shadow-xl' : 'hover:ring-2 hover:ring-green-300 rounded-lg'
-            }`}
+            className={`cursor-pointer transition-all duration-200 ${selectedCuttingMode === 'smart' ? 'ring-4 ring-green-500 rounded-lg shadow-xl' : 'hover:ring-2 hover:ring-green-300 rounded-lg'
+              }`}
             onClick={() => setSelectedCuttingMode('smart')}
           >
             <div className="w-full overflow-hidden">
@@ -241,22 +235,22 @@ const BOMStandardDisplay: React.FC = () => {
   // Real-time optimization calculation
   const calculateOptimization = useCallback(async () => {
     if (isCalculating) return; // Prevent multiple simultaneous calculations
-    
+
     // Add cooldown period to prevent excessive API calls
     const now = Date.now();
     const timeSinceLastCalculation = now - lastCalculationTime;
     const COOLDOWN_PERIOD = 3000; // 3 seconds cooldown
-    
+
     if (timeSinceLastCalculation < COOLDOWN_PERIOD) {
       console.log(`⏳ Calculation cooldown active. Waiting ${COOLDOWN_PERIOD - timeSinceLastCalculation}ms more...`);
       return;
     }
-    
+
     // Validate required fields before making API call
-    const hasRequiredFields = cuttingType === 'rectangular' 
+    const hasRequiredFields = cuttingType === 'rectangular'
       ? (formData.width_mm && formData.length_mm && formData.thickness_mm && formData.sheet_width_mm && formData.sheet_length_mm)
       : (formData.diameter_mm && formData.thickness_mm && formData.sheet_width_mm && formData.sheet_length_mm);
-    
+
     if (!hasRequiredFields) {
       console.log('❌ Missing required fields for optimization calculation');
       toast({
@@ -266,7 +260,7 @@ const BOMStandardDisplay: React.FC = () => {
       });
       return;
     }
-    
+
     setIsCalculating(true);
     try {
       console.log('🔄 Starting optimization calculation...', {
@@ -294,9 +288,9 @@ const BOMStandardDisplay: React.FC = () => {
           quantity: 1, // Required field for API
           method: optimizationMethod === 'smart' ? 'smart' : optimizationMethod
         });
-        
+
         console.log('📊 Rectangular optimization result:', result);
-        
+
         // Update form data with results
         setFormData(prev => ({
           ...prev,
@@ -315,21 +309,21 @@ const BOMStandardDisplay: React.FC = () => {
           quantity: 1, // Required field for API
           method: optimizationMethod === 'smart' ? 'smart' : optimizationMethod
         };
-        
+
         console.log('🔵 Circular optimization request:', requestData);
-        
+
         const result = await sheetOptimizationApi.calculateCircleOptimization(requestData);
-        
+
         console.log('📊 Circular optimization result:', result);
-        
+
         // Calculate sheet weight (same formula as rectangular - weight of entire sheet)
         const sheetWeight = (
-          parseFloat(formData.sheet_width_mm) * 
-          parseFloat(formData.sheet_length_mm) * 
-          parseFloat(formData.thickness_mm) * 
+          parseFloat(formData.sheet_width_mm) *
+          parseFloat(formData.sheet_length_mm) *
+          parseFloat(formData.thickness_mm) *
           0.00000785 // Steel density conversion factor (kg/m³ to kg)
         );
-        
+
         // Update form data with results for circular cutting
         setFormData(prev => ({
           ...prev,
@@ -368,10 +362,10 @@ const BOMStandardDisplay: React.FC = () => {
 
   // Real-time optimization calculation when form data changes
   useEffect(() => {
-    const hasRequiredFields = cuttingType === 'rectangular' 
+    const hasRequiredFields = cuttingType === 'rectangular'
       ? (formData.width_mm && formData.length_mm && formData.thickness_mm && formData.sheet_width_mm && formData.sheet_length_mm)
       : (formData.diameter_mm && formData.thickness_mm && formData.sheet_width_mm && formData.sheet_length_mm);
-    
+
     if (autoOptimize && hasRequiredFields && !isCalculating) {
       console.log('🔄 Auto-calculation triggered:', {
         cuttingType,
@@ -379,18 +373,18 @@ const BOMStandardDisplay: React.FC = () => {
         hasRequiredFields,
         isCalculating
       });
-      
+
       const timeoutId = setTimeout(() => {
         // Double-check conditions before calling
         if (autoOptimize && hasRequiredFields && !isCalculating) {
           calculateOptimization();
         }
       }, 5000); // Increased to 5 seconds debounce to prevent excessive API calls
-      
+
       return () => clearTimeout(timeoutId);
     }
-  }, [formData.width_mm, formData.length_mm, formData.thickness_mm, formData.diameter_mm, 
-      formData.sheet_width_mm, formData.sheet_length_mm, cuttingType, optimizationMethod, autoOptimize, isCalculating, calculateOptimization]);
+  }, [formData.width_mm, formData.length_mm, formData.thickness_mm, formData.diameter_mm,
+  formData.sheet_width_mm, formData.sheet_length_mm, cuttingType, optimizationMethod, autoOptimize, isCalculating, calculateOptimization]);
 
   // Generate layout data when dimensions change (for immediate visualization) - with debouncing
   useEffect(() => {
@@ -409,7 +403,7 @@ const BOMStandardDisplay: React.FC = () => {
           setLayoutData(null);
         }
       }, 2000); // Increased to 2 seconds debounce to prevent excessive API calls
-      
+
       return () => clearTimeout(timeoutId);
     }
   }, [formData.diameter_mm, formData.sheet_width_mm, formData.sheet_length_mm, cuttingType]);
@@ -418,7 +412,7 @@ const BOMStandardDisplay: React.FC = () => {
   // NOTE: Quantity is separate (for production recipe) and NOT used in material consumption calculations
   const calculateOptimizationDefaults = (formData: any) => {
     const { width_mm, length_mm, thickness_mm, sheet_width_mm, sheet_length_mm } = formData;
-    
+
     if (!width_mm || !length_mm || !thickness_mm || !sheet_width_mm || !sheet_length_mm) {
       return {};
     }
@@ -435,26 +429,26 @@ const BOMStandardDisplay: React.FC = () => {
 
     // Auto-calculate weight per blank (steel density: 7850 kg/m³)
     const weightOfBlank = (width * length * thickness * 0.00000785);
-    
+
     // Calculate sheet weight using user-entered sheet dimensions: sheetWidth*sheetLength*thickness*0.00000785
     const sheetWeight = (sheetWidth * sheetLength * thickness * 0.00000785);
-    
+
     // Calculate blanks per direction
     const blanksHorizontal = Math.floor(sheetWidth / width) * Math.floor(sheetLength / length);
     const blanksVertical = Math.floor(sheetWidth / length) * Math.floor(sheetLength / width);
-    
+
     // Choose the best direction
     const bestBlanks = Math.max(blanksHorizontal, blanksVertical);
     const bestDirection = blanksHorizontal > blanksVertical ? 'HORIZONTAL' : 'VERTICAL';
-    
+
     // Calculate efficiency (material consumption per sheet)
     const usedArea = bestBlanks * width * length;
     const totalSheetArea = sheetWidth * sheetLength;
     const efficiency = (usedArea / totalSheetArea) * 100;
-    
+
     // Calculate total blanks weight: Pcs/Sheet × Weight per Blank
     const totalBlanksWeight = bestBlanks * weightOfBlank;
-    
+
     // Generate layout visualization data
     try {
       if (cuttingType === 'circular' && formData.diameter_mm) {
@@ -470,7 +464,7 @@ const BOMStandardDisplay: React.FC = () => {
       console.error('Error generating layout:', error);
       setLayoutData(null);
     }
-    
+
     return {
       blank_weight_kg: weightOfBlank.toFixed(3),
       pcs_per_sheet: bestBlanks.toString(),
@@ -500,10 +494,10 @@ const BOMStandardDisplay: React.FC = () => {
 
   const fetchBOMData = async () => {
     if (!selectedProduct) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       console.log('Fetching BOM data for product:', selectedProduct);
       const bomResponse = await bomApi.getStandardFormat(selectedProduct);
@@ -545,7 +539,7 @@ const BOMStandardDisplay: React.FC = () => {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       toast({
         title: "Success",
         description: "BOM data exported successfully",
@@ -561,7 +555,7 @@ const BOMStandardDisplay: React.FC = () => {
   };
 
 
-  const filteredSubAssemblies = (bomData?.subAssemblies || []).filter(subAssembly => 
+  const filteredSubAssemblies = (bomData?.subAssemblies || []).filter(subAssembly =>
     subAssembly.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -591,10 +585,10 @@ const BOMStandardDisplay: React.FC = () => {
 
     try {
       // Validate that all required fields are filled and are valid numbers
-      const requiredFields = cuttingType === 'rectangular' 
+      const requiredFields = cuttingType === 'rectangular'
         ? ['sub_assembly_name', 'width_mm', 'length_mm', 'thickness_mm', 'sheet_width_mm', 'sheet_length_mm']
         : ['sub_assembly_name', 'diameter_mm', 'thickness_mm', 'sheet_width_mm', 'sheet_length_mm'];
-      
+
       for (const field of requiredFields) {
         if (!formData[field] || formData[field] === '') {
           toast({
@@ -619,11 +613,11 @@ const BOMStandardDisplay: React.FC = () => {
         sub_assembly_name: formData.sub_assembly_name,
         // For blankSpecApi.create, we need to provide width_mm and length_mm
         // For circular cutting, we'll use diameter as both width and length
-        width_mm: cuttingType === 'rectangular' 
-          ? parseFloat(formData.width_mm) 
+        width_mm: cuttingType === 'rectangular'
+          ? parseFloat(formData.width_mm)
           : parseFloat(formData.diameter_mm),
-        length_mm: cuttingType === 'rectangular' 
-          ? parseFloat(formData.length_mm) 
+        length_mm: cuttingType === 'rectangular'
+          ? parseFloat(formData.length_mm)
           : parseFloat(formData.diameter_mm),
         thickness_mm: parseFloat(formData.thickness_mm),
         quantity: parseInt(formData.quantity) || 1, // Default to 1
@@ -670,17 +664,18 @@ const BOMStandardDisplay: React.FC = () => {
       // If auto-optimize is enabled, run optimization
       if (autoOptimize && createdBlank?.blank_id) {
         try {
-        const optimizationData = await sheetOptimizationApi.calculate({
+          const optPayload = {
             blank_id: createdBlank.blank_id,
-            width_mm: parseFloat(formData.width_mm),
-            length_mm: parseFloat(formData.length_mm),
+            width_mm: cuttingType === 'rectangular' ? parseFloat(formData.width_mm) : parseFloat(formData.diameter_mm),
+            length_mm: cuttingType === 'rectangular' ? parseFloat(formData.length_mm) : parseFloat(formData.diameter_mm),
             thickness_mm: parseFloat(formData.thickness_mm),
             quantity: parseInt(formData.quantity) || 1, // Default to 1
             compare_all_sizes: compareAllSizes,
-          save_result: true,
-          create_scrap_entry: false,
+            save_result: true,
+            create_scrap_entry: false,
             calculated_by: 'current_user'
-          });
+          };
+          const optimizationData = await sheetOptimizationApi.calculate(optPayload);
 
           if (optimizationData?.data) {
             toast({
@@ -730,7 +725,7 @@ const BOMStandardDisplay: React.FC = () => {
   const runOptimization = async (blankData: any) => {
     try {
       setOptimizingBlank(blankData);
-      
+
       const optimizationData = await sheetOptimizationApi.calculate({
         blank_id: blankData.blank_id,
         width_mm: parseFloat(blankData.blankSize.width),
@@ -848,24 +843,24 @@ const BOMStandardDisplay: React.FC = () => {
 
     try {
       setLoading(true);
-      
-      console.log('🗑️ Frontend: Deleting sub-assembly:', { 
-        productId: selectedProduct, 
+
+      console.log('🗑️ Frontend: Deleting sub-assembly:', {
+        productId: selectedProduct,
         subAssemblyName: subAssemblyToDelete.name,
         subAssemblyId: subAssemblyToDelete.id
       });
-      
+
       // Call the backend API to delete the sub-assembly
       await bomApi.deleteSubAssembly(selectedProduct, subAssemblyToDelete.name);
-      
+
       // Refresh the BOM data to get the updated list from the backend
       await fetchBOMData();
-      
+
       toast({
         title: "Success",
         description: `Sub-assembly "${subAssemblyToDelete.name}" has been deleted successfully`,
       });
-      
+
       // Close dialog
       setShowDeleteDialog(false);
       setSubAssemblyToDelete(null);
@@ -886,9 +881,9 @@ const BOMStandardDisplay: React.FC = () => {
       ...formData,
       [field]: value
     };
-    
+
     setFormData(newFormData);
-    
+
     // Auto-calculate optimization parameters when dimensions change (excluding quantity)
     if (['width_mm', 'length_mm', 'thickness_mm', 'sheet_width_mm', 'sheet_length_mm'].includes(field)) {
       const calculatedDefaults = calculateOptimizationDefaults(newFormData);
@@ -910,10 +905,10 @@ const BOMStandardDisplay: React.FC = () => {
           <p className="text-gray-600 mt-1">Calculate optimal sheet cutting and material consumption for your BOM components</p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={batchOptimizeProduct} 
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={batchOptimizeProduct}
             disabled={!selectedProduct || loading}
           >
             <Calculator className="w-4 h-4 mr-2" />
@@ -970,13 +965,13 @@ const BOMStandardDisplay: React.FC = () => {
               </Button>
             </div>
           </div>
-          
+
           {selectedProductData && (
             <div className="p-4 bg-blue-50 rounded-lg">
               <h3 className="font-semibold text-blue-900">{selectedProductData.part_name}</h3>
               <p className="text-blue-700 text-sm">
-                Code: {selectedProductData.product_code} | 
-                Category: {selectedProductData.category} | 
+                Code: {selectedProductData.product_code} |
+                Category: {selectedProductData.category} |
                 Cost: ${selectedProductData.standard_cost || 0}
               </p>
             </div>
@@ -1023,7 +1018,7 @@ const BOMStandardDisplay: React.FC = () => {
                       Compare all sheet sizes
                     </Label>
                   </div>
-                  <Button 
+                  <Button
                     onClick={() => setShowAddForm(!showAddForm)}
                     variant="outline"
                     size="sm"
@@ -1080,12 +1075,11 @@ const BOMStandardDisplay: React.FC = () => {
                         <Label className="text-base font-semibold text-gray-800">Cutting Type</Label>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
-                        <div 
-                          className={`p-5 border-2 rounded-xl cursor-pointer transition-all duration-300 hover:scale-105 ${
-                            cuttingType === 'rectangular' 
-                              ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-blue-100 shadow-lg' 
+                        <div
+                          className={`p-5 border-2 rounded-xl cursor-pointer transition-all duration-300 hover:scale-105 ${cuttingType === 'rectangular'
+                              ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-blue-100 shadow-lg'
                               : 'border-gray-200 hover:border-blue-300 bg-white hover:shadow-md'
-                          }`}
+                            }`}
                           onClick={() => setCuttingType('rectangular')}
                         >
                           <div className="flex items-center gap-3">
@@ -1098,13 +1092,12 @@ const BOMStandardDisplay: React.FC = () => {
                             </div>
                           </div>
                         </div>
-                        
-                        <div 
-                          className={`p-5 border-2 rounded-xl cursor-pointer transition-all duration-300 hover:scale-105 ${
-                            cuttingType === 'circular' 
-                              ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-purple-100 shadow-lg' 
+
+                        <div
+                          className={`p-5 border-2 rounded-xl cursor-pointer transition-all duration-300 hover:scale-105 ${cuttingType === 'circular'
+                              ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-purple-100 shadow-lg'
                               : 'border-gray-200 hover:border-purple-300 bg-white hover:shadow-md'
-                          }`}
+                            }`}
                           onClick={() => setCuttingType('circular')}
                         >
                           <div className="flex items-center gap-3">
@@ -1288,13 +1281,12 @@ const BOMStandardDisplay: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <p className="text-xs text-gray-500">Auto-calculated from sheet optimization</p>
                           {layoutData && (
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs ${
-                                selectedCuttingMode === 'horizontal' ? 'border-blue-300 text-blue-700' :
-                                selectedCuttingMode === 'vertical' ? 'border-purple-300 text-purple-700' :
-                                'border-green-300 text-green-700'
-                              }`}
+                            <Badge
+                              variant="outline"
+                              className={`text-xs ${selectedCuttingMode === 'horizontal' ? 'border-blue-300 text-blue-700' :
+                                  selectedCuttingMode === 'vertical' ? 'border-purple-300 text-purple-700' :
+                                    'border-green-300 text-green-700'
+                                }`}
                             >
                               {selectedCuttingMode === 'horizontal' ? 'H' : selectedCuttingMode === 'vertical' ? 'V' : 'S'} Mode
                             </Badge>
@@ -1383,16 +1375,15 @@ const BOMStandardDisplay: React.FC = () => {
                         <Calculator className="w-4 h-4" />
                         Auto-Calculated Material Consumption (Per Sheet)
                         {layoutData && (
-                          <Badge 
-                            variant="outline" 
-                            className={`ml-2 ${
-                              selectedCuttingMode === 'horizontal' ? 'border-blue-300 text-blue-700' :
-                              selectedCuttingMode === 'vertical' ? 'border-purple-300 text-purple-700' :
-                              'border-green-300 text-green-700'
-                            }`}
+                          <Badge
+                            variant="outline"
+                            className={`ml-2 ${selectedCuttingMode === 'horizontal' ? 'border-blue-300 text-blue-700' :
+                                selectedCuttingMode === 'vertical' ? 'border-purple-300 text-purple-700' :
+                                  'border-green-300 text-green-700'
+                              }`}
                           >
-                            {selectedCuttingMode === 'horizontal' ? 'Horizontal' : 
-                             selectedCuttingMode === 'vertical' ? 'Vertical' : 'Smart Mixed'} Mode
+                            {selectedCuttingMode === 'horizontal' ? 'Horizontal' :
+                              selectedCuttingMode === 'vertical' ? 'Vertical' : 'Smart Mixed'} Mode
                           </Badge>
                         )}
                       </h4>
@@ -1417,7 +1408,7 @@ const BOMStandardDisplay: React.FC = () => {
                       <p className="text-xs text-blue-600 mt-2">
                         💡 Material consumption calculated per sheet for optimal cutting efficiency.
                       </p>
-                      
+
                       {/* Layout Preview Toggle */}
                       <div className="flex items-center justify-between mt-3 pt-3 border-t border-blue-200">
                         <Label htmlFor="show-layout" className="text-sm text-blue-700 flex items-center gap-2">
@@ -1441,23 +1432,22 @@ const BOMStandardDisplay: React.FC = () => {
                         {cuttingType === 'circular' ? 'Circular' : 'Sheet'} Cutting Layout Visualization
                       </h4>
                       <p className="text-sm text-gray-600 mb-4">
-                        💡 <strong>Click on any visualization or comparison card below</strong> to select your preferred cutting method. 
+                        💡 <strong>Click on any visualization or comparison card below</strong> to select your preferred cutting method.
                         The selected option will be highlighted with a colored border and "Selected" badge.
                       </p>
-                      
+
                       {/* Use memoized layout visualization for better performance */}
                       {memoizedLayoutVisualization}
-                      
+
                       <div className="mt-4 grid md:grid-cols-3 gap-4">
                         {cuttingType === 'circular' ? (
                           // Circular cutting comparison cards
                           <>
-                            <div 
-                              className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 ${
-                                optimizationMethod === 'square_grid' 
-                                  ? 'bg-blue-100 border-2 border-blue-400 shadow-lg' 
+                            <div
+                              className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 ${optimizationMethod === 'square_grid'
+                                  ? 'bg-blue-100 border-2 border-blue-400 shadow-lg'
                                   : 'bg-blue-50 border border-blue-200 hover:bg-blue-100'
-                              }`}
+                                }`}
                               onClick={() => setOptimizationMethod('square_grid')}
                             >
                               <h5 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
@@ -1465,17 +1455,16 @@ const BOMStandardDisplay: React.FC = () => {
                                 {optimizationMethod === 'square_grid' && <Badge variant="default" className="bg-blue-600">Selected</Badge>}
                               </h5>
                               <p className="text-sm text-blue-800">
-                                <strong>{layoutData.squareGrid?.totalCircles || 0}</strong> circles<br/>
+                                <strong>{layoutData.squareGrid?.totalCircles || 0}</strong> circles<br />
                                 <strong>{layoutData.squareGrid?.efficiency || 0}%</strong> efficiency
                               </p>
                             </div>
-                            
-                            <div 
-                              className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 ${
-                                optimizationMethod === 'hexagonal' 
-                                  ? 'bg-purple-100 border-2 border-purple-400 shadow-lg' 
+
+                            <div
+                              className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 ${optimizationMethod === 'hexagonal'
+                                  ? 'bg-purple-100 border-2 border-purple-400 shadow-lg'
                                   : 'bg-purple-50 border border-purple-200 hover:bg-purple-100'
-                              }`}
+                                }`}
                               onClick={() => setOptimizationMethod('hexagonal')}
                             >
                               <h5 className="font-semibold text-purple-900 mb-2 flex items-center gap-2">
@@ -1483,17 +1472,16 @@ const BOMStandardDisplay: React.FC = () => {
                                 {optimizationMethod === 'hexagonal' && <Badge variant="default" className="bg-purple-600">Selected</Badge>}
                               </h5>
                               <p className="text-sm text-purple-800">
-                                <strong>{layoutData.hexagonal?.totalCircles || 0}</strong> circles<br/>
+                                <strong>{layoutData.hexagonal?.totalCircles || 0}</strong> circles<br />
                                 <strong>{layoutData.hexagonal?.efficiency || 0}%</strong> efficiency
                               </p>
                             </div>
-                            
-                            <div 
-                              className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 ${
-                                optimizationMethod === 'smart' 
-                                  ? 'bg-green-100 border-2 border-green-400 shadow-lg' 
+
+                            <div
+                              className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 ${optimizationMethod === 'smart'
+                                  ? 'bg-green-100 border-2 border-green-400 shadow-lg'
                                   : 'bg-green-50 border border-green-200 hover:bg-green-100'
-                              }`}
+                                }`}
                               onClick={() => setOptimizationMethod('smart')}
                             >
                               <h5 className="font-semibold text-green-900 mb-2 flex items-center gap-2">
@@ -1501,19 +1489,18 @@ const BOMStandardDisplay: React.FC = () => {
                                 {optimizationMethod === 'smart' && <Badge variant="default" className="bg-green-600">Selected</Badge>}
                               </h5>
                               <p className="text-sm text-green-800">
-                                <strong>{layoutData.smart?.totalCircles || 0}</strong> circles<br/>
+                                <strong>{layoutData.smart?.totalCircles || 0}</strong> circles<br />
                                 <strong>{layoutData.smart?.efficiency || 0}%</strong> efficiency
                               </p>
                             </div>
                           </>
                         ) : (
                           // Rectangular cutting comparison cards
-                          <div 
-                            className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 ${
-                              selectedCuttingMode === 'horizontal' 
-                                ? 'bg-blue-100 border-2 border-blue-400 shadow-lg' 
+                          <div
+                            className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 ${selectedCuttingMode === 'horizontal'
+                                ? 'bg-blue-100 border-2 border-blue-400 shadow-lg'
                                 : 'bg-blue-50 border border-blue-200 hover:bg-blue-100'
-                            }`}
+                              }`}
                             onClick={() => setSelectedCuttingMode('horizontal')}
                           >
                             <h5 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
@@ -1522,32 +1509,31 @@ const BOMStandardDisplay: React.FC = () => {
                             </h5>
                             <p className="text-sm text-blue-800">
                               <strong>
-                                {isRectangular(cuttingType) 
+                                {isRectangular(cuttingType)
                                   ? layoutData.horizontal?.stats?.totalBlanks || 0
                                   : layoutData.squareGrid?.totalCircles || 0
                                 }
-                              </strong> {isRectangular(cuttingType) ? 'blanks' : 'circles'}<br/>
+                              </strong> {isRectangular(cuttingType) ? 'blanks' : 'circles'}<br />
                               <strong>
-                                {isRectangular(cuttingType) 
+                                {isRectangular(cuttingType)
                                   ? (layoutData.horizontal?.stats?.efficiency || 0).toFixed(1)
                                   : (layoutData.squareGrid?.efficiency || 0).toFixed(1)
                                 }%
-                              </strong> efficiency<br/>
+                              </strong> efficiency<br />
                               {isRectangular(cuttingType) && (layoutData.horizontal?.stats?.extraBlanks || 0) > 0 && (
                                 <span className="text-blue-600">+{layoutData.horizontal.stats.extraBlanks} from leftover</span>
                               )}
                             </p>
                           </div>
                         )}
-                        
+
                         {cuttingType === 'rectangular' && (
                           <>
-                            <div 
-                              className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 ${
-                                selectedCuttingMode === 'vertical' 
-                                  ? 'bg-purple-100 border-2 border-purple-400 shadow-lg' 
+                            <div
+                              className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 ${selectedCuttingMode === 'vertical'
+                                  ? 'bg-purple-100 border-2 border-purple-400 shadow-lg'
                                   : 'bg-purple-50 border border-purple-200 hover:bg-purple-100'
-                              }`}
+                                }`}
                               onClick={() => setSelectedCuttingMode('vertical')}
                             >
                               <h5 className="font-semibold text-purple-900 mb-2 flex items-center gap-2">
@@ -1555,72 +1541,71 @@ const BOMStandardDisplay: React.FC = () => {
                                 {selectedCuttingMode === 'vertical' && <Badge variant="default" className="bg-purple-600">Selected</Badge>}
                               </h5>
                               <p className="text-sm text-purple-800">
-                                <strong>{layoutData.vertical.stats.totalBlanks}</strong> blanks<br/>
-                                <strong>{layoutData.vertical.stats.efficiency.toFixed(1)}%</strong> efficiency<br/>
+                                <strong>{layoutData.vertical.stats.totalBlanks}</strong> blanks<br />
+                                <strong>{layoutData.vertical.stats.efficiency.toFixed(1)}%</strong> efficiency<br />
                                 {layoutData.vertical.stats.extraBlanks > 0 && (
                                   <span className="text-purple-600">+{layoutData.vertical.stats.extraBlanks} from leftover</span>
                                 )}
                               </p>
                             </div>
-                            
-                            <div 
-                              className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 ${
-                                selectedCuttingMode === 'smart' 
-                                  ? 'bg-green-100 border-2 border-green-400 shadow-lg' 
+
+                            <div
+                              className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 ${selectedCuttingMode === 'smart'
+                                  ? 'bg-green-100 border-2 border-green-400 shadow-lg'
                                   : 'bg-green-50 border border-green-200 hover:bg-green-100'
-                              }`}
+                                }`}
                               onClick={() => setSelectedCuttingMode('smart')}
                             >
-                          <h5 className="font-semibold text-green-900 mb-2 flex items-center gap-2">
-                            Smart Mixed
-                            {selectedCuttingMode === 'smart' && <Badge variant="default" className="bg-green-600">Selected</Badge>}
-                          </h5>
-                          <p className="text-sm text-green-800">
-                            <strong>
-                              {isCircular(cuttingType)
-                                ? layoutData.smart?.totalCircles || 0
-                                : layoutData.smart?.stats?.totalBlanks || 0
-                              }
-                            </strong> {isCircular(cuttingType) ? 'circles' : 'blanks'}<br/>
-                            <strong>
-                              {isCircular(cuttingType)
-                                ? (layoutData.smart?.efficiency || 0).toFixed(1)
-                                : (layoutData.smart?.stats?.efficiency || 0).toFixed(1)
-                              }%
-                            </strong> efficiency<br/>
-                            {isRectangular(cuttingType) && (layoutData.smart?.stats?.extraBlanks || 0) > 0 && (
-                              <span className="text-green-600">
-                                +{layoutData.smart.stats.extraBlanks} from leftover
-                                {isRectangular(cuttingType) && (layoutData.smart?.stats?.extraBlanks || 0) > (layoutData.bestDirection === 'HORIZONTAL' ? (layoutData.horizontal?.stats?.extraBlanks || 0) : (layoutData.vertical?.stats?.extraBlanks || 0)) && (
-                                  <span className="ml-1 text-green-700 font-semibold">✨ With rotation!</span>
+                              <h5 className="font-semibold text-green-900 mb-2 flex items-center gap-2">
+                                Smart Mixed
+                                {selectedCuttingMode === 'smart' && <Badge variant="default" className="bg-green-600">Selected</Badge>}
+                              </h5>
+                              <p className="text-sm text-green-800">
+                                <strong>
+                                  {isCircular(cuttingType)
+                                    ? layoutData.smart?.totalCircles || 0
+                                    : layoutData.smart?.stats?.totalBlanks || 0
+                                  }
+                                </strong> {isCircular(cuttingType) ? 'circles' : 'blanks'}<br />
+                                <strong>
+                                  {isCircular(cuttingType)
+                                    ? (layoutData.smart?.efficiency || 0).toFixed(1)
+                                    : (layoutData.smart?.stats?.efficiency || 0).toFixed(1)
+                                  }%
+                                </strong> efficiency<br />
+                                {isRectangular(cuttingType) && (layoutData.smart?.stats?.extraBlanks || 0) > 0 && (
+                                  <span className="text-green-600">
+                                    +{layoutData.smart.stats.extraBlanks} from leftover
+                                    {isRectangular(cuttingType) && (layoutData.smart?.stats?.extraBlanks || 0) > (layoutData.bestDirection === 'HORIZONTAL' ? (layoutData.horizontal?.stats?.extraBlanks || 0) : (layoutData.vertical?.stats?.extraBlanks || 0)) && (
+                                      <span className="ml-1 text-green-700 font-semibold">✨ With rotation!</span>
+                                    )}
+                                  </span>
                                 )}
-                              </span>
-                            )}
-                            {isCircular(cuttingType) && layoutData.smart?.selectedMethod && (
-                              <span className="text-green-600">
-                                Selected: {layoutData.smart.selectedMethod}
-                              </span>
-                            )}
-                          </p>
-                        </div>
+                                {isCircular(cuttingType) && layoutData.smart?.selectedMethod && (
+                                  <span className="text-green-600">
+                                    Selected: {layoutData.smart.selectedMethod}
+                                  </span>
+                                )}
+                              </p>
+                            </div>
                           </>
                         )}
                       </div>
-                      
+
                       {/* Selected Option Section */}
                       <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
                         <h5 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                           <CheckCircle className="w-4 h-4" />
                           Selected Cutting Option
                         </h5>
-                        
+
                         <div className="flex items-center justify-between mb-3">
                           <div>
                             <p className="text-sm text-gray-700">
                               <strong className="capitalize">
-                                {cuttingType === 'circular' 
-                                  ? (optimizationMethod === 'square_grid' ? 'Square Grid' : 
-                                     optimizationMethod === 'hexagonal' ? 'Hexagonal' : 'Smart')
+                                {cuttingType === 'circular'
+                                  ? (optimizationMethod === 'square_grid' ? 'Square Grid' :
+                                    optimizationMethod === 'hexagonal' ? 'Hexagonal' : 'Smart')
                                   : selectedCuttingMode
                                 }
                               </strong> cutting selected
@@ -1642,29 +1627,29 @@ const BOMStandardDisplay: React.FC = () => {
                                 <>
                                   {selectedCuttingMode === 'horizontal' && (
                                     <>Produces <strong>
-                                      {isRectangular(cuttingType) 
+                                      {isRectangular(cuttingType)
                                         ? layoutData.horizontal?.stats?.totalBlanks || 0
                                         : layoutData.squareGrid?.totalCircles || 0
                                       }
                                     </strong> {isRectangular(cuttingType) ? 'blanks' : 'circles'} with <strong>
-                                      {isRectangular(cuttingType) 
-                                        ? (layoutData.horizontal?.stats?.efficiency || 0).toFixed(1)
-                                        : (layoutData.squareGrid?.efficiency || 0).toFixed(1)
-                                      }%
-                                    </strong> efficiency</>
+                                        {isRectangular(cuttingType)
+                                          ? (layoutData.horizontal?.stats?.efficiency || 0).toFixed(1)
+                                          : (layoutData.squareGrid?.efficiency || 0).toFixed(1)
+                                        }%
+                                      </strong> efficiency</>
                                   )}
                                   {selectedCuttingMode === 'vertical' && (
                                     <>Produces <strong>
-                                      {isRectangular(cuttingType) 
+                                      {isRectangular(cuttingType)
                                         ? layoutData.vertical?.stats?.totalBlanks || 0
                                         : layoutData.hexagonal?.totalCircles || 0
                                       }
                                     </strong> {isRectangular(cuttingType) ? 'blanks' : 'circles'} with <strong>
-                                      {isRectangular(cuttingType) 
-                                        ? (layoutData.vertical?.stats?.efficiency || 0).toFixed(1)
-                                        : (layoutData.hexagonal?.efficiency || 0).toFixed(1)
-                                      }%
-                                    </strong> efficiency</>
+                                        {isRectangular(cuttingType)
+                                          ? (layoutData.vertical?.stats?.efficiency || 0).toFixed(1)
+                                          : (layoutData.hexagonal?.efficiency || 0).toFixed(1)
+                                        }%
+                                      </strong> efficiency</>
                                   )}
                                   {selectedCuttingMode === 'smart' && (
                                     <>Produces <strong>
@@ -1673,45 +1658,45 @@ const BOMStandardDisplay: React.FC = () => {
                                         : layoutData.smart?.stats?.totalBlanks || 0
                                       }
                                     </strong> {isCircular(cuttingType) ? 'circles' : 'blanks'} with <strong>
-                                      {isCircular(cuttingType)
-                                        ? (layoutData.smart?.efficiency || 0).toFixed(1)
-                                        : (layoutData.smart?.stats?.efficiency || 0).toFixed(1)
-                                      }%
-                                    </strong> efficiency{isRectangular(cuttingType) && (layoutData.smart?.stats?.extraBlanks || 0) > 0 && ' (includes rotation)'}</>
+                                        {isCircular(cuttingType)
+                                          ? (layoutData.smart?.efficiency || 0).toFixed(1)
+                                          : (layoutData.smart?.stats?.efficiency || 0).toFixed(1)
+                                        }%
+                                      </strong> efficiency{isRectangular(cuttingType) && (layoutData.smart?.stats?.extraBlanks || 0) > 0 && ' (includes rotation)'}</>
                                   )}
                                 </>
                               )}
                             </p>
                           </div>
-                          
-                          <Button 
-                            size="sm" 
+
+                          <Button
+                            size="sm"
                             className="bg-blue-600 hover:bg-blue-700"
                             onClick={() => {
                               // Apply the selected cutting mode to form data
                               let selectedLayout;
                               let totalBlanks, efficiency;
-                              
+
                               if (isCircular(cuttingType)) {
                                 // For circular layouts, use the optimization method
-                                selectedLayout = optimizationMethod === 'square_grid' ? layoutData.squareGrid : 
-                                               optimizationMethod === 'hexagonal' ? layoutData.hexagonal : 
-                                               layoutData.smart;
+                                selectedLayout = optimizationMethod === 'square_grid' ? layoutData.squareGrid :
+                                  optimizationMethod === 'hexagonal' ? layoutData.hexagonal :
+                                    layoutData.smart;
                                 totalBlanks = selectedLayout.totalCircles;
                                 efficiency = selectedLayout.efficiency;
                               } else {
                                 // For rectangular layouts, use the selected cutting mode
-                                selectedLayout = selectedCuttingMode === 'horizontal' ? layoutData.horizontal : 
-                                               selectedCuttingMode === 'vertical' ? layoutData.vertical : 
-                                               layoutData.smart;
+                                selectedLayout = selectedCuttingMode === 'horizontal' ? layoutData.horizontal :
+                                  selectedCuttingMode === 'vertical' ? layoutData.vertical :
+                                    layoutData.smart;
                                 totalBlanks = selectedLayout.stats.totalBlanks;
                                 efficiency = selectedLayout.stats.efficiency;
                               }
-                              
+
                               // Calculate blank weight based on dimensions and density
                               const { width_mm, length_mm, thickness_mm, diameter_mm } = formData;
                               const MATERIAL_DENSITY = 0.00000785; // kg/mm³ for steel
-                              
+
                               let blankWeight;
                               if (isCircular(cuttingType)) {
                                 // For circular blanks: π * (diameter/2)² * thickness * density
@@ -1721,14 +1706,14 @@ const BOMStandardDisplay: React.FC = () => {
                                 // For rectangular blanks: width * length * thickness * density
                                 blankWeight = parseFloat(width_mm) * parseFloat(length_mm) * parseFloat(thickness_mm) * MATERIAL_DENSITY;
                               }
-                              
+
                               setFormData(prev => ({
                                 ...prev,
                                 pcs_per_sheet: totalBlanks.toString(),
                                 sheet_util_pct: efficiency.toFixed(1),
                                 blank_weight_kg: blankWeight.toFixed(3)
                               }));
-                              
+
                               toast({
                                 title: "Cutting Mode Applied",
                                 description: `${isCircular(cuttingType) ? optimizationMethod : selectedCuttingMode} cutting mode has been applied to the form.`,
@@ -1738,40 +1723,40 @@ const BOMStandardDisplay: React.FC = () => {
                             Apply Selection
                           </Button>
                         </div>
-                        
+
                         <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                           <p className="text-sm text-yellow-800">
                             <strong>Best Option:</strong> <span className="font-semibold">{layoutData.bestDirection}</span> cutting produces{' '}
                             <strong>
                               {isCircular(cuttingType)
-                                ? (optimizationMethod === 'square_grid' 
-                                    ? layoutData.squareGrid?.totalCircles || 0
-                                    : optimizationMethod === 'hexagonal'
+                                ? (optimizationMethod === 'square_grid'
+                                  ? layoutData.squareGrid?.totalCircles || 0
+                                  : optimizationMethod === 'hexagonal'
                                     ? layoutData.hexagonal?.totalCircles || 0
                                     : layoutData.smart?.totalCircles || 0)
-                                : (isRectangular(cuttingType) && layoutData.bestDirection === 'HORIZONTAL' 
-                                    ? layoutData.horizontal?.stats?.totalBlanks || 0
-                                    : isRectangular(cuttingType) && layoutData.bestDirection === 'VERTICAL'
+                                : (isRectangular(cuttingType) && layoutData.bestDirection === 'HORIZONTAL'
+                                  ? layoutData.horizontal?.stats?.totalBlanks || 0
+                                  : isRectangular(cuttingType) && layoutData.bestDirection === 'VERTICAL'
                                     ? layoutData.vertical?.stats?.totalBlanks || 0
-                                    : isRectangular(cuttingType) 
-                                    ? layoutData.smart?.stats?.totalBlanks || 0
-                                    : 0)
+                                    : isRectangular(cuttingType)
+                                      ? layoutData.smart?.stats?.totalBlanks || 0
+                                      : 0)
                               }
                             </strong> {isCircular(cuttingType) ? 'circles' : 'blanks'} per sheet at{' '}
                             <strong>
                               {isCircular(cuttingType)
-                                ? (optimizationMethod === 'square_grid' 
-                                    ? (layoutData.squareGrid?.efficiency || 0).toFixed(1)
-                                    : optimizationMethod === 'hexagonal'
+                                ? (optimizationMethod === 'square_grid'
+                                  ? (layoutData.squareGrid?.efficiency || 0).toFixed(1)
+                                  : optimizationMethod === 'hexagonal'
                                     ? (layoutData.hexagonal?.efficiency || 0).toFixed(1)
                                     : (layoutData.smart?.efficiency || 0).toFixed(1))
                                 : (isRectangular(cuttingType) && layoutData.bestDirection === 'HORIZONTAL'
-                                    ? (layoutData.horizontal?.stats?.efficiency || 0).toFixed(1)
-                                    : isRectangular(cuttingType) && layoutData.bestDirection === 'VERTICAL'
+                                  ? (layoutData.horizontal?.stats?.efficiency || 0).toFixed(1)
+                                  : isRectangular(cuttingType) && layoutData.bestDirection === 'VERTICAL'
                                     ? (layoutData.vertical?.stats?.efficiency || 0).toFixed(1)
-                                    : isRectangular(cuttingType) 
-                                    ? (layoutData.smart?.stats?.efficiency || 0).toFixed(1)
-                                    : '0')}%
+                                    : isRectangular(cuttingType)
+                                      ? (layoutData.smart?.stats?.efficiency || 0).toFixed(1)
+                                      : '0')}%
                             </strong> efficiency.
                             {isRectangular(cuttingType) && layoutData.bestDirection === 'SMART_MIXED' && (layoutData.smart?.stats?.extraBlanks || 0) > 0 && (
                               <span className="ml-1">
@@ -1808,7 +1793,7 @@ const BOMStandardDisplay: React.FC = () => {
                           className="data-[state=checked]:bg-blue-600"
                         />
                       </div>
-                      
+
                       <div className="flex items-center gap-3">
                         {/* Cooldown indicator */}
                         {lastCalculationTime > 0 && (Date.now() - lastCalculationTime) < 3000 && (
@@ -1817,7 +1802,7 @@ const BOMStandardDisplay: React.FC = () => {
                             <span>Cooldown active</span>
                           </div>
                         )}
-                        
+
                         <Button
                           type="button"
                           variant="outline"
@@ -1848,8 +1833,8 @@ const BOMStandardDisplay: React.FC = () => {
                       <Save className="w-4 h-4" />
                       Add Sub-Assembly
                     </Button>
-                    <Button 
-                      type="button" 
+                    <Button
+                      type="button"
                       variant="outline"
                       onClick={() => {
                         setFormData({
@@ -1874,8 +1859,8 @@ const BOMStandardDisplay: React.FC = () => {
                       <X className="w-4 h-4" />
                       Clear Form
                     </Button>
-                    <Button 
-                      type="button" 
+                    <Button
+                      type="button"
                       variant="outline"
                       onClick={() => setShowAddForm(false)}
                       className="flex items-center gap-2"
@@ -1978,134 +1963,134 @@ const BOMStandardDisplay: React.FC = () => {
                       </tr>
                     ) : (
                       filteredSubAssemblies.map((subAssembly, index) => (
-                      <tr key={index} className="hover:bg-blue-50 transition-colors duration-200 border-b border-gray-100">
-                        {/* Part No */}
-                        <td className="p-2 md:p-4 border-r border-gray-200 font-medium text-gray-800 text-xs md:text-sm">
-                          {index === 0 ? (
-                            <div className="flex items-center gap-1 md:gap-2">
-                              <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-blue-500 rounded-full"></div>
-                              <span className="font-semibold truncate">{renderValue(bomData.partNo)}</span>
-                            </div>
-                          ) : ''}
-                        </td>
-                        
-                        {/* Part Description */}
-                        <td className="p-2 md:p-4 border-r border-gray-200 text-gray-700 text-xs md:text-sm hidden md:table-cell">
-                          {index === 0 ? (
-                            <div className="flex items-center gap-1 md:gap-2">
-                              <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full"></div>
-                              <span className="truncate">{renderValue(bomData.partDescription)}</span>
-                            </div>
-                          ) : ''}
-                        </td>
-                        
-                        {/* Model */}
-                        <td className="p-2 md:p-4 border-r border-gray-200 text-xs md:text-sm">
-                          {index === 0 ? (
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
-                              {renderValue(bomData.mode)}
-                            </Badge>
-                          ) : ''}
-                        </td>
-                        
-                        {/* Sub Assembly */}
-                        <td className="p-2 md:p-4 border-r border-gray-200 text-xs md:text-sm">
-                          <div className="flex items-center gap-1 md:gap-2">
-                            <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-purple-500 rounded-full"></div>
-                            <span className="font-semibold text-gray-800 truncate">{renderValue(subAssembly.name)}</span>
-                          </div>
-                        </td>
-                        
-                        {/* Blank Size */}
-                        <td className="p-2 md:p-4 border-r border-gray-200">
-                          <div className="grid grid-cols-4 gap-1 md:gap-2 text-center">
-                            <div className="bg-blue-50 p-1 md:p-2 rounded-lg">
-                              <span className="text-blue-700 font-bold text-xs md:text-sm">{renderValue(subAssembly.blankSize.width)}</span>
-                            </div>
-                            <div className="bg-green-50 p-1 md:p-2 rounded-lg">
-                              <span className="text-green-700 font-bold text-xs md:text-sm">{renderValue(subAssembly.blankSize.length)}</span>
-                            </div>
-                            <div className="bg-orange-50 p-1 md:p-2 rounded-lg">
-                              <span className="text-orange-700 font-bold text-xs md:text-sm">{renderValue(subAssembly.blankSize.thickness)}</span>
-                            </div>
-                            <div className="bg-purple-50 p-1 md:p-2 rounded-lg">
-                              <span className="text-purple-700 font-bold text-xs md:text-sm">{renderValue(subAssembly.blankSize.quantity)}</span>
-                            </div>
-                          </div>
-                        </td>
-                        
-                        {/* Weight of the blank */}
-                        <td className="p-2 md:p-4 border-r border-gray-200 text-center hidden lg:table-cell">
-                          <div className="bg-gray-50 p-2 md:p-3 rounded-lg">
-                            <span className="font-bold text-gray-800 text-sm md:text-lg">{renderValue(subAssembly.weightPerBlank)}</span>
-                            <span className="text-gray-500 text-xs md:text-sm ml-1">kg</span>
-                          </div>
-                        </td>
-                        
-                        {/* Material Consumption Details */}
-                        <td className="p-2 md:p-4 hidden xl:table-cell">
-                          <div className="grid grid-cols-4 gap-1 md:gap-2 text-center">
-                            {/* Consumption Percentage with Progress Bar */}
-                            <div className="bg-indigo-50 p-1 md:p-2 rounded-lg">
-                              <div className="text-indigo-700 font-bold text-xs md:text-sm mb-1">
-                                {renderValue(subAssembly.materialConsumption.sheetConsumptionPercent)}%
+                        <tr key={index} className="hover:bg-blue-50 transition-colors duration-200 border-b border-gray-100">
+                          {/* Part No */}
+                          <td className="p-2 md:p-4 border-r border-gray-200 font-medium text-gray-800 text-xs md:text-sm">
+                            {index === 0 ? (
+                              <div className="flex items-center gap-1 md:gap-2">
+                                <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-blue-500 rounded-full"></div>
+                                <span className="font-semibold truncate">{renderValue(bomData.partNo)}</span>
                               </div>
-                              <div className="w-full bg-gray-200 rounded-full h-1 md:h-2">
-                                <div 
-                                  className="bg-indigo-500 h-1 md:h-2 rounded-full transition-all duration-300" 
-                                  style={{ width: `${Math.min(parseFloat(String(renderValue(subAssembly.materialConsumption.sheetConsumptionPercent))) || 0, 100)}%` }}
-                                ></div>
+                            ) : ''}
+                          </td>
+
+                          {/* Part Description */}
+                          <td className="p-2 md:p-4 border-r border-gray-200 text-gray-700 text-xs md:text-sm hidden md:table-cell">
+                            {index === 0 ? (
+                              <div className="flex items-center gap-1 md:gap-2">
+                                <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full"></div>
+                                <span className="truncate">{renderValue(bomData.partDescription)}</span>
+                              </div>
+                            ) : ''}
+                          </td>
+
+                          {/* Model */}
+                          <td className="p-2 md:p-4 border-r border-gray-200 text-xs md:text-sm">
+                            {index === 0 ? (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                                {renderValue(bomData.mode)}
+                              </Badge>
+                            ) : ''}
+                          </td>
+
+                          {/* Sub Assembly */}
+                          <td className="p-2 md:p-4 border-r border-gray-200 text-xs md:text-sm">
+                            <div className="flex items-center gap-1 md:gap-2">
+                              <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-purple-500 rounded-full"></div>
+                              <span className="font-semibold text-gray-800 truncate">{renderValue(subAssembly.name)}</span>
+                            </div>
+                          </td>
+
+                          {/* Blank Size */}
+                          <td className="p-2 md:p-4 border-r border-gray-200">
+                            <div className="grid grid-cols-4 gap-1 md:gap-2 text-center">
+                              <div className="bg-blue-50 p-1 md:p-2 rounded-lg">
+                                <span className="text-blue-700 font-bold text-xs md:text-sm">{renderValue(subAssembly.blankSize.width)}</span>
+                              </div>
+                              <div className="bg-green-50 p-1 md:p-2 rounded-lg">
+                                <span className="text-green-700 font-bold text-xs md:text-sm">{renderValue(subAssembly.blankSize.length)}</span>
+                              </div>
+                              <div className="bg-orange-50 p-1 md:p-2 rounded-lg">
+                                <span className="text-orange-700 font-bold text-xs md:text-sm">{renderValue(subAssembly.blankSize.thickness)}</span>
+                              </div>
+                              <div className="bg-purple-50 p-1 md:p-2 rounded-lg">
+                                <span className="text-purple-700 font-bold text-xs md:text-sm">{renderValue(subAssembly.blankSize.quantity)}</span>
                               </div>
                             </div>
-                            
-                            {/* Sheet Weight */}
-                            <div className="bg-cyan-50 p-1 md:p-2 rounded-lg">
-                              <span className="text-cyan-700 font-bold text-xs md:text-sm">{renderValue(subAssembly.materialConsumption.sheetWeight)}</span>
-                              <div className="text-cyan-600 text-xs">kg</div>
+                          </td>
+
+                          {/* Weight of the blank */}
+                          <td className="p-2 md:p-4 border-r border-gray-200 text-center hidden lg:table-cell">
+                            <div className="bg-gray-50 p-2 md:p-3 rounded-lg">
+                              <span className="font-bold text-gray-800 text-sm md:text-lg">{renderValue(subAssembly.weightPerBlank)}</span>
+                              <span className="text-gray-500 text-xs md:text-sm ml-1">kg</span>
                             </div>
-                            
-                            {/* Pieces per Sheet */}
-                            <div className="bg-pink-50 p-1 md:p-2 rounded-lg">
-                              <span className="text-pink-700 font-bold text-xs md:text-sm">{renderValue(subAssembly.materialConsumption.piecesPerSheet)}</span>
-                              <div className="text-pink-600 text-xs">pcs</div>
+                          </td>
+
+                          {/* Material Consumption Details */}
+                          <td className="p-2 md:p-4 hidden xl:table-cell">
+                            <div className="grid grid-cols-4 gap-1 md:gap-2 text-center">
+                              {/* Consumption Percentage with Progress Bar */}
+                              <div className="bg-indigo-50 p-1 md:p-2 rounded-lg">
+                                <div className="text-indigo-700 font-bold text-xs md:text-sm mb-1">
+                                  {renderValue(subAssembly.materialConsumption.sheetConsumptionPercent)}%
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-1 md:h-2">
+                                  <div
+                                    className="bg-indigo-500 h-1 md:h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${Math.min(parseFloat(String(renderValue(subAssembly.materialConsumption.sheetConsumptionPercent))) || 0, 100)}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+
+                              {/* Sheet Weight */}
+                              <div className="bg-cyan-50 p-1 md:p-2 rounded-lg">
+                                <span className="text-cyan-700 font-bold text-xs md:text-sm">{renderValue(subAssembly.materialConsumption.sheetWeight)}</span>
+                                <div className="text-cyan-600 text-xs">kg</div>
+                              </div>
+
+                              {/* Pieces per Sheet */}
+                              <div className="bg-pink-50 p-1 md:p-2 rounded-lg">
+                                <span className="text-pink-700 font-bold text-xs md:text-sm">{renderValue(subAssembly.materialConsumption.piecesPerSheet)}</span>
+                                <div className="text-pink-600 text-xs">pcs</div>
+                              </div>
+
+                              {/* Total Weight */}
+                              <div className="bg-yellow-50 p-1 md:p-2 rounded-lg">
+                                <span className="text-yellow-700 font-bold text-xs md:text-sm">
+                                  {typeof subAssembly.weightPerBlank === 'number' && typeof subAssembly.blankSize.quantity === 'number'
+                                    ? (subAssembly.weightPerBlank * subAssembly.blankSize.quantity).toFixed(2)
+                                    : 'MISSING'}
+                                </span>
+                                <div className="text-yellow-600 text-xs">kg</div>
+                              </div>
                             </div>
-                            
-                            {/* Total Weight */}
-                            <div className="bg-yellow-50 p-1 md:p-2 rounded-lg">
-                              <span className="text-yellow-700 font-bold text-xs md:text-sm">
-                                {typeof subAssembly.weightPerBlank === 'number' && typeof subAssembly.blankSize.quantity === 'number' 
-                                  ? (subAssembly.weightPerBlank * subAssembly.blankSize.quantity).toFixed(2)
-                                  : 'MISSING'}
-                              </span>
-                              <div className="text-yellow-600 text-xs">kg</div>
+                          </td>
+
+                          {/* Actions Column */}
+                          <td className="p-2 md:p-4 text-center">
+                            <div className="flex items-center justify-center gap-1 md:gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  console.log('🔍 Full sub-assembly object:', subAssembly);
+                                  showDeleteConfirmation(subAssembly.name, subAssembly.name);
+                                }}
+                                disabled={loading}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 text-xs md:text-sm px-2 md:px-3"
+                              >
+                                <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
+                              </Button>
                             </div>
-                          </div>
-                        </td>
-                        
-                        {/* Actions Column */}
-                        <td className="p-2 md:p-4 text-center">
-                          <div className="flex items-center justify-center gap-1 md:gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                console.log('🔍 Full sub-assembly object:', subAssembly);
-                                showDeleteConfirmation(subAssembly.name, subAssembly.name);
-                              }}
-                              disabled={loading}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 text-xs md:text-sm px-2 md:px-3"
-                            >
-                              <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
+                          </td>
+                        </tr>
                       ))
                     )}
                   </tbody>
                 </table>
               </div>
-              
+
               {/* Table Summary Footer */}
               {bomData && filteredSubAssemblies.length > 0 && (
                 <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200 p-4">
@@ -2324,7 +2309,7 @@ const BOMStandardDisplay: React.FC = () => {
                       </thead>
                       <tbody>
                         {optimizationResult.allSheetComparisons?.map((option: any, index: number) => (
-                          <tr 
+                          <tr
                             key={index}
                             className={option.totalBlanks === optimizationResult.totalBlanksPerSheet ? 'bg-green-50 font-semibold' : ''}
                           >
@@ -2372,7 +2357,7 @@ const BOMStandardDisplay: React.FC = () => {
               Delete Sub-Assembly
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the sub-assembly "{subAssemblyToDelete?.name}"? 
+              Are you sure you want to delete the sub-assembly "{subAssemblyToDelete?.name}"?
               This action cannot be undone.
             </DialogDescription>
           </DialogHeader>

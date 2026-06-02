@@ -12,7 +12,9 @@ router.post('/employees', hrController.createEmployee);
 router.post('/attendance/log', hrController.logAttendance);
 
 // Payroll Routes
+router.get('/payroll', hrController.getPayrolls);
 router.post('/payroll/process', hrController.processPayroll);
 router.post('/payroll/pay', hrController.paySalaries);
+router.post('/payroll/approve', hrController.approvePayroll);
 
 export default router;

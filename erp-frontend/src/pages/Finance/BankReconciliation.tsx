@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Search, CheckCircle2, AlertCircle, RefreshCw, Upload, ArrowRightLeft } from "lucide-react";
@@ -163,7 +163,7 @@ const BankReconciliation: React.FC = () => {
                                     </div>
                                     <div className="text-right">
                                         <p className={`font-bold ${txn.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                            ₹{Math.abs(txn.amount).toLocaleString()}
+                                            Rs. {Math.abs(txn.amount).toLocaleString()}
                                         </p>
                                         <Badge variant={txn.recon_status === 'RECONCILED' ? 'default' : 'outline'}>
                                             {txn.recon_status}

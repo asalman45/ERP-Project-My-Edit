@@ -22,24 +22,81 @@ export const getSupplier = async (req, res) => {
 };
 
 export const createSupplier = async (req, res) => {
+  const opening_balance = req.body.opening_balance;
+  if (req.body.opening_balance !== undefined) delete req.body.opening_balance;
+
   const { error, value } = validateSupplierCreate(req.body);
   if (error) return res.status(400).json({ error: error.details.map(d => d.message) });
 
   try {
     const supplier = await supplierModel.create(value);
+
+    // --> HOOK: AP Opening Balance
+    if (opening_balance && !isNaN(parseFloat(opening_balance)) && parseFloat(opening_balance) > 0) {
+      try {
+        const db = (await import('../utils/db.js')).default;
+        const { v4: uuidv4 } = await import('uuid');
+        const client = await db.pool.connect();
+        try {
+          await client.query('BEGIN');
+          let apAcc = await client.query(`SELECT account_id FROM financial_account WHERE category = 'ACCOUNTS_PAYABLE' LIMIT 1`);
+          let openAcc = await client.query(`SELECT account_id FROM financial_account WHERE code = '3000' OR name ILIKE '%Opening%' LIMIT 1`);
+
+          if (apAcc.rows.length === 0) apAcc = await client.query(`INSERT INTO financial_account (account_id, code, name, type, category) VALUES ($1, '2000', 'Accounts Payable', 'LIABILITY', 'ACCOUNTS_PAYABLE') RETURNING account_id`, [uuidv4()]);
+          if (openAcc.rows.length === 0) openAcc = await client.query(`INSERT INTO financial_account (account_id, code, name, type, category) VALUES ($1, '3000', 'Opening Balances / Equity', 'EQUITY', 'EQUITY') RETURNING account_id`, [uuidv4()]);
+
+          const jId = uuidv4();
+          const voucherNumber = `JV-OB-${Date.now().toString().slice(-6)}`;
+          await client.query(`
+            INSERT INTO journal_entry (entry_id, voucher_number, reference, description, status, created_by, created_at)
+            VALUES ($1, $2, $3, $4, 'POSTED', 'System', CURRENT_TIMESTAMP)
+          `, [jId, voucherNumber, supplier.supplier_id, `Opening Balance for ${supplier.name}`]);
+
+          await client.query(`INSERT INTO journal_line (line_id, entry_id, account_id, credit) VALUES ($1, $2, $3, $4)`, [uuidv4(), jId, apAcc.rows[0].account_id, parseFloat(opening_balance)]);
+          await client.query(`INSERT INTO journal_line (line_id, entry_id, account_id, debit) VALUES ($1, $2, $3, $4)`, [uuidv4(), jId, openAcc.rows[0].account_id, parseFloat(opening_balance)]);
+          await client.query('COMMIT');
+          logger.info({ supplier_id: supplier.supplier_id, opening_balance }, 'AP Opening Balance Journal Entry posted');
+        } catch (txnErr) {
+          await client.query('ROLLBACK');
+          throw txnErr;
+        } finally {
+          client.release();
+        }
+      } catch (err) {
+        logger.error({ err }, 'Failed to create AP opening balance');
+      }
+    }
+    // <-- END HOOK
+
     logger.info({ supplier_id: supplier.supplier_id }, 'supplier created');
     return res.status(201).json({ data: supplier });
   } catch (err) {
     // Handle duplicate key constraint violations
-    if (err.code === '23505' && err.constraint === 'supplier_code_key') {
-      return res.status(409).json({ 
-        error: `Supplier code '${value.code}' already exists. Please use a different supplier code.` 
-      });
+    if (err.code === '23505') {
+      const constraint = err.constraint || '';
+      if (constraint.includes('code')) {
+        return res.status(409).json({
+          error: `Supplier code '${value.code}' already exists. Please use a different supplier code.`
+        });
+      }
+      if (constraint.includes('ntn')) {
+        return res.status(409).json({
+          error: `Supplier NTN '${value.ntn || req.body.ntn}' already exists. A supplier with this NTN is already registered.`
+        });
+      }
+      if (constraint.includes('strn')) {
+        return res.status(409).json({
+          error: `Supplier STRN/GST '${value.strn || req.body.strn}' already exists. A supplier with this STRN/GST is already registered.`
+        });
+      }
     }
-    
+
     // Handle other database errors
     logger.error({ err, supplier_code: value.code }, 'Failed to create supplier');
-    return res.status(500).json({ error: 'Failed to create supplier. Please try again.' });
+    return res.status(500).json({ 
+      error: `Failed to create supplier. Please try again. Details: ${err.message}`,
+      details: err.message
+    });
   }
 };
 
@@ -50,15 +107,31 @@ export const updateSupplier = async (req, res) => {
     return res.json({ data: supplier });
   } catch (err) {
     // Handle duplicate key constraint violations
-    if (err.code === '23505' && err.constraint === 'supplier_code_key') {
-      return res.status(409).json({ 
-        error: `Supplier code '${req.body.code}' already exists. Please use a different supplier code.` 
-      });
+    if (err.code === '23505') {
+      const constraint = err.constraint || '';
+      if (constraint.includes('code')) {
+        return res.status(409).json({
+          error: `Supplier code '${req.body.code}' already exists. Please use a different supplier code.`
+        });
+      }
+      if (constraint.includes('ntn')) {
+        return res.status(409).json({
+          error: `Supplier NTN '${req.body.ntn}' already exists. A supplier with this NTN is already registered.`
+        });
+      }
+      if (constraint.includes('strn')) {
+        return res.status(409).json({
+          error: `Supplier STRN/GST '${req.body.strn}' already exists. A supplier with this STRN/GST is already registered.`
+        });
+      }
     }
-    
+
     // Handle other database errors
     logger.error({ err, supplier_id: req.params.id }, 'Failed to update supplier');
-    return res.status(500).json({ error: 'Failed to update supplier. Please try again.' });
+    return res.status(500).json({ 
+      error: `Failed to update supplier. Please try again. Details: ${err.message}`,
+      details: err.message
+    });
   }
 };
 
@@ -219,39 +292,39 @@ export const importSuppliers = async (req, res) => {
 export const exportSuppliers = async (req, res) => {
   try {
     const { format = 'json' } = req.query;
-    
+
     // Get suppliers data
-    const suppliersData = await supplierModel.findAll({ 
+    const suppliersData = await supplierModel.findAll({
       limit: 10000,
       offset: 0
     });
-    
+
     if (format === 'csv') {
       // Generate CSV content
       const csvHeaders = 'Supplier ID,Code,Name,Contact,Phone,Email,Address,Lead Time (Days),Created At\n';
-      const csvRows = suppliersData.map(supplier => 
+      const csvRows = suppliersData.map(supplier =>
         `"${supplier.supplier_id}","${supplier.code}","${supplier.name}","${supplier.contact || ''}","${supplier.phone || ''}","${supplier.email || ''}","${supplier.address || ''}","${supplier.lead_time_days || ''}","${supplier.created_at}"`
       ).join('\n');
-      
+
       const csvContent = csvHeaders + csvRows;
-      
+
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename="suppliers-${new Date().toISOString().split('T')[0]}.csv"`);
       return res.send(csvContent);
-      
+
     } else if (format === 'pdf') {
       try {
         // Generate PDF using Puppeteer
         const puppeteer = await import('puppeteer');
-        const browser = await puppeteer.default.launch({ 
+        const browser = await puppeteer.default.launch({
           headless: true,
           args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
-        
+
         const page = await browser.newPage();
-      
-      // Create HTML content for PDF
-      const htmlContent = `
+
+        // Create HTML content for PDF
+        const htmlContent = `
         <!DOCTYPE html>
         <html>
         <head>
@@ -316,9 +389,9 @@ export const exportSuppliers = async (req, res) => {
         </body>
         </html>
       `;
-      
+
         await page.setContent(htmlContent);
-        
+
         const pdfBuffer = await page.pdf({
           format: 'A4',
           printBackground: true,
@@ -329,23 +402,23 @@ export const exportSuppliers = async (req, res) => {
             left: '20mm'
           }
         });
-        
+
         await browser.close();
-        
+
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="suppliers-${new Date().toISOString().split('T')[0]}.pdf"`);
         res.setHeader('Content-Length', pdfBuffer.length);
         return res.end(pdfBuffer);
-        
+
       } catch (pdfError) {
         logger.error({ error: pdfError }, 'Failed to generate PDF');
         await browser?.close();
-        return res.status(500).json({ 
-          error: 'Failed to generate PDF', 
-          message: 'PDF generation failed. Please try again or use CSV export instead.' 
+        return res.status(500).json({
+          error: 'Failed to generate PDF',
+          message: 'PDF generation failed. Please try again or use CSV export instead.'
         });
       }
-      
+
     } else {
       // Return JSON data for other formats
       return res.json({ data: suppliersData });

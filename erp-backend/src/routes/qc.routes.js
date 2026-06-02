@@ -18,4 +18,7 @@ router.post('/rejections', qcController.logRejection);
 // Analytics
 router.get('/analytics', qcController.getQCAnalytics);
 
+// CAPA (Corrective and Preventive Actions)
+router.post('/capa', qcController.createCAPA);
+
 export default router;

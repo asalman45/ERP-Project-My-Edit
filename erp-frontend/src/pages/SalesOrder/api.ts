@@ -72,37 +72,35 @@ export const salesOrderApi = {
 
   // Customer operations (OEMs from products)
   getCustomers: async (): Promise<Customer[]> => {
-    // Get OEMs from products table and map them to customer format
-    const response: any = await apiRequest<any>('/products');
-    const products = response.data || response;
-    
-    // Extract unique OEMs from products and map to customer format
-    const oemMap = new Map();
-    products.forEach((product: any) => {
-      if (product.oem_id && product.oem_name) {
-        oemMap.set(product.oem_id, {
-          customer_id: product.oem_id, // Use oem_id as customer_id
-          customer_code: product.oem_id,
-          company_name: product.oem_name,
-          oem_name: product.oem_name,
-          // Add a mapping to actual customer IDs for database compatibility
-          mapped_customer_id: product.oem_name === 'Ghandhara Industries Ltd' ? 'CUST-000001' : 
-                            product.oem_name === 'Hinopak' ? 'CUST-000002' : 'CUST-000003'
-        });
-      }
-    });
-    
-    return Array.from(oemMap.values());
+    try {
+      // Fetch directly from the master OEMs endpoint via the full API path
+      const response: any = await apiRequest<any>('/oems');
+      const oems = response.data || response;
+
+      console.log("Raw OEMs fetched from API:", oems);
+
+      return oems.map((oem: any) => ({
+        customer_id: oem.oem_id,
+        customer_code: oem.oem_code || oem.oem_id,
+        company_name: oem.oem_name,
+        oem_name: oem.oem_name,
+        // Since the backend now automatically syncs OEMs to Customers, pass the actual ID
+        mapped_customer_id: oem.oem_id
+      }));
+    } catch (e) {
+      console.error('Failed to fetch master OEMs', e);
+      return [];
+    }
   },
 
   // Get products by OEM ID
   getProductsByOEM: async (oemId: string): Promise<any[]> => {
     const response: any = await apiRequest<any>('/products');
     const products = response.data || response;
-    
+
     // Filter products by OEM ID
     const oemProducts = products.filter((p: any) => p.oem_id === oemId);
-    
+
     // Map the product fields to match the expected format
     return oemProducts.map((p: any) => ({
       product_id: p.product_id,
@@ -154,5 +152,15 @@ export const salesOrderApi = {
       // Fallback: return text for unknown content types
       return response.text();
     });
+  },
+
+  // Download single sales order as PDF
+  downloadPDF: async (id: string): Promise<Blob> => {
+    const response = await fetch(`/api${BASE_URL}/${id}/pdf`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to download PDF');
+    }
+    return response.blob();
   },
 };

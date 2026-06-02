@@ -75,7 +75,7 @@ const ProductionRecipe: React.FC = () => {
   const fetchMaterials = useCallback(async () => {
     try {
       console.log('Fetching materials from API...');
-      const response = await fetch('http://localhost:4000/api/materials');
+      const response = await fetch('/api/materials');
       console.log('Materials response status:', response.status);
       
       if (!response.ok) {
@@ -134,7 +134,7 @@ const ProductionRecipe: React.FC = () => {
     
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:4000/api/bom-api/production-recipe/${selectedProduct}`);
+      const response = await fetch(`/api/bom-api/production-recipe/${selectedProduct}`);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch production recipe: ${response.status}`);
@@ -168,7 +168,7 @@ const ProductionRecipe: React.FC = () => {
     
     try {
       console.log('Fetching blank specs for product:', selectedProduct);
-      const response = await fetch(`http://localhost:4000/api/blank-specs/product/${selectedProduct}`);
+      const response = await fetch(`/api/blank-specs/product/${selectedProduct}`);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -258,7 +258,7 @@ const ProductionRecipe: React.FC = () => {
 
       console.log('Saving BOM item with payload:', payload);
 
-      const response = await fetch('http://localhost:4000/api/bom-api/item', {
+      const response = await fetch('/api/bom-api/item', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -324,7 +324,7 @@ const ProductionRecipe: React.FC = () => {
 
   const handleDeleteBOMItem = useCallback(async (bomId: string) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/bom-api/item/${bomId}`, {
+      const response = await fetch(`/api/bom-api/item/${bomId}`, {
         method: 'DELETE'
       });
 

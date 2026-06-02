@@ -4,6 +4,7 @@
 import productionService from '../../services/productionExecutionService.js';
 import { logger } from '../../utils/logger.js';
 import db from '../../utils/db.js';
+import { executeProductionBackflushAndCogs } from '../../services/smartAutomation.service.js';
 
 /**
  * Issue materials to a work order
@@ -585,6 +586,13 @@ export async function completeOperationForWO(req, res) {
     
     const completedWorkOrder = result.rows[0];
     
+    // TRIGGER 1 & 2: Auto-Backflush and Smart COGS
+    try {
+      await executeProductionBackflushAndCogs(woId);
+    } catch (triggerErr) {
+      logger.warn({ woId, error: triggerErr.message }, 'Smart Backflush/COGS triggered but had an error');
+    }
+
     // Trigger next work orders that can now start
     let triggeredWorkOrders = [];
     try {

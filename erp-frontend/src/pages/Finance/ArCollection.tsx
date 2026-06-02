@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Mail, Phone, History, AlertCircle, CheckCircle2, Send, ExternalLink } from "lucide-react";
@@ -69,7 +69,7 @@ const ArCollection: React.FC = () => {
                     <div>
                         <p className="text-xs text-amber-800 uppercase font-bold">Risk Exposure</p>
                         <p className="text-xl font-bold text-amber-900">
-                            ₹{overdueInvoices.reduce((sum, inv) => sum + parseFloat(inv.total_amount as any), 0).toLocaleString()}
+                            Rs. {overdueInvoices.reduce((sum, inv) => sum + parseFloat(inv.total_amount as any), 0).toLocaleString()}
                         </p>
                     </div>
                 </div>
@@ -101,7 +101,7 @@ const ArCollection: React.FC = () => {
                                     <TableCell className="text-red-600 font-medium">
                                         {new Date(inv.due_date).toLocaleDateString()}
                                     </TableCell>
-                                    <TableCell className="text-right font-bold">₹{inv.total_amount.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right font-bold">Rs. {inv.total_amount.toLocaleString()}</TableCell>
                                     <TableCell className="text-center">
                                         <Badge variant={inv.effort_count > 2 ? 'destructive' : 'outline'}>
                                             {inv.effort_count} Reminders Sent

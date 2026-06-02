@@ -1,28 +1,79 @@
-﻿FROM node:18-bullseye
+# ─── Stage 1: Install dependencies ───────────────────────────────────────────
+FROM node:18-bullseye AS deps
 
 WORKDIR /app
 
-# Install dependencies required by puppeteer/html-pdf
+# Install system deps needed by Puppeteer/Chromium
 RUN apt-get update \
-    && apt-get install -y chromium \
+    && apt-get install -y --no-install-recommends \
+    chromium \
+    ca-certificates \
+    fonts-liberation \
+    libnss3 \
+    libatk-bridge2.0-0 \
+    libx11-xcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    libgbm1 \
+    libpango-1.0-0 \
+    libgtk-3-0 \
     && rm -rf /var/lib/apt/lists/*
 
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-
 COPY package*.json ./
-RUN npm ci --omit=dev
+# Install ALL deps (including dev) so prisma CLI is available
+RUN npm ci
+
+# ─── Stage 2: Generate Prisma client ─────────────────────────────────────────
+FROM deps AS builder
+
+WORKDIR /app
 
 COPY prisma ./prisma
 RUN npx prisma generate
 
+# ─── Stage 3: Production image ────────────────────────────────────────────────
+FROM node:18-bullseye-slim AS runner
+
+WORKDIR /app
+
+# Only the Chromium runtime libraries we actually need
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+    chromium \
+    ca-certificates \
+    fonts-liberation \
+    libnss3 \
+    libatk-bridge2.0-0 \
+    libx11-xcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    libgbm1 \
+    libpango-1.0-0 \
+    libgtk-3-0 \
+    wget \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    NODE_ENV=production \
+    PORT=4000 \
+    PUPPETEER_CACHE_DIR=/app/.cache
+
+# Copy node_modules + generated prisma client from builder
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma ./prisma
+
+# Copy application source
 COPY . .
 
-RUN mkdir -p /app/uploads
-
-ENV NODE_ENV=production
-ENV PORT=4000
+RUN mkdir -p /app/uploads/images /app/uploads/documents /app/backups
 
 EXPOSE 4000
 
-CMD ["npm", "start"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:4000/health || exit 1
+
+CMD ["node", "src/index.js"]

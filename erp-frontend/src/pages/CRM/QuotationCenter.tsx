@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, Send, CheckCircle2, XCircle, Clock, Download, Plus, Eye, Share2, Calendar } from "lucide-react";
@@ -92,7 +92,7 @@ const QuotationCenter: React.FC = () => {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹{quotations.filter(q => q.status !== 'REJECTED' && q.status !== 'ACCEPTED').reduce((s, q) => s + parseFloat(q.total_amount), 0).toLocaleString()}</div>
+                        <div className="text-2xl font-bold">Rs. {quotations.filter(q => q.status !== 'REJECTED' && q.status !== 'ACCEPTED').reduce((s, q) => s + parseFloat(q.total_amount), 0).toLocaleString()}</div>
                         <p className="text-xs text-muted-foreground mt-1">Weighted by probability</p>
                     </CardContent>
                 </Card>
@@ -129,7 +129,7 @@ const QuotationCenter: React.FC = () => {
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right font-bold text-slate-900">
-                                        ₹{parseFloat(quote.total_amount).toLocaleString()}
+                                        Rs. {parseFloat(quote.total_amount).toLocaleString()}
                                     </TableCell>
                                     <TableCell>{getStatusBadge(quote.status)}</TableCell>
                                     <TableCell className="text-right space-x-2">

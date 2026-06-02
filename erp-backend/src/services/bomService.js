@@ -33,8 +33,7 @@ export async function explodeBOM(productId, quantity) {
         b.uom_id,
         m.material_code,
         m.name as material_name,
-        m.material_type,
-        m.unit_cost,
+        m.category as material_type,
         u.code as uom_code
       FROM bom b
       LEFT JOIN material m ON b.material_id = m.material_id
@@ -206,8 +205,7 @@ export async function getProductionRecipeBOM(productId) {
         b.*,
         m.material_code,
         m.name as material_name,
-        m.material_type,
-        m.unit_cost,
+        m.category as material_type,
         u.code as uom_code,
         u.name as uom_name,
         -- Blank specification details for cut parts
@@ -227,7 +225,7 @@ export async function getProductionRecipeBOM(productId) {
       FROM bom b
       LEFT JOIN material m ON b.material_id = m.material_id
       LEFT JOIN uom u ON b.uom_id = u.uom_id
-      LEFT JOIN blank_spec bs ON b.reference_id = bs.blank_id AND b.item_type = 'CUT_PART'
+      LEFT JOIN blank_spec bs ON b.reference_id::text = bs.blank_id AND b.item_type = 'CUT_PART'
       WHERE b.product_id = $1
       ORDER BY b.step_sequence NULLS LAST, b.sub_assembly_name
     `, [productId]);

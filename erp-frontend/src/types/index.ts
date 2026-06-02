@@ -33,6 +33,7 @@ export interface Product {
   uomId: string;
   uomCode: string;
   standardCost?: number;
+  hsCode?: string;
   category: ProductCategory;
   createdAt: string;
 }

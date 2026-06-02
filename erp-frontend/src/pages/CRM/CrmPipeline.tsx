@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, LayoutGrid, List, Filter, Search, TrendingUp, DollarSign, Target, Calendar } from "lucide-react";
@@ -69,7 +69,7 @@ const CrmPipeline: React.FC = () => {
                     <CardContent className="pt-6">
                         <div className="text-xs font-bold text-blue-600 uppercase mb-1">Total Pipeline Value</div>
                         <div className="text-2xl font-bold text-blue-900">
-                            ₹{opportunities.reduce((sum, o) => sum + parseFloat(o.deal_value), 0).toLocaleString()}
+                            Rs. {opportunities.reduce((sum, o) => sum + parseFloat(o.deal_value), 0).toLocaleString()}
                         </div>
                     </CardContent>
                 </Card>
@@ -77,7 +77,7 @@ const CrmPipeline: React.FC = () => {
                     <CardContent className="pt-6">
                         <div className="text-xs font-bold text-emerald-600 uppercase mb-1">Won Deals (MTD)</div>
                         <div className="text-2xl font-bold text-emerald-900">
-                            ₹{opportunities.filter(o => o.stage === 'CLOSED_WON').reduce((sum, o) => sum + parseFloat(o.deal_value), 0).toLocaleString()}
+                            Rs. {opportunities.filter(o => o.stage === 'CLOSED_WON').reduce((sum, o) => sum + parseFloat(o.deal_value), 0).toLocaleString()}
                         </div>
                     </CardContent>
                 </Card>
@@ -102,7 +102,7 @@ const CrmPipeline: React.FC = () => {
                                 </Badge>
                             </h3>
                             <div className="text-xs font-bold text-slate-400">
-                                ₹{opportunities.filter(o => o.stage === stage).reduce((sum, o) => sum + parseFloat(o.deal_value), 0).toLocaleString()}
+                                Rs. {opportunities.filter(o => o.stage === stage).reduce((sum, o) => sum + parseFloat(o.deal_value), 0).toLocaleString()}
                             </div>
                         </div>
 
@@ -124,7 +124,7 @@ const CrmPipeline: React.FC = () => {
                                             <TrendingUp className="w-3 h-3" /> {opp.lead?.company || opp.customer?.name || "Private Account"}
                                         </div>
                                         <div className="flex justify-between items-end pt-2 border-t mt-2">
-                                            <div className="text-lg font-bold text-indigo-700">₹{parseFloat(opp.deal_value).toLocaleString()}</div>
+                                            <div className="text-lg font-bold text-indigo-700">Rs. {parseFloat(opp.deal_value).toLocaleString()}</div>
                                             <div className="flex -space-x-2">
                                                 <div className="w-6 h-6 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[10px] font-bold">SA</div>
                                                 <div className="w-6 h-6 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-indigo-600">+</div>

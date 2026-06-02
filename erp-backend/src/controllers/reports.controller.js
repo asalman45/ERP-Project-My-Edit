@@ -1,6 +1,6 @@
-// src/controllers/reports.controller.js
 import db from '../utils/db.js';
 import { logger } from '../utils/logger.js';
+import { generatePDFFromReport } from '../utils/pdf-generator.js';
 import ExcelJS from 'exceljs';
 // import puppeteer from 'puppeteer';
 import fs from 'fs/promises';
@@ -72,7 +72,7 @@ export const generateProductionReport = async (req, res) => {
     const summaryQuery = `
       SELECT 
         COUNT(*) as total_orders,
-        COUNT(CASE WHEN status = 'PENDING' THEN 1 END) as pending_orders,
+        COUNT(CASE WHEN status = 'PLANNED' THEN 1 END) as planned_orders,
         COUNT(CASE WHEN status = 'IN_PROGRESS' THEN 1 END) as in_progress_orders,
         COUNT(CASE WHEN status = 'COMPLETED' THEN 1 END) as completed_orders,
         COUNT(CASE WHEN status = 'CANCELLED' THEN 1 END) as cancelled_orders,
@@ -88,10 +88,10 @@ export const generateProductionReport = async (req, res) => {
 
     const reportData = {
       title: 'Production Report',
-      generated_at: new Date().toISOString(),
+      generated_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
       period: {
         start_date: start_date || 'All Time',
-        end_date: end_date || 'Present'
+        end_date: end_date || new Date().toISOString().split('T')[0]
       },
       summary,
       data: productionData
@@ -192,10 +192,10 @@ export const generateScrapReport = async (req, res) => {
 
     const reportData = {
       title: 'Scrap Management Report',
-      generated_at: new Date().toISOString(),
+      generated_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
       period: {
         start_date: start_date || 'All Time',
-        end_date: end_date || 'Present'
+        end_date: end_date || new Date().toISOString().split('T')[0]
       },
       summary,
       data: scrapData
@@ -295,7 +295,11 @@ export const generateInventoryReport = async (req, res) => {
 
     const reportData = {
       title: 'Inventory Report',
-      generated_at: new Date().toISOString(),
+      generated_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      period: {
+        start_date: 'Current',
+        end_date: new Date().toISOString().split('T')[0]
+      },
       filters: {
         product_id: product_id || 'All Products',
         material_id: material_id || 'All Materials',
@@ -401,10 +405,10 @@ export const generateCostAnalysisReport = async (req, res) => {
 
     const reportData = {
       title: 'Cost Analysis Report',
-      generated_at: new Date().toISOString(),
+      generated_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
       period: {
         start_date: start_date || 'All Time',
-        end_date: end_date || 'Present'
+        end_date: end_date || new Date().toISOString().split('T')[0]
       },
       summary,
       data: costData
@@ -511,26 +515,25 @@ async function generateExcelReport(res, reportData, reportType) {
 }
 
 /**
- * Generate PDF Report (Simplified version without puppeteer)
+ * Generate PDF Report
  */
 async function generatePDFReport(res, reportData, reportType) {
   try {
-    // For now, return JSON data instead of PDF
-    // In production, you would use a PDF generation library
-    const filename = `${reportType}_report_${new Date().toISOString().split('T')[0]}.json`;
+    const pdfBuffer = await generatePDFFromReport(reportData, reportType);
     
-    res.setHeader('Content-Type', 'application/json');
+    const filename = `${reportType}_report_${new Date().toISOString().split('T')[0]}.pdf`;
+    
+    res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.json({
-      success: true,
-      message: 'Report generated successfully',
-      data: reportData,
-      note: 'PDF generation requires additional setup. This is a JSON export.'
-    });
+    res.send(Buffer.from(pdfBuffer));
 
   } catch (error) {
-    logger.error({ error: error.message }, 'Failed to generate PDF report');
-    throw error;
+    logger.error({ error: error.message, stack: error.stack }, 'Failed to generate professional PDF report');
+    // Still send something so the 500 is handled
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate PDF report: ' + error.message
+    });
   }
 }
 

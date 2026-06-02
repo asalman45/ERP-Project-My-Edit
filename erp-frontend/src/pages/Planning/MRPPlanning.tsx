@@ -112,7 +112,7 @@ export default function MRPPlanning() {
   const [mrpResults, setMrpResults] = useState<MaterialRequirement[]>([]);
   const [purchaseRequisitions, setPurchaseRequisitions] = useState<PurchaseRequisition[]>([]);
   const [running, setRunning] = useState(false);
-  const [selectedSuppliers, setSelectedSuppliers] = useState<{[prId: string]: string}>({});
+  const [selectedSuppliers, setSelectedSuppliers] = useState<{ [prId: string]: string }>({});
   const [selectedPRs, setSelectedPRs] = useState<Set<string>>(new Set());
   const [showIPOModal, setShowIPOModal] = useState(false);
   const [ipoInitialData, setIpoInitialData] = useState<any>(null);
@@ -130,7 +130,7 @@ export default function MRPPlanning() {
   useEffect(() => {
     if (selectedProduct && selectedProductData) {
       let quantityToSet = 0;
-      
+
       // If a sales order is selected, use the quantity from that specific sales order item
       if (selectedSalesOrder && selectedSalesOrder !== 'manual' && salesOrderItems.length > 0) {
         const salesOrderItem = salesOrderItems.find(item => item.item_code === selectedProductData.product_code);
@@ -139,12 +139,12 @@ export default function MRPPlanning() {
           quantityToSet = salesOrderItem.quantity + (selectedProductData.planned_production_quantity || 0);
         }
       }
-      
+
       // Fallback to total production quantity if no sales order item found
       if (quantityToSet === 0 && selectedProductData.total_production_quantity > 0) {
         quantityToSet = selectedProductData.total_production_quantity;
       }
-      
+
       if (quantityToSet > 0) {
         setQuantity(quantityToSet);
       }
@@ -163,22 +163,22 @@ export default function MRPPlanning() {
   // Filter products based on selected sales order
   useEffect(() => {
     let newFilteredProducts: Product[] = [];
-    
+
     if (selectedSalesOrder && selectedSalesOrder !== 'manual' && salesOrderItems.length > 0) {
       // Get item codes from the selected sales order
       const salesOrderItemCodes = new Set(salesOrderItems.map(item => item.item_code));
-      
+
       // Filter products to only show those that exist in the sales order
-      newFilteredProducts = products.filter(product => 
+      newFilteredProducts = products.filter(product =>
         salesOrderItemCodes.has(product.product_code)
       );
     } else {
       // Show all products if no sales order selected or 'manual' entry
       newFilteredProducts = products;
     }
-    
+
     setFilteredProducts(newFilteredProducts);
-    
+
     // Reset selected product if it's no longer in the filtered list
     if (selectedProduct && !newFilteredProducts.some(p => p.product_id === selectedProduct)) {
       setSelectedProduct('');
@@ -190,7 +190,7 @@ export default function MRPPlanning() {
       console.log('Fetching products for MRP...');
       const data = await mrpApi.getProducts();
       console.log('Products API response:', data);
-      
+
       if (Array.isArray(data) && data.length > 0) {
         setProducts(data);
         console.log('Products loaded:', data.length);
@@ -209,7 +209,7 @@ export default function MRPPlanning() {
       console.log('Fetching sales orders for MRP...');
       const data = await mrpApi.getSalesOrders();
       console.log('Sales Orders API response:', data);
-      
+
       if (Array.isArray(data) && data.length > 0) {
         setSalesOrders(data);
         console.log('Sales orders loaded:', data.length);
@@ -228,7 +228,7 @@ export default function MRPPlanning() {
       console.log('Fetching sales order items for:', salesOrderId);
       const data = await mrpApi.getSalesOrderItems(salesOrderId);
       console.log('Sales Order Items API response:', data);
-      
+
       if (Array.isArray(data) && data.length > 0) {
         setSalesOrderItems(data);
         console.log('Sales order items loaded:', data.length);
@@ -247,7 +247,7 @@ export default function MRPPlanning() {
       console.log('Fetching suppliers for MRP...');
       const data = await mrpApi.getSuppliers();
       console.log('Suppliers API response:', data);
-      
+
       if (Array.isArray(data) && data.length > 0) {
         setSuppliers(data);
         console.log('Suppliers loaded:', data.length);
@@ -306,7 +306,7 @@ export default function MRPPlanning() {
 
   const convertPRToIPO = (prData: PurchaseRequisition) => {
     const selectedSupplierId = selectedSuppliers[prData.pr_id];
-    
+
     if (!selectedSupplierId) {
       toast.error('Please select a supplier for this Purchase Requisition');
       return;
@@ -314,7 +314,7 @@ export default function MRPPlanning() {
 
     // Find supplier details
     const supplier = suppliers.find(s => s.supplier_id === selectedSupplierId);
-    
+
     // Prepare initial data for Internal Purchase Order
     const initialData = {
       supplier_name: supplier?.name || '',
@@ -384,7 +384,7 @@ export default function MRPPlanning() {
 
     // Group PRs by supplier to create combined IPOs
     const prsBySupplier = new Map<string, PurchaseRequisition[]>();
-    
+
     Array.from(selectedPRs).forEach(prId => {
       const pr = purchaseRequisitions.find(p => p.pr_id === prId);
       if (pr) {
@@ -477,8 +477,8 @@ export default function MRPPlanning() {
         </div>
         <div className="flex gap-2">
           {completedPOs > 0 && (
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => navigate('/purchase-orders')}
               className="gap-2"
             >
@@ -486,7 +486,7 @@ export default function MRPPlanning() {
               View {completedPOs} Purchase Order{completedPOs > 1 ? 's' : ''}
             </Button>
           )}
-          <Button 
+          <Button
             variant="outline"
             onClick={() => navigate('/production-planning')}
             className="gap-2"
@@ -560,11 +560,11 @@ export default function MRPPlanning() {
                       <SelectValue placeholder="Choose a product" />
                     </SelectTrigger>
                     <SelectContent>
-            {filteredProducts.map((product) => {
-              const soQty = product.sales_order_quantity || 0;
-              const plannedQty = product.planned_production_quantity || 0;
-              return (
-                <SelectItem key={product.product_id} value={product.product_id}>
+                      {filteredProducts.filter(p => p.product_id).map((product) => {
+                        const soQty = product.sales_order_quantity || 0;
+                        const plannedQty = product.planned_production_quantity || 0;
+                        return (
+                          <SelectItem key={product.product_id || product.product_code || 'p-none'} value={String(product.product_id || 'missing-product')}>
                             {product.display_name}
                           </SelectItem>
                         );
@@ -575,14 +575,14 @@ export default function MRPPlanning() {
                     <div className="text-xs space-y-0.5 mt-1 pl-1">
                       <span className="text-green-600 font-medium">
                         Total: {selectedProductData.total_production_quantity} pcs needed
-                        </span>
+                      </span>
                       {selectedProductData.planned_production_quantity > 0 && (
-                          <span className="block text-blue-600">
+                        <span className="block text-blue-600">
                           • Planned: {selectedProductData.planned_production_quantity} pcs
-                          </span>
-                        )}
-                      </div>
-                    )}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -593,8 +593,8 @@ export default function MRPPlanning() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="manual">Manual Entry</SelectItem>
-                      {salesOrders.map((order) => (
-                        <SelectItem key={order.sales_order_id} value={order.sales_order_id}>
+                      {salesOrders.filter(o => o.sales_order_id).map((order) => (
+                        <SelectItem key={order.sales_order_id || 'o-none'} value={String(order.sales_order_id || 'missing-order')}>
                           <div className="flex flex-col">
                             <span>{order.order_number}</span>
                             <span className="text-xs text-muted-foreground">
@@ -616,18 +616,18 @@ export default function MRPPlanning() {
                     onChange={(e) => setQuantity(Number(e.target.value))}
                     placeholder="Enter quantity"
                     min="1"
-                      className={selectedProductData?.total_production_quantity > 0 ? "border-green-500 bg-green-50" : ""}
-                    />
-              {selectedProductData?.total_production_quantity > 0 && (
+                    className={selectedProductData?.total_production_quantity > 0 ? "border-green-500 bg-green-50" : ""}
+                  />
+                  {selectedProductData?.total_production_quantity > 0 && (
                     <div className="space-y-1">
                       <Badge variant="outline" className="text-xs bg-green-100 text-green-700 border-green-300">
                         Auto-filled from sales orders
-                  </Badge>
+                      </Badge>
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <span>💡</span>
                         <span>Quantity automatically set to {quantity} pcs based on planned production.</span>
                       </p>
-                </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -638,25 +638,25 @@ export default function MRPPlanning() {
                   <div className="space-y-2">
                     <p className="text-base font-semibold">
                       Total Production Demand: <span className="text-primary">{selectedProductData.total_production_quantity} pcs</span>
-                        </p>
-                      {selectedProductData.planned_production_quantity && selectedProductData.planned_production_quantity > 0 && (
-                        <p className="text-sm text-blue-600">
-                          • From Planned Production: {selectedProductData.planned_production_quantity} pcs ({selectedProductData.active_planned_productions_count || 0} plans)
-                        </p>
-                      )}
+                    </p>
+                    {selectedProductData.planned_production_quantity && selectedProductData.planned_production_quantity > 0 && (
+                      <p className="text-sm text-blue-600">
+                        • From Planned Production: {selectedProductData.planned_production_quantity} pcs ({selectedProductData.active_planned_productions_count || 0} plans)
+                      </p>
+                    )}
                     {selectedProductData.sales_order_quantity > 0 && (
                       <p className="text-sm text-muted-foreground">
                         • From Sales Orders: {selectedProductData.sales_order_quantity} pcs ({selectedProductData.active_sales_orders_count} orders)
                       </p>
                     )}
-                      {selectedProductData.has_production_demand && (
+                    {selectedProductData.has_production_demand && (
                       <div className="flex items-center gap-2 mt-3">
                         <Badge variant="secondary" className="gap-1">
                           <Package className="w-3 h-3" />
                           Production Required
                         </Badge>
                       </div>
-                      )}
+                    )}
                   </div>
                 </div>
               )}
@@ -695,24 +695,24 @@ export default function MRPPlanning() {
               )}
 
               <div className="flex justify-end pt-4">
-              <Button 
-                onClick={runMRP} 
-                disabled={running || !selectedProduct}
+                <Button
+                  onClick={runMRP}
+                  disabled={running || !selectedProduct}
                   size="lg"
                   className="gap-2"
-              >
-                {running ? (
-                  <>
+                >
+                  {running ? (
+                    <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                    Running MRP Calculation...
-                  </>
-                ) : (
-                  <>
+                      Running MRP Calculation...
+                    </>
+                  ) : (
+                    <>
                       <Calculator className="w-4 h-4" />
-                    Run MRP
-                  </>
-                )}
-              </Button>
+                      Run MRP
+                    </>
+                  )}
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -900,8 +900,8 @@ export default function MRPPlanning() {
                                   <SelectValue placeholder="Select supplier" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {suppliers.map((supplier) => (
-                                    <SelectItem key={supplier.supplier_id} value={supplier.supplier_id}>
+                                  {suppliers.filter(s => s.supplier_id).map((supplier) => (
+                                    <SelectItem key={supplier.supplier_id || 's-none'} value={String(supplier.supplier_id || 'missing-supplier')}>
                                       {supplier.display_name}
                                     </SelectItem>
                                   ))}
@@ -915,7 +915,7 @@ export default function MRPPlanning() {
                           </TableCell>
                           <TableCell>{new Date(pr.required_date).toLocaleDateString()}</TableCell>
                           <TableCell>
-                            <Badge 
+                            <Badge
                               variant={pr.status === 'PENDING' ? 'destructive' : 'secondary'}
                             >
                               {pr.status}
@@ -980,7 +980,7 @@ export default function MRPPlanning() {
             const prIdsMatch = ipoInitialData.notes.match(/Purchase Requisition\(s\): (.+)/);
             if (prIdsMatch) {
               const prIds = prIdsMatch[1].split(',').map(id => id.trim());
-              setPurchaseRequisitions(prev => 
+              setPurchaseRequisitions(prev =>
                 prev.map(pr => {
                   if (prIds.some(id => pr.pr_id.includes(id) || pr.pr_id === id)) {
                     return { ...pr, status: 'PO_CREATED' };
@@ -1000,11 +1000,11 @@ export default function MRPPlanning() {
               });
             } else {
               // Fallback: single PR format
-              const prIdMatch = ipoInitialData.notes.match(/PR: ([^\s]+)/) || 
-                               ipoInitialData.notes.match(/PR-([^\s]+)/);
+              const prIdMatch = ipoInitialData.notes.match(/PR: ([^\s]+)/) ||
+                ipoInitialData.notes.match(/PR-([^\s]+)/);
               if (prIdMatch) {
                 const prId = prIdMatch[1] || prIdMatch[0];
-                setPurchaseRequisitions(prev => 
+                setPurchaseRequisitions(prev =>
                   prev.map(pr => {
                     if (pr.pr_id.includes(prId) || pr.pr_id === prId) {
                       return { ...pr, status: 'PO_CREATED' };
@@ -1026,13 +1026,13 @@ export default function MRPPlanning() {
           }
           setShowIPOModal(false);
           setIpoInitialData(null);
-          
+
           // Check if there are more selected PRs to process after state updates
           setTimeout(() => {
             const remainingSelected = purchaseRequisitions.filter(
               pr => selectedPRs.has(pr.pr_id) && pr.status === 'PENDING' && selectedSuppliers[pr.pr_id]
             );
-            
+
             if (remainingSelected.length > 0) {
               toast.success('Purchase Order created! Continuing with next batch...');
               // Continue with next batch

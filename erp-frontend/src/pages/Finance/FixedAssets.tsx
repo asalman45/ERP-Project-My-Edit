@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, History, Calculator, Factory, ShieldCheck, PenTool } from "lucide-react";
@@ -64,7 +64,7 @@ const FixedAssets: React.FC = () => {
                         <CardTitle className="text-xs uppercase text-muted-foreground">Total Asset Value (Cost)</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹42,00,000</div>
+                        <div className="text-2xl font-bold">Rs. 42,00,000</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -72,7 +72,7 @@ const FixedAssets: React.FC = () => {
                         <CardTitle className="text-xs uppercase text-muted-foreground">Accumulated Depreciation</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-red-600">₹9,30,000</div>
+                        <div className="text-2xl font-bold text-red-600">Rs. 9,30,000</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -80,7 +80,7 @@ const FixedAssets: React.FC = () => {
                         <CardTitle className="text-xs uppercase text-muted-foreground">Net Book Value</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-green-600">₹32,70,000</div>
+                        <div className="text-2xl font-bold text-green-600">Rs. 32,70,000</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -122,8 +122,8 @@ const FixedAssets: React.FC = () => {
                                         </div>
                                     </TableCell>
                                     <TableCell>{asset.category}</TableCell>
-                                    <TableCell className="text-right">₹{asset.cost.toLocaleString()}</TableCell>
-                                    <TableCell className="text-right font-bold text-indigo-600">₹{asset.current.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right">Rs. {asset.cost.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right font-bold text-indigo-600">Rs. {asset.current.toLocaleString()}</TableCell>
                                     <TableCell>
                                         <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
                                             <ShieldCheck className="mr-1 h-3 w-3" /> {asset.status}

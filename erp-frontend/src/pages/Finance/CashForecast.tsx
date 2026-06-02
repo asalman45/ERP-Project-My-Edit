@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 import { Landmark, TrendingUp, ArrowDownCircle, ArrowUpCircle, Wallet } from "lucide-react";
@@ -40,7 +40,7 @@ const CashForecast: React.FC = () => {
                             <div className="flex items-center gap-2 text-slate-400 text-xs uppercase font-bold mb-1">
                                 <Landmark className="w-3 h-3" /> Current Liquidity
                             </div>
-                            <div className="text-2xl font-bold">₹{forecastData?.current_liquidity?.toLocaleString() || "0"}</div>
+                            <div className="text-2xl font-bold">Rs. {forecastData?.current_liquidity?.toLocaleString() || "0"}</div>
                         </CardContent>
                     </Card>
                 </div>
@@ -90,17 +90,17 @@ const CashForecast: React.FC = () => {
                                 <div className="text-sm font-bold text-slate-600">Week of {new Date(week.week).toLocaleDateString()}</div>
                                 <div className="flex justify-between items-center text-sm">
                                     <span className="flex items-center gap-2 text-green-600"><ArrowUpCircle className="w-4 h-4" /> Inflow</span>
-                                    <span className="font-bold">₹{week.inflow.toLocaleString()}</span>
+                                    <span className="font-bold">Rs. {week.inflow.toLocaleString()}</span>
                                 </div>
                                 <div className="flex justify-between items-center text-sm">
                                     <span className="flex items-center gap-2 text-red-600"><ArrowDownCircle className="w-4 h-4" /> Outflow</span>
-                                    <span className="font-bold">₹{week.outflow.toLocaleString()}</span>
+                                    <span className="font-bold">Rs. {week.outflow.toLocaleString()}</span>
                                 </div>
                                 <div className="pt-2 border-t flex justify-between items-center font-bold">
                                     <span className="text-xs uppercase text-muted-foreground tracking-wider">Net delta</span>
                                     <span className={week.inflow - week.outflow >= 0 ? "text-green-600" : "text-red-600"}>
                                         {week.inflow - week.outflow >= 0 ? "+" : ""}
-                                        ₹{(week.inflow - week.outflow).toLocaleString()}
+                                        Rs. {(week.inflow - week.outflow).toLocaleString()}
                                     </span>
                                 </div>
                             </div>

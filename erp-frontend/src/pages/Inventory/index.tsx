@@ -13,6 +13,7 @@ import { InventoryItem as LegacyInventoryItem } from "@/types";
 import GenericExportModal from "@/components/common/GenericExportModal";
 import { useToast } from "@/hooks/use-toast";
 import { inventoryApi, materialApi, locationApi } from "@/services/api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface InventoryItem {
   id: string;
@@ -277,7 +278,7 @@ const Inventory: React.FC = () => {
       sortable: true,
       render: (value: number) => (
         <div className="text-right">
-          <p className="font-medium">RS {value.toLocaleString()}</p>
+          <p className="font-medium">Rs. {value.toLocaleString()}</p>
         </div>
       )
     },
@@ -336,14 +337,28 @@ const Inventory: React.FC = () => {
     setShowReceiveModal(true);
   };
 
-  if (loading) {
+  if (loading && inventoryItems.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-lg font-medium">Loading inventory data...</p>
-          <p className="text-sm text-gray-500">Please wait while we fetch the latest information</p>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <Skeleton className="h-8 w-64 mb-2" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <div className="flex gap-3">
+            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-9 w-24" />
+          </div>
         </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Skeleton className="h-32 w-full rounded-xl" />
+          <Skeleton className="h-32 w-full rounded-xl" />
+          <Skeleton className="h-32 w-full rounded-xl" />
+          <Skeleton className="h-32 w-full rounded-xl" />
+        </div>
+
+        <Skeleton className="h-[400px] w-full rounded-xl" />
       </div>
     );
   }
@@ -410,7 +425,7 @@ const Inventory: React.FC = () => {
         />
         <StatsCard
           title="Total Value"
-          value={`RS ${stats.totalValue.toLocaleString()}`}
+          value={`Rs. ${stats.totalValue.toLocaleString()}`}
           icon={TrendingUp}
         />
         <StatsCard
@@ -470,7 +485,7 @@ const Inventory: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Total Value</p>
-                    <p className="text-xl font-bold">RS {location.total_value.toLocaleString()}</p>
+                    <p className="text-xl font-bold">Rs. {location.total_value.toLocaleString()}</p>
                   </div>
                   <div className="flex gap-2">
                     {location.low_stock_count > 0 && (
@@ -509,11 +524,11 @@ const Inventory: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Total Value</p>
-                    <p className="text-xl font-bold">RS {category.total_value.toLocaleString()}</p>
+                    <p className="text-xl font-bold">Rs. {category.total_value.toLocaleString()}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Avg Unit Cost</p>
-                    <p className="text-lg font-medium">RS {category.avg_unit_cost.toFixed(2)}</p>
+                    <p className="text-lg font-medium">Rs. {category.avg_unit_cost.toFixed(2)}</p>
                   </div>
                 </CardContent>
               </Card>

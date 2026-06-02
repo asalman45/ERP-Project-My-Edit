@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, TrendingDown, DollarSign, Calendar, Download, Printer, Filter, ArrowUpRight } from "lucide-react";
@@ -55,7 +55,7 @@ const PandLStatement: React.FC = () => {
                 <Card className="border-none shadow-md bg-gradient-to-br from-indigo-50 to-white">
                     <CardContent className="pt-6">
                         <div className="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-1">Total Revenue</div>
-                        <div className="text-3xl font-bold text-slate-900 font-serif">₹{summary.totalRevenue.toLocaleString()}</div>
+                        <div className="text-3xl font-bold text-slate-900 font-serif">Rs. {summary.totalRevenue.toLocaleString()}</div>
                         <div className="flex items-center gap-1 text-[10px] text-emerald-600 mt-2 font-bold">
                             <ArrowUpRight className="w-3 h-3" /> 12% vs last month
                         </div>
@@ -64,7 +64,7 @@ const PandLStatement: React.FC = () => {
                 <Card className="border-none shadow-md bg-gradient-to-br from-emerald-50 to-white">
                     <CardContent className="pt-6">
                         <div className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-1">Gross Profit</div>
-                        <div className="text-3xl font-bold text-slate-900 font-serif">₹{summary.grossProfit.toLocaleString()}</div>
+                        <div className="text-3xl font-bold text-slate-900 font-serif">Rs. {summary.grossProfit.toLocaleString()}</div>
                         <div className="text-[10px] text-emerald-600 mt-2 font-bold">
                             Margin: {Math.round((summary.grossProfit / summary.totalRevenue) * 100)}%
                         </div>
@@ -73,7 +73,7 @@ const PandLStatement: React.FC = () => {
                 <Card className="border-none shadow-md bg-gradient-to-br from-rose-50 to-white">
                     <CardContent className="pt-6">
                         <div className="text-xs font-bold text-rose-600 uppercase tracking-widest mb-1">Net Income</div>
-                        <div className="text-3xl font-bold text-rose-900 font-serif">₹{summary.netIncome.toLocaleString()}</div>
+                        <div className="text-3xl font-bold text-rose-900 font-serif">Rs. {summary.netIncome.toLocaleString()}</div>
                         <div className="text-[10px] text-rose-600 mt-2 font-bold">
                             Target: 15% Net Margin
                         </div>
@@ -102,12 +102,12 @@ const PandLStatement: React.FC = () => {
                                 {revenue.map((item: any) => (
                                     <TableRow key={item.name} className="hover:bg-indigo-50/30 transition-colors">
                                         <TableCell className="font-medium text-slate-700">{item.name}</TableCell>
-                                        <TableCell className="text-right font-bold text-slate-900">₹{item.amount.toLocaleString()}</TableCell>
+                                        <TableCell className="text-right font-bold text-slate-900">Rs. {item.amount.toLocaleString()}</TableCell>
                                     </TableRow>
                                 ))}
                                 <TableRow className="bg-emerald-50/50">
                                     <TableCell className="font-bold text-emerald-800">Total Operating Revenue</TableCell>
-                                    <TableCell className="text-right font-black text-emerald-900 underline decoration-double">₹{summary.totalRevenue.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right font-black text-emerald-900 underline decoration-double">Rs. {summary.totalRevenue.toLocaleString()}</TableCell>
                                 </TableRow>
                             </TableBody>
                         </Table>
@@ -123,16 +123,16 @@ const PandLStatement: React.FC = () => {
                                 {costOfGoodsSold.map((item: any) => (
                                     <TableRow key={item.name}>
                                         <TableCell className="text-slate-600">{item.name}</TableCell>
-                                        <TableCell className="text-right font-medium">₹{item.amount.toLocaleString()}</TableCell>
+                                        <TableCell className="text-right font-medium">Rs. {item.amount.toLocaleString()}</TableCell>
                                     </TableRow>
                                 ))}
                                 <TableRow className="bg-slate-50">
                                     <TableCell className="font-bold text-slate-800">Total Cost of Goods Sold</TableCell>
-                                    <TableCell className="text-right font-bold">₹{summary.totalCOGS.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right font-bold">Rs. {summary.totalCOGS.toLocaleString()}</TableCell>
                                 </TableRow>
                                 <TableRow className="bg-indigo-600 text-white">
                                     <TableCell className="font-bold">GROSS PROFIT</TableCell>
-                                    <TableCell className="text-right font-black text-lg">₹{summary.grossProfit.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right font-black text-lg">Rs. {summary.grossProfit.toLocaleString()}</TableCell>
                                 </TableRow>
                             </TableBody>
                         </Table>
@@ -148,16 +148,16 @@ const PandLStatement: React.FC = () => {
                                 {operatingExpenses.map((item: any) => (
                                     <TableRow key={item.name}>
                                         <TableCell className="text-slate-600">{item.name}</TableCell>
-                                        <TableCell className="text-right font-medium">₹{item.amount.toLocaleString()}</TableCell>
+                                        <TableCell className="text-right font-medium">Rs. {item.amount.toLocaleString()}</TableCell>
                                     </TableRow>
                                 ))}
                                 <TableRow className="bg-slate-50">
                                     <TableCell className="font-bold text-slate-800">Total Operating Expenses</TableCell>
-                                    <TableCell className="text-right font-bold">₹{summary.totalOperatingExpenses.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right font-bold">Rs. {summary.totalOperatingExpenses.toLocaleString()}</TableCell>
                                 </TableRow>
                                 <TableRow className="bg-emerald-500 text-white mt-1 border-t-4 border-white">
                                     <TableCell className="font-bold">OPERATING INCOME (EBIT)</TableCell>
-                                    <TableCell className="text-right font-black text-lg">₹{summary.operatingIncome.toLocaleString()}</TableCell>
+                                    <TableCell className="text-right font-black text-lg">Rs. {summary.operatingIncome.toLocaleString()}</TableCell>
                                 </TableRow>
                             </TableBody>
                         </Table>
@@ -186,7 +186,7 @@ const PandLStatement: React.FC = () => {
                             </div>
 
                             <div className="pt-6 border-t border-white/10 mt-6">
-                                <div className="text-4xl font-black text-center font-serif">₹{summary.netIncome.toLocaleString()}</div>
+                                <div className="text-4xl font-black text-center font-serif">Rs. {summary.netIncome.toLocaleString()}</div>
                                 <div className="text-center text-[10px] uppercase tracking-tighter opacity-60 mt-2">Bottom Line Net Profit</div>
                             </div>
                         </CardContent>

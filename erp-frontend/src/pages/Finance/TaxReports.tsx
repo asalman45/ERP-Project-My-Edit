@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileDown, PieChart, ArrowUpRight, ArrowDownRight, Scale } from "lucide-react";
@@ -77,7 +77,7 @@ const TaxReports: React.FC = () => {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-blue-900">₹{summary?.output_gst.toLocaleString() || "0"}</div>
+                        <div className="text-3xl font-bold text-blue-900">Rs. {summary?.output_gst.toLocaleString() || "0"}</div>
                         <p className="text-xs text-blue-700 mt-1">From all taxable sales invoices</p>
                     </CardContent>
                 </Card>
@@ -88,7 +88,7 @@ const TaxReports: React.FC = () => {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-green-900">₹{summary?.input_gst.toLocaleString() || "0"}</div>
+                        <div className="text-3xl font-bold text-green-900">Rs. {summary?.input_gst.toLocaleString() || "0"}</div>
                         <p className="text-xs text-green-700 mt-1">Paid to vendors on purchases</p>
                     </CardContent>
                 </Card>
@@ -99,7 +99,7 @@ const TaxReports: React.FC = () => {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold">₹{summary?.net_gst_payable.toLocaleString() || "0"}</div>
+                        <div className="text-3xl font-bold">Rs. {summary?.net_gst_payable.toLocaleString() || "0"}</div>
                         <p className="text-xs text-slate-500 mt-1 uppercase tracking-wider">Current Month Exposure</p>
                     </CardContent>
                 </Card>
@@ -117,7 +117,7 @@ const TaxReports: React.FC = () => {
                             columns={[
                                 { key: "invoice_no", header: "Inv #" },
                                 { key: "supplier_name", header: "Vendor" },
-                                { key: "tax_amount", header: "GST Credit", render: (v: number) => `₹${v.toLocaleString()}` },
+                                { key: "tax_amount", header: "GST Credit", render: (v: number) => `Rs. ${v.toLocaleString()}` },
                                 { key: "status", header: "Status", render: () => <Badge variant="outline">Verified</Badge> }
                             ]}
                             loading={loading}
@@ -135,7 +135,7 @@ const TaxReports: React.FC = () => {
                             columns={[
                                 { key: "invoice_no", header: "Inv #" },
                                 { key: "customer_name", header: "Customer" },
-                                { key: "tax_amount", header: "GST Liability", render: (v: number) => `₹${v.toLocaleString()}` },
+                                { key: "tax_amount", header: "GST Liability", render: (v: number) => `Rs. ${v.toLocaleString()}` },
                                 { key: "status", header: "Status", render: () => <Badge variant="secondary">Collected</Badge> }
                             ]}
                             loading={loading}

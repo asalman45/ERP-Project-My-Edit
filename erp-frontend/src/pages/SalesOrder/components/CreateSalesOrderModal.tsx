@@ -54,6 +54,8 @@ export default function CreateSalesOrderModal({ open, onOpenChange, onSuccess }:
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
     queryFn: () => salesOrderApi.getCustomers(),
+    staleTime: 0,
+    gcTime: 0, // Invalidate immediately
   });
 
   // Fetch all products for selection
@@ -124,7 +126,7 @@ export default function CreateSalesOrderModal({ open, onOpenChange, onSuccess }:
   };
 
   const updateItem = (index: number, field: keyof SalesOrderItem, value: any) => {
-    const updatedItems = items.map((item, i) => 
+    const updatedItems = items.map((item, i) =>
       i === index ? { ...item, [field]: value } : item
     );
     setItems(updatedItems);
@@ -133,7 +135,7 @@ export default function CreateSalesOrderModal({ open, onOpenChange, onSuccess }:
   const handleProductCodeChange = (index: number, productCode: string) => {
     const selectedProduct = allProducts.find(p => p.product_code === productCode);
     if (selectedProduct) {
-      const updatedItems = items.map((item, i) => 
+      const updatedItems = items.map((item, i) =>
         i === index ? {
           ...item,
           item_code: productCode,
@@ -154,7 +156,7 @@ export default function CreateSalesOrderModal({ open, onOpenChange, onSuccess }:
     const taxRate = 18; // 18% tax
     const taxAmount = subtotal * (taxRate / 100);
     const total = subtotal + taxAmount;
-    
+
     return { subtotal, taxRate, taxAmount, total };
   };
 
@@ -500,7 +502,7 @@ export default function CreateSalesOrderModal({ open, onOpenChange, onSuccess }:
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleSubmit}
               disabled={createMutation.isPending}
             >

@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Eye, Edit, Trash2, Package, PackageCheck } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { Plus, Eye, Edit, Trash2, Package, PackageCheck, Paperclip } from "lucide-react";
+import AttachmentSection from "@/components/common/AttachmentSection";
 import { Button } from "@/components/ui/button";
 import { DataTable, Column } from "@/components/ui/data-table";
 import { StatsCard } from "@/components/ui/stats-card";
@@ -28,8 +30,11 @@ const PurchaseOrderPage: React.FC = () => {
     status: "all",
     supplier_id: "all",
   });
+  const [selectedPODetail, setSelectedPODetail] = useState<PurchaseOrder | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isAdmin = user?.role?.toLowerCase() === 'admin';
 
   // Fetch purchase orders with error handling
   const { data: purchaseOrders = [], isLoading, error } = useQuery({
@@ -77,6 +82,36 @@ const PurchaseOrderPage: React.FC = () => {
     },
   });
 
+  const approveMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/purchase-orders/${id}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem('empclerp_token')}` }
+      });
+      if (!res.ok) throw new Error("Approval failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      sonnerToast.success("PO Approved");
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/purchase-orders/${id}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem('empclerp_token')}` }
+      });
+      if (!res.ok) throw new Error("Rejection failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      sonnerToast.success("PO Rejected");
+    },
+  });
+
   // Delete purchase order mutation
   const deletePOMutation = useMutation({
     mutationFn: purchaseOrderApi.delete,
@@ -109,12 +144,14 @@ const PurchaseOrderPage: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
+      PENDING_APPROVAL: { variant: "warning" as const, label: "Pending Approval" },
       OPEN: { variant: "default" as const, label: "Open" },
       PARTIALLY_RECEIVED: { variant: "secondary" as const, label: "Partially Received" },
       RECEIVED: { variant: "success" as const, label: "Received" },
       CLOSED: { variant: "destructive" as const, label: "Closed" },
+      CANCELLED: { variant: "destructive" as const, label: "Cancelled" },
     };
-    
+
     const config = statusConfig[status as keyof typeof statusConfig] || { variant: "default" as const, label: status };
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
@@ -167,15 +204,15 @@ const PurchaseOrderPage: React.FC = () => {
         if (!amountValue || amountValue === null || amountValue === undefined) {
           return <div className="font-medium">TBD</div>;
         }
-        
+
         const amount = typeof amountValue === 'string' ? parseFloat(amountValue) : amountValue;
         if (isNaN(amount)) {
           return <div className="font-medium">TBD</div>;
         }
-        
+
         return (
           <div className="font-medium">
-            ${amount.toFixed(2)}
+            Rs. {amount.toFixed(2)}
           </div>
         );
       },
@@ -189,10 +226,7 @@ const PurchaseOrderPage: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={() => {
-              toast({
-                title: "Info",
-                description: `Viewing details for ${row?.po_no || "N/A"}`,
-              });
+              if (row) setSelectedPODetail(row);
             }}
             disabled={!row?.po_id}
             className="hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-all duration-200 relative z-10"
@@ -230,6 +264,32 @@ const PurchaseOrderPage: React.FC = () => {
           >
             {row?.status === "OPEN" ? "Mark Received" : "Reopen"}
           </Button>
+
+          {isAdmin && row?.status === "PENDING_APPROVAL" && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => row?.po_id && approveMutation.mutate(row.po_id)}
+                disabled={approveMutation.isPending}
+                className="hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-600 transition-all duration-200 relative z-10"
+                title="Approve"
+              >
+                Approve
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => row?.po_id && rejectMutation.mutate(row.po_id)}
+                disabled={rejectMutation.isPending}
+                className="hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-all duration-200 relative z-10"
+                title="Reject"
+              >
+                Reject
+              </Button>
+            </>
+          )}
+
           <Button
             variant="outline"
             size="sm"
@@ -310,7 +370,7 @@ const PurchaseOrderPage: React.FC = () => {
           />
           <StatsCard
             title="Total Value"
-            value={`$${totalValue.toFixed(2)}`}
+            value={`Rs. ${totalValue.toFixed(2)}`}
             icon={Package}
             trend={{ value: 15, isPositive: true }}
           />
@@ -320,31 +380,32 @@ const PurchaseOrderPage: React.FC = () => {
       {/* Filters */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
         <div className="flex flex-col sm:flex-row gap-4">
-        <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="OPEN">Open</SelectItem>
-            <SelectItem value="PARTIALLY_RECEIVED">Partially Received</SelectItem>
-            <SelectItem value="RECEIVED">Received</SelectItem>
-            <SelectItem value="CLOSED">Closed</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filters.supplier_id} onValueChange={(value) => setFilters(prev => ({ ...prev, supplier_id: value }))}>
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Filter by supplier" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Suppliers</SelectItem>
-            {suppliers.map((supplier: any) => (
-              <SelectItem key={supplier.supplier_id} value={supplier.supplier_id}>
-                {supplier.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="PENDING_APPROVAL">Pending Approval</SelectItem>
+              <SelectItem value="OPEN">Open</SelectItem>
+              <SelectItem value="PARTIALLY_RECEIVED">Partially Received</SelectItem>
+              <SelectItem value="RECEIVED">Received</SelectItem>
+              <SelectItem value="CLOSED">Closed</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filters.supplier_id} onValueChange={(value) => setFilters(prev => ({ ...prev, supplier_id: value }))}>
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="Filter by supplier" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Suppliers</SelectItem>
+              {suppliers.map((supplier: any) => (
+                <SelectItem key={supplier.supplier_id} value={supplier.supplier_id}>
+                  {supplier.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -396,6 +457,59 @@ const PurchaseOrderPage: React.FC = () => {
           }}
         />
       )}
+
+      {/* PO Detail Dialog with Attachments */}
+      <Dialog open={!!selectedPODetail} onOpenChange={() => setSelectedPODetail(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <Package className="w-5 h-5 text-indigo-600" />
+              Purchase Order: {selectedPODetail?.po_no}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedPODetail && (
+            <div className="space-y-6">
+              {/* PO Info Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-xl">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase">Supplier</p>
+                  <p className="text-sm font-medium text-slate-800">{selectedPODetail.supplier_name || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase">Status</p>
+                  {getStatusBadge(selectedPODetail.status)}
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase">Order Date</p>
+                  <p className="text-sm font-medium text-slate-800">
+                    {selectedPODetail.order_date ? new Date(selectedPODetail.order_date).toLocaleDateString() : 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase">Expected Delivery</p>
+                  <p className="text-sm font-medium text-slate-800">
+                    {selectedPODetail.expected_date ? new Date(selectedPODetail.expected_date).toLocaleDateString() : '-'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase">Total Amount</p>
+                  <p className="text-sm font-bold text-slate-800">
+                    {selectedPODetail.total_amount ? `Rs. ${parseFloat(String(selectedPODetail.total_amount)).toFixed(2)}` : 'TBD'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Attachments Section */}
+              <div className="border rounded-xl p-4">
+                <AttachmentSection
+                  entityType="purchase_order_id"
+                  entityId={selectedPODetail.po_id}
+                />
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
@@ -427,7 +541,7 @@ const CreatePOModal: React.FC<CreatePOModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Only send fields that the backend validation allows
     const submitData: CreatePurchaseOrderRequest = {
       po_no: formData.po_no,

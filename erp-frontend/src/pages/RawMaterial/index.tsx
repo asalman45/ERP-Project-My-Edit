@@ -25,6 +25,7 @@ interface RawMaterial {
   uom_code?: string;
   uom_name?: string;
   material_id?: string;
+  hs_code?: string;
   created_at: string;
   updated_at: string;
 }
@@ -34,6 +35,7 @@ interface RawMaterialFormData {
   name: string;
   description?: string;
   uom_id?: string;
+  hs_code?: string;
 }
 
 const RawMaterial: React.FC = () => {
@@ -48,7 +50,8 @@ const RawMaterial: React.FC = () => {
     material_code: "",
     name: "",
     description: "",
-    uom_id: ""
+    uom_id: "",
+    hs_code: ""
   });
   const [uoms, setUoms] = useState<any[]>([]);
   const { toast } = useToast();
@@ -97,6 +100,7 @@ const RawMaterial: React.FC = () => {
       material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       material.material_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (material.description && material.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (material.hs_code && material.hs_code.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (material.uom_name && material.uom_name.toLowerCase().includes(searchTerm.toLowerCase()));
     
     return matchesSearch;
@@ -146,7 +150,8 @@ const RawMaterial: React.FC = () => {
       material_code: "",
       name: "",
       description: "",
-      uom_id: ""
+      uom_id: "",
+      hs_code: ""
     });
     setIsModalOpen(true);
   };
@@ -157,7 +162,8 @@ const RawMaterial: React.FC = () => {
       material_code: "",
       name: "",
       description: "",
-      uom_id: ""
+      uom_id: "",
+      hs_code: ""
     });
     setEditingMaterial(null);
     setIsModalOpen(false);
@@ -170,7 +176,8 @@ const RawMaterial: React.FC = () => {
       material_code: material.material_code,
       name: material.name,
       description: material.description || "",
-      uom_id: material.uom_id || ""
+      uom_id: material.uom_id || "",
+      hs_code: material.hs_code || ""
     });
     setIsModalOpen(true);
   };
@@ -250,10 +257,10 @@ const RawMaterial: React.FC = () => {
       }
     },
     {
-      key: "description",
-      header: "Description",
+      key: "hs_code",
+      header: "HS Code",
       render: (item) => (
-        <div className="text-sm text-gray-600 max-w-xs truncate">
+        <div className="text-sm font-semibold text-blue-600">
           {item || 'N/A'}
         </div>
       )
@@ -462,21 +469,32 @@ const RawMaterial: React.FC = () => {
                 />
               </div>
               
-              <div>
-                <Label htmlFor="uom_id">Unit of Measurement</Label>
-                <Select value={formData.uom_id || "none"} onValueChange={(value) => setFormData({...formData, uom_id: value === "none" ? "" : value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select unit" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No unit</SelectItem>
-                    {uoms.map((uom) => (
-                      <SelectItem key={uom.uom_id} value={uom.uom_id}>
-                        {uom.name} ({uom.code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="uom_id">Unit of Measurement</Label>
+                  <Select value={formData.uom_id || "none"} onValueChange={(value) => setFormData({...formData, uom_id: value === "none" ? "" : value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No unit</SelectItem>
+                      {uoms.map((uom) => (
+                        <SelectItem key={uom.uom_id} value={uom.uom_id}>
+                          {uom.name} ({uom.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="hs_code">HS Code</Label>
+                  <Input
+                    id="hs_code"
+                    value={formData.hs_code || ""}
+                    onChange={(e) => setFormData({...formData, hs_code: e.target.value})}
+                    placeholder="e.g., 7208.51.00"
+                  />
+                </div>
               </div>
             </div>
 

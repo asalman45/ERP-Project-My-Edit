@@ -2,6 +2,7 @@
 
 import * as salesOrderModel from '../models/salesOrder.model.js';
 import { logger } from '../utils/logger.js';
+import { generateSalesOrderPDF } from '../services/pdf.service.js';
 
 // Create a new sales order
 export const createSalesOrder = async (req, res) => {
@@ -594,6 +595,44 @@ export const exportSalesOrders = async (req, res) => {
       success: false,
       error: 'Failed to export sales orders',
       message: error.message
+    });
+  }
+};
+// Download Sales Order as PDF
+export const downloadSalesOrderPDF = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Fetch sales order with details
+    const salesOrder = await salesOrderModel.getSalesOrderById(id);
+    
+    if (!salesOrder) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sales order not found'
+      });
+    }
+    
+    // Generate PDF
+    const pdfBuffer = await generateSalesOrderPDF(salesOrder);
+    
+    // Set headers for file download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=SalesOrder_${salesOrder.order_number}.pdf`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.end(pdfBuffer);
+    
+    logger.info({ 
+      sales_order_id: id, 
+      order_number: salesOrder.order_number 
+    }, 'Sales order PDF generated and sent');
+    
+  } catch (error) {
+    logger.error({ error: error.message, id: req.params.id }, 'Failed to download sales order PDF');
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate PDF',
+      error: error.message
     });
   }
 };

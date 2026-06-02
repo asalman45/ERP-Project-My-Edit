@@ -12,6 +12,9 @@ import * as cashFlowForecastController from '../controllers/cashFlowForecast.con
 import * as expenseClaimController from '../controllers/expenseClaim.controller.js';
 import * as budgetController from '../controllers/budget.controller.js';
 import * as currencyController from '../controllers/currency.controller.js';
+import * as customerLedgerController from '../controllers/customerLedger.controller.js';
+import * as financialReportsController from '../controllers/financialReports.controller.js';
+import * as supplierLedgerController from '../controllers/supplierLedger.controller.js';
 
 const router = express.Router();
 
@@ -21,6 +24,12 @@ router.get('/accounts', financeController.getAccounts);
 // Journal Entries & General Ledger
 router.post('/journal-entries', financeController.createJournalEntry);
 router.get('/ledger', financeController.getGeneralLedger);
+router.get('/customer-ledger/:customerId', customerLedgerController.getCustomerLedger);
+
+// Supplier Ledger & AP
+router.get('/supplier-ledger', supplierLedgerController.getAllSupplierSummaries);
+router.get('/supplier-ledger/wht-summary', supplierLedgerController.getWHTSummary);
+router.get('/supplier-ledger/:supplierId', supplierLedgerController.getSupplierLedger);
 
 // Cash Flow Analysis
 router.get('/cash-flow', financeController.getCashFlowSummary);
@@ -45,12 +54,19 @@ router.get('/tax/gst-summary', taxReportingController.getGSTSummary);
 router.get('/tax/sales-gst', taxReportingController.getSalesGSTReport);
 router.get('/tax/purchase-gst', taxReportingController.getPurchaseGSTReport);
 
-// Advanced Reporting (P&L, Balance Sheet)
-router.get('/reporting/p-and-l', financialStatementsController.getProfitAndLoss);
-router.get('/reporting/balance-sheet', financialStatementsController.getBalanceSheet);
+// Advanced Reporting (P&L, Balance Sheet, Aging)
+router.get('/reporting/p-and-l', financialReportsController.getPnL);
+router.get('/reporting/balance-sheet', financialReportsController.getBalanceSheet);
+router.get('/reporting/ap-aging', financialReportsController.getAPAging);
+router.get('/reporting/ar-aging', financeController.getARAging);
+router.get('/reporting/expense-summary', financialReportsController.getExpenseSummary);
+router.get('/reporting/tax-summary', financeController.getTaxSummary);
+
+// Year-End Close
+router.post('/year-end-close', financeController.performYearEndClose);
 
 // Fixed Assets
-router.get('/fixed-assets', fixedAssetController.registerAsset); // Reusing for list or specific
+router.get('/fixed-assets', fixedAssetController.getAssets);
 router.post('/fixed-assets', fixedAssetController.registerAsset);
 router.post('/fixed-assets/depreciate', fixedAssetController.runDepreciation);
 
@@ -72,6 +88,7 @@ router.post('/expenses/claims', expenseClaimController.submitClaim);
 router.post('/expenses/approve/:claimId', expenseClaimController.approveClaim);
 
 // Budgets & Alerts
+router.get('/budgets', budgetController.getBudgets);
 router.post('/budgets', budgetController.setBudget);
 router.post('/budgets/check-variances', budgetController.checkBudgetVariances);
 router.get('/notifications', budgetController.getNotifications);

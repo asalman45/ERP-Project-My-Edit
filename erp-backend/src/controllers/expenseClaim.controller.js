@@ -33,7 +33,7 @@ export async function submitClaim(req, res) {
  */
 export async function approveClaim(req, res) {
     const { claimId } = req.params;
-    const { approved_by, account_id } = req.body; // account_id is the Cash/Bank account to pay from
+    const { approved_by, payment_account_id, expense_account_id } = req.body; 
 
     try {
         const claim = await prisma.expenseClaim.findUnique({ where: { claim_id: claimId } });
@@ -49,13 +49,13 @@ export async function approveClaim(req, res) {
                 lines: {
                     create: [
                         {
-                            account_id: 'EXPENSE_GEN_ACC_ID', // TODO: Map category to specific expense account
+                            account_id: expense_account_id || 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d', // Default to Travel if not provided
                             debit: claim.amount,
                             credit: 0,
                             description: claim.description
                         },
                         {
-                            account_id: account_id,
+                            account_id: payment_account_id || '365aefa9-c424-49ae-8241-d9eaae3e89b0', // Default to Bank
                             debit: 0,
                             credit: claim.amount,
                             description: `Payment to ${claim.employee_name}`

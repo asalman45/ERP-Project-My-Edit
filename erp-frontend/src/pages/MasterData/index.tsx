@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 
 const MasterData: React.FC = () => {
   const { toast } = useToast();
-  
+
   // Use custom hooks for data management
   const { oems, loading: oemsLoading, createOEM, updateOEM, deleteOEM } = useOEMs();
   const { models, loading: modelsLoading, createModel, updateModel, deleteModel } = useModels();
@@ -33,7 +33,7 @@ const MasterData: React.FC = () => {
   const [editingModel, setEditingModel] = useState<Model | null>(null);
   const [uomModalOpen, setUOMModalOpen] = useState(false);
   const [editingUOM, setEditingUOM] = useState<UOM | null>(null);
-  
+
   // Import/Export modal states
   const [showImportModal, setShowImportModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
@@ -67,12 +67,13 @@ const MasterData: React.FC = () => {
     { key: "oemName", header: "OEM", sortable: true },
     { key: "modelName", header: "Model", sortable: true },
     { key: "uomCode", header: "UOM", sortable: true },
-    { 
-      key: "standardCost", 
-      header: "Standard Cost", 
+    {
+      key: "standardCost",
+      header: "Standard Cost",
       sortable: true,
-      render: (value) => value ? `$${value.toFixed(2)}` : "-"
+      render: (value) => value ? `Rs. ${value.toFixed(2)}` : "-"
     },
+    { key: "hsCode", header: "HS Code", sortable: true },
     { key: "category", header: "Category", sortable: true },
   ];
 
@@ -248,17 +249,17 @@ const MasterData: React.FC = () => {
               </p>
             </div>
             <div className="flex gap-3">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowImportModal(true)} 
+              <Button
+                variant="outline"
+                onClick={() => setShowImportModal(true)}
                 className="flex items-center gap-2 bg-white/50 hover:bg-white/70 border-white/30 transition-all duration-300 hover:scale-105 hover:shadow-lg"
               >
                 <Upload className="h-4 w-4" />
                 Import
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => setShowExportModal(true)} 
+              <Button
+                variant="outline"
+                onClick={() => setShowExportModal(true)}
                 className="flex items-center gap-2 bg-white/50 hover:bg-white/70 border-white/30 transition-all duration-300 hover:scale-105 hover:shadow-lg"
               >
                 <Download className="h-4 w-4" />
@@ -272,7 +273,7 @@ const MasterData: React.FC = () => {
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => (
-          <div 
+          <div
             key={stat.title}
             className={cn(
               "relative bg-white/70 backdrop-blur-xl rounded-2xl p-6 border border-white/30 shadow-lg hover:shadow-2xl transition-all duration-500 ease-out group overflow-hidden",
@@ -288,7 +289,7 @@ const MasterData: React.FC = () => {
               stat.color === "purple" && "from-purple-400/20 to-purple-500/20",
               stat.color === "orange" && "from-orange-400/20 to-orange-500/20"
             )}></div>
-            
+
             <div className="relative flex items-center justify-between">
               <div className="flex-1">
                 <p className="text-sm font-medium text-gray-600 mb-2 group-hover:text-gray-700 transition-colors duration-300">
@@ -298,7 +299,7 @@ const MasterData: React.FC = () => {
                   {stat.value}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">{stat.description}</p>
-                
+
                 {/* Progress indicator */}
                 <div className="mt-3">
                   <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -348,8 +349,8 @@ const MasterData: React.FC = () => {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => setShowImportModal(true)}
               className="bg-white/50 hover:bg-white/70 border-white/30 transition-all duration-300 hover:scale-105 justify-start"
@@ -357,8 +358,8 @@ const MasterData: React.FC = () => {
               <Upload className="w-4 h-4 mr-2" />
               Import Data
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => setShowExportModal(true)}
               className="bg-white/50 hover:bg-white/70 border-white/30 transition-all duration-300 hover:scale-105 justify-start"
@@ -410,28 +411,28 @@ const MasterData: React.FC = () => {
         <Tabs defaultValue="oem" className="w-full">
           <div className="p-6 border-b border-white/20 bg-gradient-to-r from-white/40 to-white/20">
             <TabsList className="grid w-full grid-cols-4 bg-white/50 backdrop-blur-sm border border-white/30 rounded-xl p-1">
-              <TabsTrigger 
-                value="oem" 
+              <TabsTrigger
+                value="oem"
                 className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-700 transition-all duration-300 hover:scale-105"
               >
                 <Users className="w-4 h-4" />
                 OEM
               </TabsTrigger>
-              <TabsTrigger 
+              <TabsTrigger
                 value="model"
                 className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-green-700 transition-all duration-300 hover:scale-105"
               >
                 <Package className="w-4 h-4" />
                 Model
               </TabsTrigger>
-              <TabsTrigger 
+              <TabsTrigger
                 value="uom"
                 className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-purple-700 transition-all duration-300 hover:scale-105"
               >
                 <Settings className="w-4 h-4" />
                 UOM
               </TabsTrigger>
-              <TabsTrigger 
+              <TabsTrigger
                 value="product"
                 className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-orange-700 transition-all duration-300 hover:scale-105"
               >
@@ -452,7 +453,7 @@ const MasterData: React.FC = () => {
                 </h2>
                 <p className="text-gray-600 mt-2">Manage your OEM partners and suppliers</p>
               </div>
-              <Button 
+              <Button
                 onClick={() => setOEMModalOpen(true)}
                 className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
               >
@@ -460,7 +461,7 @@ const MasterData: React.FC = () => {
                 Add OEM
               </Button>
             </div>
-            
+
             <DataTable
               data={oems}
               columns={oemColumns}
@@ -482,7 +483,7 @@ const MasterData: React.FC = () => {
                 </h2>
                 <p className="text-gray-600 mt-2">Manage vehicle models and their specifications</p>
               </div>
-              <Button 
+              <Button
                 onClick={() => setModelModalOpen(true)}
                 className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
               >
@@ -490,7 +491,7 @@ const MasterData: React.FC = () => {
                 Add Model
               </Button>
             </div>
-            
+
             <DataTable
               data={models}
               columns={modelColumns}
@@ -512,7 +513,7 @@ const MasterData: React.FC = () => {
                 </h2>
                 <p className="text-gray-600 mt-2">Define measurement units for your products</p>
               </div>
-              <Button 
+              <Button
                 onClick={() => setUOMModalOpen(true)}
                 className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
               >
@@ -520,7 +521,7 @@ const MasterData: React.FC = () => {
                 Add UOM
               </Button>
             </div>
-            
+
             <DataTable
               data={uoms}
               columns={uomColumns}
@@ -542,7 +543,7 @@ const MasterData: React.FC = () => {
                 </h2>
                 <p className="text-gray-600 mt-2">Manage your complete product catalog</p>
               </div>
-              <Button 
+              <Button
                 onClick={() => setProductModalOpen(true)}
                 className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
               >
@@ -550,7 +551,7 @@ const MasterData: React.FC = () => {
                 Add Product
               </Button>
             </div>
-            
+
             <DataTable
               data={products}
               columns={productColumns}

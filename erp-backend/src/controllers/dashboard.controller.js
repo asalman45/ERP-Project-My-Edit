@@ -21,25 +21,40 @@ export const getDashboardStats = async (req, res) => {
       revenueResult,
       expenseResult,
       arResult,
-      apResult
+      apResult,
+      // Sales & Operations
+      salesOrdersResult,
+      suppliersResult,
+      customersResult,
+      lowStockResult,
+      dispatchResult
     ] = await Promise.all([
       db.query('SELECT COUNT(*) as count FROM product'),
       db.query('SELECT COUNT(*) as count FROM material'),
       db.query('SELECT COUNT(*) as count FROM work_order'),
-      // Revenue (FinancialAccount type REVENUE)
       db.query("SELECT SUM(credit - debit) as total FROM journal_line jl JOIN financial_account fa ON jl.account_id = fa.account_id WHERE fa.type = 'REVENUE'"),
-      // Expense (FinancialAccount type EXPENSE)
       db.query("SELECT SUM(debit - credit) as total FROM journal_line jl JOIN financial_account fa ON jl.account_id = fa.account_id WHERE fa.type = 'EXPENSE'"),
-      // Accounts Receivable (Customer Invoices pending)
       db.query("SELECT SUM(total_amount) as total FROM customer_invoice WHERE payment_status IN ('PENDING', 'PARTIAL')"),
-      // Accounts Payable (Vendor Invoices unpaid)
-      db.query("SELECT SUM(total_amount) as total FROM invoice WHERE status != 'PAID'")
+      db.query("SELECT SUM(total_amount) as total FROM invoice WHERE status != 'PAID'"),
+      // New queries for automotive factory
+      db.query("SELECT COUNT(*) as total, COUNT(CASE WHEN status IN ('PENDING','APPROVED','IN_PRODUCTION') THEN 1 END) as active FROM sales_order"),
+      db.query('SELECT COUNT(*) as count FROM supplier'),
+      db.query('SELECT COUNT(*) as count FROM customer'),
+      db.query("SELECT COUNT(*) as count FROM inventory WHERE quantity <= 5 AND quantity > 0 AND status = 'AVAILABLE'"),
+      db.query("SELECT COUNT(*) as total, COUNT(CASE WHEN status = 'DISPATCHED' THEN 1 END) as dispatched FROM dispatch_order")
     ]);
 
     const stats = {
       totalProducts: parseInt(productsResult.rows[0].count),
       totalMaterials: parseInt(materialsResult.rows[0].count),
       totalWorkOrders: parseInt(workOrdersResult.rows[0].count),
+      totalSalesOrders: parseInt(salesOrdersResult.rows[0].total || 0),
+      activeSalesOrders: parseInt(salesOrdersResult.rows[0].active || 0),
+      totalSuppliers: parseInt(suppliersResult.rows[0].count),
+      totalCustomers: parseInt(customersResult.rows[0].count),
+      lowStockCount: parseInt(lowStockResult.rows[0].count),
+      totalDispatches: parseInt(dispatchResult.rows[0].total || 0),
+      dispatchedCount: parseInt(dispatchResult.rows[0].dispatched || 0),
       financials: {
         totalRevenue: parseFloat(revenueResult.rows[0].total || 0),
         totalExpense: parseFloat(expenseResult.rows[0].total || 0),

@@ -20,13 +20,13 @@ export const findByPOId = async (poId) => {
 };
 
 export const create = async (payload) => {
-  const { po_id, product_id, material_id, uom_id, quantity, unit_price } = payload;
+  const { po_id, product_id, material_id, uom_id, quantity, unit_price, hs_code } = payload;
   const po_item_id = crypto.randomUUID();
   const res = await db.query(
-    `INSERT INTO purchase_order_item (po_item_id, po_id, product_id, material_id, uom_id, quantity, unit_price)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO purchase_order_item (po_item_id, po_id, product_id, material_id, uom_id, quantity, unit_price, hs_code)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
-    [po_item_id, po_id, product_id, material_id, uom_id, quantity, unit_price]
+    [po_item_id, po_id, product_id, material_id, uom_id, quantity, unit_price, hs_code || null]
   );
   return res.rows[0];
 };
