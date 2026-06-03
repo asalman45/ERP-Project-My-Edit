@@ -61,6 +61,17 @@ async function apiRequest<T>(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+
+      // Global 401 handler — token expired or invalid, force re-login
+      if (response.status === 401) {
+        localStorage.removeItem('empclerp_token');
+        localStorage.removeItem('empclerp_refresh_token');
+        localStorage.removeItem('empclerp_user');
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+      }
+
       throw new ApiError(
         errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`,
         response.status,
@@ -118,6 +129,13 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify(credentials),
     }),
+
+  refresh: (refreshToken: string) =>
+    apiRequest('/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken }),
+    }),
+
   me: () => apiRequest('/auth/me'),
 };
 
