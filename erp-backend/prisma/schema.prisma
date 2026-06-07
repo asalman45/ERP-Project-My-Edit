@@ -2062,6 +2062,7 @@ model Employee {
 
   attendances   Attendance[]
   payrolls      Payroll[]
+  leaveRequests LeaveRequest[]
 
   @@map("hr_employee")
 }
