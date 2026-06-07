@@ -74,6 +74,7 @@ const MasterData: React.FC = () => {
       render: (value) => value ? `Rs. ${value.toFixed(2)}` : "-"
     },
     { key: "hsCode", header: "HS Code", sortable: true },
+    { key: "empclNo", header: "EMPCL No", sortable: true },
     { key: "category", header: "Category", sortable: true },
   ];
 

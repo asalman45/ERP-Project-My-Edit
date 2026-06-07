@@ -73,6 +73,7 @@ model Product {
   model_id      String?
   uom_id        String?
   image_url     String?  // Product image/thumbnail URL
+  empcl_no      String?  @db.VarChar(100)
 
   min_stock   Float? // reorder min
   max_stock   Float? // max stock
@@ -174,9 +175,10 @@ model BOM {
   step_sequence     Int? // Order of operations
   is_optional       Boolean  @default(false)
   uom_id            String?
+  version           Int      @default(1)
+  is_active         Boolean  @default(true)
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
-
   product  Product  @relation(fields: [product_id], references: [product_id], onDelete: Cascade)
   material Material @relation(fields: [material_id], references: [material_id])
   uom      UOM?     @relation(fields: [uom_id], references: [uom_id])
@@ -473,6 +475,23 @@ model ProcurementRequest {
   inventoryTxns InventoryTxn[]
 
   @@map("procurement_request")
+}
+
+model LeaveRequest {
+  leave_id      String   @id @default(uuid())
+  emp_id        String
+  leave_type    String   // SICK, CASUAL, EARNED
+  start_date    DateTime
+  end_date      DateTime
+  reason        String?
+  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  applied_at    DateTime @default(now())
+  reviewed_at   DateTime?
+  reviewed_by   String?
+  
+  employee      Employee @relation(fields: [emp_id], references: [emp_id], onDelete: Cascade)
+
+  @@map("leave_request")
 }
 
 //

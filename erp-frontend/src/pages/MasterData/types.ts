@@ -34,6 +34,7 @@ export interface Product {
   uomCode: string;
   standardCost?: number;
   hsCode?: string;
+  empclNo?: string;
   category: string;
   createdAt: string;
 }

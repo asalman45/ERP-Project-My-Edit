@@ -396,6 +396,7 @@ export const dataTransformers = {
     uomCode: backendProduct.uom_code || '',
     standardCost: backendProduct.standard_cost,
     hsCode: backendProduct.hs_code || '',
+    empclNo: backendProduct.empcl_no || '',
     category: backendProduct.category,
     createdAt: backendProduct.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
   }),
@@ -431,6 +432,7 @@ export const dataTransformersToBackend = {
     uom_id: frontendProduct.uomId,
     standard_cost: frontendProduct.standardCost,
     hs_code: frontendProduct.hsCode || null,
+    empcl_no: frontendProduct.empclNo || null,
     category: frontendProduct.category,
   }),
 };

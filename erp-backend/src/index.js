@@ -24,6 +24,7 @@ import scrapInventoryRoutes from './routes/scrapInventory.routes.js';
 import bomImportRoutes from './routes/bomImport.routes.js';
 import inventoryRoutes from './routes/inventory.routes.js';
 import supplierRoutes from './routes/supplier.routes.js';
+import customerRoutes from './routes/customer.routes.js';
 import purchaseOrderRoutes from './routes/purchase_order.routes.js';
 import goodsReceiptRoutes from './routes/goodsReceipt.routes.js';
 import locationRoutes from './routes/location.routes.js';
@@ -41,7 +42,6 @@ import sheetOptimizationRoutes from './routes/sheetOptimization.routes.js';
 import salesOrderRoutes from './routes/salesOrder.routes.js';
 import dispatchRoutes from './routes/dispatch.routes.js';
 import customerInvoiceRoutes from './routes/customerInvoice.routes.js';
-import oemApiRoutes from './routes/oem.routes.js';
 import plannedProductionRoutes from './routes/plannedProduction.routes.js';
 import internalPurchaseOrderRoutes from './routes/internalPurchaseOrder.routes.js';
 import authRoutes from './routes/auth.routes.js';
@@ -123,6 +123,7 @@ app.use('/api/scrap-inventory', scrapInventoryRoutes);
 app.use('/api/bom-import', bomImportRoutes);
 app.use('/api/inventory', inventoryRoutes); // Legacy inventory routes
 app.use('/api/suppliers', supplierRoutes);
+app.use('/api/customers', customerRoutes);
 app.use('/api/purchase-orders', purchaseOrderRoutes);
 app.use('/api/goods-receipt', goodsReceiptRoutes);
 app.use('/api/hierarchical-work-order', hierarchicalWorkOrderRoutes); // Hierarchical WO routes
@@ -141,7 +142,6 @@ app.use('/api/sheet-optimization', sheetOptimizationRoutes);
 app.use('/api/sales-orders', salesOrderRoutes);
 app.use('/api/dispatch', dispatchRoutes);
 app.use('/api/customer-invoices', customerInvoiceRoutes);
-app.use('/api/oems', oemApiRoutes);
 app.use('/api/planned-production', plannedProductionRoutes);
 app.use('/api/internal-purchase-orders', internalPurchaseOrderRoutes);
 app.use('/api/finance', financeRoutes);
@@ -183,6 +183,15 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
 });
 
 const PORT = process.env.PORT || 4000;
+
+// Run database schema migration for Product's empcl_no column
+try {
+  const db = (await import('./utils/db.js')).default;
+  await db.query('ALTER TABLE product ADD COLUMN IF NOT EXISTS empcl_no VARCHAR(100) DEFAULT NULL');
+  logger.info('✅ Database migrated: added empcl_no column to product table if not exists');
+} catch (err) {
+  logger.error({ err }, '❌ Database migration failed');
+}
 
 // Create HTTP server
 const server = createServer(app);

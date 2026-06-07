@@ -44,6 +44,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
     uomId: "",
     standardCost: "",
     hsCode: "",
+    empclNo: "",
     category: "FINISHED_GOOD" as ProductCategory,
   });
 
@@ -61,6 +62,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
           uomId: editingProduct.uomId,
           standardCost: editingProduct.standardCost?.toString() || "",
           hsCode: editingProduct.hsCode || "",
+          empclNo: editingProduct.empclNo || "",
           category: editingProduct.category,
         });
       } else {
@@ -72,6 +74,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
           uomId: "",
           standardCost: "",
           hsCode: "",
+          empclNo: "",
           category: "FINISHED_GOOD",
         });
       }
@@ -136,6 +139,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
         uomId: formData.uomId,
         standardCost: formData.standardCost ? Number(formData.standardCost) : undefined,
         hsCode: formData.hsCode.trim() || undefined,
+        empclNo: formData.empclNo.trim() || undefined,
         category: formData.category,
       };
 
@@ -314,6 +318,20 @@ const ProductModal: React.FC<ProductModalProps> = ({
                 onChange={(e) => handleInputChange("hsCode", e.target.value)}
                 placeholder="Enter HS code"
                 maxLength={20}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            {/* EMPCL No */}
+            <div className="space-y-2">
+              <Label htmlFor="empclNo">EMPCL No</Label>
+              <Input
+                id="empclNo"
+                value={formData.empclNo}
+                onChange={(e) => handleInputChange("empclNo", e.target.value)}
+                placeholder="Enter EMPCL number"
+                maxLength={100}
               />
             </div>
           </div>
