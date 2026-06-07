@@ -68,14 +68,14 @@ const LeaveManagement: React.FC = () => {
 
   const updateStatus = async (id: string, status: string) => {
     try {
-      const res = await fetch(\`/api/hr/leave/requests/\${id}\`, {
+      const res = await fetch(`/api/hr/leave/requests/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status })
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(\`Leave \${status.toLowerCase()}\`);
+        toast.success(`Leave ${status.toLowerCase()}`);
         fetchRequests();
       } else {
         toast.error(data.error);
