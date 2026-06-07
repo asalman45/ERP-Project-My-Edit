@@ -92,3 +92,54 @@ export const remove = async (inventoryId) => {
   await db.query('DELETE FROM inventory WHERE inventory_id = $1', [inventoryId]);
   return true;
 };
+
+export const deductQuantity = async (materialId, quantity, reference = 'DEDUCTION') => {
+  const check = await db.query(
+    'SELECT * FROM inventory WHERE material_id = $1 AND status = \'AVAILABLE\' LIMIT 1',
+    [materialId]
+  );
+  if (check.rows.length === 0) {
+    throw new Error(`Inventory record not found for material ID: ${materialId}`);
+  }
+  
+  const inventoryItem = check.rows[0];
+  const newQty = parseFloat(inventoryItem.quantity) - parseFloat(quantity);
+  
+  await db.query(
+    'UPDATE inventory SET quantity = $1, updated_at = NOW() WHERE inventory_id = $2',
+    [newQty, inventoryItem.inventory_id]
+  );
+
+  await db.query(
+    `INSERT INTO inventory_txn (txn_id, inventory_id, material_id, txn_type, quantity, reference, created_by, created_at)
+     VALUES (gen_random_uuid(), $1, $2, 'ISSUE', $3, $4, 'system', NOW())`,
+    [inventoryItem.inventory_id, materialId, quantity, reference]
+  );
+};
+
+export const adjustQuantity = async (materialId, quantityDiff, reference = 'ADJUSTMENT') => {
+  const check = await db.query(
+    'SELECT * FROM inventory WHERE material_id = $1 AND status = \'AVAILABLE\' LIMIT 1',
+    [materialId]
+  );
+  if (check.rows.length === 0) {
+    throw new Error(`Inventory record not found for material ID: ${materialId}`);
+  }
+  
+  const inventoryItem = check.rows[0];
+  const newQty = parseFloat(inventoryItem.quantity) - parseFloat(quantityDiff);
+  
+  await db.query(
+    'UPDATE inventory SET quantity = $1, updated_at = NOW() WHERE inventory_id = $2',
+    [newQty, inventoryItem.inventory_id]
+  );
+
+  const txnType = quantityDiff > 0 ? 'ISSUE' : 'RECEIVE';
+  const txnQty = Math.abs(quantityDiff);
+
+  await db.query(
+    `INSERT INTO inventory_txn (txn_id, inventory_id, material_id, txn_type, quantity, reference, created_by, created_at)
+     VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'system', NOW())`,
+    [inventoryItem.inventory_id, materialId, txnType, txnQty, reference]
+  );
+};

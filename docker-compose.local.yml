@@ -1,0 +1,120 @@
+# =============================================================================
+# EMPCL ERP — Local Development / Test Docker Compose
+# Self-contained: includes its own Postgres. No external networks needed.
+#
+# Usage:
+#   docker compose -f docker-compose.local.yml --env-file .env.local up -d --build
+#
+# Access:
+#   Frontend  → http://localhost:9000
+#   Backend   → http://localhost:4000
+#   pgAdmin   → http://localhost:5050  (admin@empcl.com / admin123)
+# =============================================================================
+name: empcl-erp-local
+
+services:
+
+  # ─── PostgreSQL Database ───────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: empcl-local-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - local_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"   # exposed on 5433 to avoid conflict with any local Postgres
+    networks:
+      - local-erp-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ─── Backend API ───────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./erp-backend
+      dockerfile: Dockerfile
+    container_name: empcl-local-backend
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@empcl-local-postgres:5432/${POSTGRES_DB}
+      DB_HOST: empcl-local-postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./erp-backend/uploads:/app/uploads
+      - ./erp-backend/backups:/app/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - local-erp-network
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ─── Frontend (Vite → Nginx) ───────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./erp-frontend
+      dockerfile: Dockerfile
+    container_name: empcl-local-frontend
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - local-erp-network
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:9000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ─── pgAdmin (Optional — DB browser UI) ───────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: empcl-local-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - local-erp-network
+
+volumes:
+  local_postgres_data:
+    driver: local
+
+networks:
+  local-erp-network:
+    driver: bridge

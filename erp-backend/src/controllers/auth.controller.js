@@ -26,6 +26,7 @@ async function seedEnterpriseUser(username, password) {
     production: 'Production',
     procurement: 'Procurement',
     sales: 'Sales',
+    hr: 'HR',
   };
 
   if (!roles[username] || password !== `${username}123`) return null;

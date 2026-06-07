@@ -87,12 +87,25 @@ export async function createDispatch(req, res) {
     const salesOrder = soResult.rows[0];
     const finalCustomerId = customer_id || salesOrder.customer_id;
 
-    // 2. Create dispatch order
+    // 2. Create dispatch order — generate unique dispatch number with collision check
     const dispatchId = uuidv4();
-    // Generate short dispatch number (7-8 characters): DISP + 3-4 digit random number
-    // Format: DISP123 (7 chars) or DISP1234 (8 chars)
-    const randomNum = Math.floor(100 + Math.random() * 9900); // 3-4 digit number (100-9999)
-    const dispatchNo = `DISP${randomNum}`;
+    let dispatchNo = '';
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const randomNum = Math.floor(100 + Math.random() * 9900);
+      const candidate = `DISP${randomNum}`;
+      const exists = await client.query(
+        'SELECT 1 FROM dispatch_order WHERE dispatch_no = $1 LIMIT 1',
+        [candidate]
+      );
+      if (exists.rows.length === 0) {
+        dispatchNo = candidate;
+        break;
+      }
+    }
+    // Fallback to timestamp-based number if all 10 attempts collided
+    if (!dispatchNo) {
+      dispatchNo = `DISP${Date.now().toString().slice(-8)}`;
+    }
 
     const dispatchOrderQuery = `
       INSERT INTO dispatch_order (
@@ -411,6 +424,73 @@ export async function createDispatch(req, res) {
       quantity
     }, 'Dispatch record created successfully');
 
+    // --- AUTO-INVOICE GENERATION (post-commit, best effort) ---
+    let autoInvoiceId = null;
+    try {
+      const invoiceClient = await db.connect();
+      try {
+        await invoiceClient.query('BEGIN');
+
+        // Get unit price from sales order item or product standard cost
+        const soItemRes = await invoiceClient.query(
+          `SELECT unit_price, tax_rate FROM sales_order_item WHERE sales_order_id = $1 AND product_id = $2 LIMIT 1`,
+          [so_id, product_id]
+        );
+        let unitPrice = parseFloat(soItemRes.rows[0]?.unit_price || 0);
+        const taxRate = parseFloat(soItemRes.rows[0]?.tax_rate || soItemRes.rows[0]?.tax_rate || 0);
+
+        // Fallback: use product standard_cost if no unit price found
+        if (!unitPrice) {
+          const prodCostRes = await invoiceClient.query(
+            `SELECT standard_cost FROM product WHERE product_id = $1`,
+            [product_id]
+          );
+          unitPrice = parseFloat(prodCostRes.rows[0]?.standard_cost || 0);
+        }
+
+        const subtotal = unitPrice * quantity;
+        const taxAmount = subtotal * (taxRate / 100);
+        const totalAmount = subtotal + taxAmount;
+
+        // Generate invoice number
+        const invoiceCount = await invoiceClient.query('SELECT COUNT(*) FROM customer_invoice');
+        const invoiceNumber = `INV-${dispatchNo}-${Number(invoiceCount.rows[0].count) + 1}`;
+
+        autoInvoiceId = uuidv4();
+        await invoiceClient.query(
+          `INSERT INTO customer_invoice (
+             invoice_id, invoice_number, sales_order_id, customer_id, dispatch_id,
+             issue_date, due_date, subtotal, tax_amount, total_amount, status, created_at
+           ) VALUES (
+             $1, $2, $3, $4, $5,
+             CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days',
+             $6, $7, $8, 'DRAFT', NOW()
+           )`,
+          [autoInvoiceId, invoiceNumber, so_id, finalCustomerId, dispatchId,
+           subtotal, taxAmount, totalAmount]
+        );
+
+        // Insert invoice line item
+        await invoiceClient.query(
+          `INSERT INTO customer_invoice_item (
+             item_id, invoice_id, product_id, quantity, unit_price, subtotal, tax_amount, total
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [uuidv4(), autoInvoiceId, product_id, quantity, unitPrice, subtotal, taxAmount, totalAmount]
+        );
+
+        await invoiceClient.query('COMMIT');
+        logger.info({ autoInvoiceId, invoiceNumber, dispatchNo }, 'Auto-invoice generated for dispatch');
+      } catch (invErr) {
+        await invoiceClient.query('ROLLBACK');
+        logger.error({ error: invErr.message, dispatchNo }, 'Auto-invoice generation failed (non-blocking)');
+      } finally {
+        invoiceClient.release();
+      }
+    } catch (connErr) {
+      logger.error({ error: connErr.message }, 'Failed to get DB connection for auto-invoice');
+    }
+    // --- END AUTO-INVOICE ---
+
     res.json({
       success: true,
       data: {
@@ -418,9 +498,12 @@ export async function createDispatch(req, res) {
         dispatch_no: dispatchNo,
         so_id,
         product_id,
-        quantity
+        quantity,
+        auto_invoice_id: autoInvoiceId
       },
-      message: 'Dispatch order created successfully'
+      message: autoInvoiceId
+        ? `Dispatch created and invoice auto-generated (${autoInvoiceId})`
+        : 'Dispatch order created successfully'
     });
 
   } catch (error) {

@@ -26,11 +26,9 @@ const ProductionRecipes = lazy(() => import("@/pages/ProductionRecipes"));
 const ScrapManagement = lazy(() => import("@/pages/ScrapManagement"));
 const WastageTracking = lazy(() => import("@/pages/WastageTracking"));
 const StockAdjustment = lazy(() => import("@/pages/StockAdjustment"));
-const ProductionTracking = lazy(() => import("@/pages/ProductionTracking"));
 const EnhancedReports = lazy(() => import("@/pages/EnhancedReports"));
 const Reports = lazy(() => import("@/pages/Reports"));
 const MonthlyInventorySalesReport = lazy(() => import("@/pages/Reports/MonthlyInventorySalesReport"));
-const RoutingTest = lazy(() => import("@/pages/RoutingTest"));
 const BOMStandardDisplay = lazy(() => import("@/pages/BOM/BOMStandardDisplay"));
 const BOMScrapManagement = lazy(() => import("@/pages/BOM/ScrapManagement"));
 const ProductionRecipe = lazy(() => import("@/pages/BOM/ProductionRecipe"));
@@ -61,12 +59,17 @@ const AuditLogs = lazy(() => import("@/pages/Settings/AuditLogs"));
 
 const EmployeeRegistry = lazy(() => import("@/pages/HR/EmployeeRegistry"));
 const PayrollPortal = lazy(() => import("@/pages/HR/PayrollPortal"));
+const LeaveManagement = lazy(() => import("@/pages/HR/LeaveManagement"));
 const QCInspections = lazy(() => import("@/pages/QC/QCInspections"));
 const QualityStandards = lazy(() => import("@/pages/QC/QualityStandards"));
 const PandLStatement = lazy(() => import("@/pages/Reports/PandLStatement"));
 const DepartmentalOverheads = lazy(() => import("@/pages/Reports/DepartmentalOverheads"));
 const AssetMaintenance = lazy(() => import("@/pages/Assets/AssetMaintenance"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
+const CustomerManagement = lazy(() => import("@/pages/Customers/CustomerManagement"));
+const LeadCenter = lazy(() => import("@/pages/CRM/LeadCenter"));
+const CrmPipeline = lazy(() => import("@/pages/CRM/CrmPipeline"));
+const QuotationCenter = lazy(() => import("@/pages/CRM/QuotationCenter"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -231,14 +234,7 @@ const App = () => (
                   </RouteWrapper>
                 }
               />
-              <Route
-                path="production-tracking"
-                element={
-                  <RouteWrapper>
-                    <ProductionTracking />
-                  </RouteWrapper>
-                }
-              />
+
               <Route
                 path="enhanced-reports"
                 element={
@@ -263,14 +259,7 @@ const App = () => (
                   </RouteWrapper>
                 }
               />
-              <Route
-                path="routing-test"
-                element={
-                  <RouteWrapper>
-                    <RoutingTest />
-                  </RouteWrapper>
-                }
-              />
+
               <Route
                 path="bom"
                 element={<Navigate to="bom/standard-display" replace />} />
@@ -486,9 +475,21 @@ const App = () => (
               <Route
                 path="hr/payroll"
                 element={
-                  <RouteWrapper>
-                    <PayrollPortal />
-                  </RouteWrapper>
+                  <ProtectedRoute allowedRoles={['Admin', 'HR', 'Finance']}>
+                    <RouteWrapper>
+                      <PayrollPortal />
+                    </RouteWrapper>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="hr/leave"
+                element={
+                  <ProtectedRoute allowedRoles={['Admin', 'HR']}>
+                    <RouteWrapper>
+                      <LeaveManagement />
+                    </RouteWrapper>
+                  </ProtectedRoute>
                 }
               />
               <Route
@@ -536,6 +537,38 @@ const App = () => (
                 element={
                   <RouteWrapper>
                     <AuditLogs />
+                  </RouteWrapper>
+                }
+              />
+              <Route
+                path="master-data/customers"
+                element={
+                  <RouteWrapper>
+                    <CustomerManagement />
+                  </RouteWrapper>
+                }
+              />
+              <Route
+                path="crm/leads"
+                element={
+                  <RouteWrapper>
+                    <LeadCenter />
+                  </RouteWrapper>
+                }
+              />
+              <Route
+                path="crm/pipeline"
+                element={
+                  <RouteWrapper>
+                    <CrmPipeline />
+                  </RouteWrapper>
+                }
+              />
+              <Route
+                path="crm/quotations"
+                element={
+                  <RouteWrapper>
+                    <QuotationCenter />
                   </RouteWrapper>
                 }
               />

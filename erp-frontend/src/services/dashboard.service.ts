@@ -57,6 +57,16 @@ export interface MonthlyTrend {
   workOrders: number;
 }
 
+export interface LowStockAlert {
+  inventory_id: string;
+  product_id?: string;
+  material_id?: string;
+  item_name: string;
+  quantity: number;
+  min_stock: number;
+  urgency: 'CRITICAL' | 'HIGH' | 'MEDIUM';
+}
+
 class DashboardService {
   /**
    * Get dashboard statistics
@@ -158,6 +168,19 @@ class DashboardService {
       stockOut: Math.floor(Math.random() * 80) + 40,
       workOrders: Math.floor(Math.random() * 20) + 10
     }));
+  }
+
+  /**
+   * Get low stock alerts
+   */
+  async getLowStockAlerts(): Promise<LowStockAlert[]> {
+    try {
+      const response = await api.get('/stock-levels/alerts');
+      return response.data?.data?.alerts || [];
+    } catch (error) {
+      console.error('Error fetching low stock alerts:', error);
+      return [];
+    }
   }
 }
 

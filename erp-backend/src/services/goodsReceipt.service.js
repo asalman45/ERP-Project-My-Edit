@@ -1,6 +1,7 @@
 // src/services/goodsReceipt.service.js
 import db from '../utils/db.js';
 import { logger } from '../utils/logger.js';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * GRN (Goods Receipt Note) Service
@@ -218,7 +219,107 @@ export async function createGoodsReceipt(grnData) {
       }
     }
 
+    // Auto-post Journal Entry (AP & Inventory) for the Goods Receipt
+    try {
+      let totalGrnValue = 0;
+      for (const item of items) {
+        let poPrice = 0;
+        if (item.po_item_id) {
+          const poItemResult = await client.query('SELECT unit_price FROM purchase_order_item WHERE po_item_id = $1', [item.po_item_id]);
+          if (poItemResult.rows.length > 0) {
+            poPrice = parseFloat(poItemResult.rows[0].unit_price) || 0;
+          }
+        }
+        totalGrnValue += parseFloat(item.qty_received || 0) * poPrice;
+      }
+
+      if (totalGrnValue > 0) {
+        // Find AP and Inventory Accounts
+        let apAcc = await client.query(`SELECT account_id FROM financial_account WHERE category = 'ACCOUNTS_PAYABLE' LIMIT 1`);
+        if (apAcc.rows.length === 0) {
+          apAcc = await client.query(`INSERT INTO financial_account (account_id, code, name, type, category) VALUES ($1, '2000', 'Accounts Payable', 'LIABILITY', 'ACCOUNTS_PAYABLE') RETURNING account_id`, [uuidv4()]);
+        }
+
+        let invAcc = await client.query(`SELECT account_id FROM financial_account WHERE category = 'INVENTORY' LIMIT 1`);
+        if (invAcc.rows.length === 0) {
+          invAcc = await client.query(`INSERT INTO financial_account (account_id, code, name, type, category) VALUES ($1, '1300', 'Raw Materials Inventory', 'ASSET', 'INVENTORY') RETURNING account_id`, [uuidv4()]);
+        }
+
+        const apAccountId = apAcc.rows[0].account_id;
+        const invAccountId = invAcc.rows[0].account_id;
+
+        const jId = uuidv4();
+        const voucherNumber = `JV-GRN-${Date.now().toString().slice(-6)}`;
+        await client.query(`
+          INSERT INTO journal_entry (entry_id, voucher_number, reference, description, status, created_by, created_at)
+          VALUES ($1, $2, $3, $4, 'POSTED', 'SmartERP', CURRENT_TIMESTAMP)
+        `, [jId, voucherNumber, grnNo, `Goods Receipt ${grnNo}`]);
+
+        // Credit Accounts Payable
+        await client.query(`
+          INSERT INTO journal_line (line_id, entry_id, account_id, credit) 
+          VALUES ($1, $2, $3, $4)
+        `, [uuidv4(), jId, apAccountId, totalGrnValue]);
+
+        // Debit Raw Materials Inventory
+        await client.query(`
+          INSERT INTO journal_line (line_id, entry_id, account_id, debit) 
+          VALUES ($1, $2, $3, $4)
+        `, [uuidv4(), jId, invAccountId, totalGrnValue]);
+
+        logger.info({ grnNo, totalGrnValue }, 'Journal entry auto-posted for Goods Receipt');
+      }
+    } catch (journalErr) {
+      logger.error({ err: journalErr.message, grnNo }, 'Failed to post Journal Entry for Goods Receipt');
+    }
+
+    // --- QC AUTO-TRIGGER: Create pending QC inspections for each received material ---
+    for (const item of items) {
+      const { material_id } = item;
+      if (!material_id) continue;
+      try {
+        // Check if a QC standard already exists for this material
+        const existingStd = await client.query(
+          `SELECT standard_id FROM qc_standard WHERE material_id = $1 LIMIT 1`,
+          [material_id]
+        );
+
+        let standardId;
+        if (existingStd.rows.length > 0) {
+          standardId = existingStd.rows[0].standard_id;
+        } else {
+          // Auto-create a default QC standard for this raw material
+          const matInfo = await client.query(
+            `SELECT name FROM material WHERE material_id = $1 LIMIT 1`,
+            [material_id]
+          );
+          const matName = matInfo.rows[0]?.name || material_id;
+          const newStdRes = await client.query(
+            `INSERT INTO qc_standard (standard_id, material_id, name, description, created_at)
+             VALUES (gen_random_uuid(), $1, $2, 'Auto-created on GRN receipt', NOW())
+             RETURNING standard_id`,
+            [material_id, `Default Standard — ${matName}`]
+          );
+          standardId = newStdRes.rows[0]?.standard_id;
+          logger.info({ material_id, standardId }, 'Auto-created QC standard for material on GRN');
+        }
+
+        if (standardId) {
+          await client.query(
+            `INSERT INTO qc_inspection (inspection_id, standard_id, reference_id, result, notes, inspected_at)
+             VALUES (gen_random_uuid(), $1, $2, 'PENDING', $3, NOW())`,
+            [standardId, grn.grn_id, `Auto-triggered QC on GRN ${grnNo}`]
+          );
+          logger.info({ standardId, grn_id: grn.grn_id }, 'QC Inspection auto-created on GRN');
+        }
+      } catch (qcErr) {
+        logger.error({ error: qcErr.message, material_id, grnNo }, 'QC auto-trigger failed (non-blocking)');
+      }
+    }
+    // --- END QC AUTO-TRIGGER ---
+
     await client.query('COMMIT');
+
 
     logger.info({ grn_id: grn.grn_id, items_count: grnItems.length }, 'GRN completed successfully');
 

@@ -356,6 +356,7 @@ export const importBOMFromSpreadsheet = async (req, res) => {
 };
 
 // Export BOM data in specified format
+// Export BOM data in specified format
 export const exportBOMData = async (req, res) => {
   try {
     const { format = 'csv', productId } = req.query;
@@ -364,8 +365,7 @@ export const exportBOMData = async (req, res) => {
       // Get BOM data in standard format
       let bomData = null;
       if (productId) {
-        const bomResponse = await getBOMInStandardFormat({ params: { productId } });
-        bomData = bomResponse.data || bomResponse;
+        bomData = await fetchStandardizedBOM(productId);
       }
       
       if (!bomData) {
@@ -407,8 +407,7 @@ export const exportScrapData = async (req, res) => {
     // Get scrap data
     let scrapData = null;
     if (productId) {
-      const scrapResponse = await getScrapManagement({ params: { productId } });
-      scrapData = scrapResponse.data || scrapResponse;
+      scrapData = await fetchScrapManagement(productId);
     }
     
     if (!scrapData || !scrapData.scrapDetails || scrapData.scrapDetails.length === 0) {
@@ -444,128 +443,111 @@ export const exportScrapData = async (req, res) => {
   }
 };
 
+// Core standardized BOM retrieval logic
+export const fetchStandardizedBOM = async (productId) => {
+  // Get product details with model information
+  const productRes = await db.query(
+    `SELECT p.*, m.model_name, o.oem_name 
+     FROM product p 
+     LEFT JOIN model m ON p.model_id = m.model_id 
+     LEFT JOIN oem o ON m.oem_id = o.oem_id 
+     WHERE p.product_id = $1`,
+    [productId]
+  );
+  
+  if (productRes.rows.length === 0) {
+    return null;
+  }
+  
+  const product = productRes.rows[0];
+  
+  // Get blank specifications with material consumption data
+  const blankSpecs = await blankSpecModel.findByProductId(productId);
+  
+  // Get material consumption data
+  const consumptionData = await materialConsumptionModel.findByProductId(productId);
+  
+  // Format data according to the exact step-by-step specification
+  const standardizedBOM = {
+    partNo: product.product_code || 'MISSING',
+    partDescription: product.part_name || 'MISSING',
+    mode: product.model_name || 'MISSING',
+    subAssemblies: [],
+    picture: null, // TODO: Add image support
+    totalWeight: 0
+  };
+  
+  let totalWeight = 0;
+
+  // If no blank specs found, return basic product info
+  if (!blankSpecs || blankSpecs.length === 0) {
+    return standardizedBOM;
+  }
+
+  // Process each blank specification as a sub-assembly
+  for (const spec of blankSpecs) {
+    // Find corresponding consumption data
+    const consumption = consumptionData.find(c => 
+      c.sub_assembly_name === spec.sub_assembly_name &&
+      c.blank_width_mm === spec.width_mm &&
+      c.blank_length_mm === spec.length_mm
+    );
+    
+    const subAssembly = {
+      name: validateField(spec.sub_assembly_name, 'sub_assembly_name'),
+      blankSize: {
+        width: validateField(spec.width_mm, 'width_mm'),
+        length: validateField(spec.length_mm, 'length_mm'), 
+        thickness: validateField(spec.thickness_mm, 'thickness_mm'),
+        quantity: validateField(spec.quantity, 'quantity')
+      },
+      weightPerBlank: validateField(spec.blank_weight_kg, 'blank_weight_kg'),
+      materialConsumption: {
+        sheetConsumptionPercent: validateField(
+          consumption?.utilization_pct || spec.sheet_util_pct, 
+          'sheet_utilization_percent'
+        ),
+        sheetWeight: validateField(
+          consumption?.sheet_weight_kg || spec.sheet_weight_kg, 
+          'sheet_weight_kg'
+        ),
+        piecesPerSheet: validateField(
+          consumption?.pieces_per_sheet || spec.pcs_per_sheet, 
+          'pieces_per_sheet'
+        ),
+        totalBlanks: validateField(
+          consumption?.total_blanks || spec.total_blanks, 
+          'total_blanks'
+        )
+      }
+    };
+    
+    if (typeof spec.blank_weight_kg === 'number' && typeof spec.quantity === 'number') {
+      totalWeight += spec.blank_weight_kg * spec.quantity;
+    }
+    
+    standardizedBOM.subAssemblies.push(subAssembly);
+  }
+  
+  standardizedBOM.totalWeight = totalWeight;
+  return standardizedBOM;
+};
+
 // Get BOM data in the new standardized format
 export const getBOMInStandardFormat = async (req, res) => {
   try {
     const { productId } = req.params;
     logger.info({ product_id: productId }, 'Getting BOM in standard format');
     
-    // Get product details with model information
-    const productRes = await db.query(
-      `SELECT p.*, m.model_name, o.oem_name 
-       FROM product p 
-       LEFT JOIN model m ON p.model_id = m.model_id 
-       LEFT JOIN oem o ON m.oem_id = o.oem_id 
-       WHERE p.product_id = $1`,
-      [productId]
-    );
-    
-    logger.info({ product_count: productRes.rows.length }, 'Product query result');
-    
-    if (productRes.rows.length === 0) {
+    const standardizedBOM = await fetchStandardizedBOM(productId);
+    if (!standardizedBOM) {
       logger.warn({ product_id: productId }, 'Product not found');
       return res.status(404).json({ error: 'Product not found' });
     }
     
-    const product = productRes.rows[0];
-    
-    // Get blank specifications with material consumption data
-    const blankSpecs = await blankSpecModel.findByProductId(productId);
-    logger.info({ blank_specs_count: blankSpecs.length }, 'Blank specs found');
-    
-    // Get material consumption data
-    const consumptionData = await materialConsumptionModel.findByProductId(productId);
-    logger.info({ consumption_data_count: consumptionData.length }, 'Consumption data found');
-    
-    // Format data according to the exact step-by-step specification
-    const standardizedBOM = {
-      // Step 1: Part No
-      partNo: product.product_code || 'MISSING',
-      // Step 2: Part Description  
-      partDescription: product.part_name || 'MISSING',
-      // Step 3: Mode (e.g. NMR / NPR)
-      mode: product.model_name || 'MISSING',
-      // Step 4: Sub Assembly (will be populated below)
-      subAssemblies: [],
-      // Step 7: Picture (placeholder for now)
-      picture: null, // TODO: Add image support
-      // Step 9: Total Weight / Totals
-      totalWeight: 0
-    };
-    
-    let totalWeight = 0;
-
-    // If no blank specs found, return basic product info
-    if (!blankSpecs || blankSpecs.length === 0) {
-      logger.warn({ product_id: productId }, 'No blank specifications found for product');
-      const basicBOM = {
-        partNo: product.product_code || 'MISSING',
-        partDescription: product.part_name || 'MISSING',
-        mode: product.model_name || 'MISSING',
-        subAssemblies: [],
-        picture: null,
-        totalWeight: 0
-      };
-      return res.json({ data: basicBOM });
-    }
-
-    // Process each blank specification as a sub-assembly
-    for (const spec of blankSpecs) {
-      // Find corresponding consumption data
-      const consumption = consumptionData.find(c => 
-        c.sub_assembly_name === spec.sub_assembly_name &&
-        c.blank_width_mm === spec.width_mm &&
-        c.blank_length_mm === spec.length_mm
-      );
-      
-      const subAssembly = {
-        // Step 4: Sub Assembly
-        name: validateField(spec.sub_assembly_name, 'sub_assembly_name'),
-        // Step 5: Blank Size — Width (W), Length (L), Thickness (t), Qty
-          blankSize: {
-          width: validateField(spec.width_mm, 'width_mm'),
-          length: validateField(spec.length_mm, 'length_mm'), 
-          thickness: validateField(spec.thickness_mm, 'thickness_mm'),
-          quantity: validateField(spec.quantity, 'quantity')
-        },
-        // Step 7: Weight (per blank)
-        weightPerBlank: validateField(spec.blank_weight_kg, 'blank_weight_kg'),
-        // Step 8: Material Consumption
-          materialConsumption: {
-          sheetConsumptionPercent: validateField(
-            consumption?.utilization_pct || spec.sheet_util_pct, 
-            'sheet_utilization_percent'
-          ),
-          sheetWeight: validateField(
-            consumption?.sheet_weight_kg || spec.sheet_weight_kg, 
-            'sheet_weight_kg'
-          ),
-          piecesPerSheet: validateField(
-            consumption?.pieces_per_sheet || spec.pcs_per_sheet, 
-            'pieces_per_sheet'
-          ),
-          totalBlanks: validateField(
-            consumption?.total_blanks || spec.total_blanks, 
-            'total_blanks'
-          )
-        }
-      };
-      
-      // Calculate total weight for this sub-assembly
-      if (typeof spec.blank_weight_kg === 'number' && typeof spec.quantity === 'number') {
-        totalWeight += spec.blank_weight_kg * spec.quantity;
-      }
-      
-      standardizedBOM.subAssemblies.push(subAssembly);
-    }
-    
-    standardizedBOM.totalWeight = totalWeight;
-    
     logger.info({ 
       product_id: productId, 
-      sub_assemblies_count: standardizedBOM.subAssemblies.length,
-      sub_assemblies: standardizedBOM.subAssemblies,
-      full_bom_data: standardizedBOM
+      sub_assemblies_count: standardizedBOM.subAssemblies.length 
     }, 'BOM data retrieved in standard format');
     return res.json({ data: standardizedBOM });
   } catch (err) {
@@ -583,73 +565,89 @@ const validateField = (value, fieldName) => {
   return value;
 };
 
+// Core scrap management retrieval logic
+export const fetchScrapManagement = async (productId) => {
+  // Get all scrap inventory entries that could be leftover from this product
+  const scrapEntries = await scrapInventoryModel.findByProductId(productId);
+  
+  // Group scrap by material for consolidated summary
+  const scrapSummary = {};
+  const scrapDetails = [];
+  
+  for (const scrap of scrapEntries) {
+    // Get material details
+    const materialRes = await db.query(
+      `SELECT m.material_code, m.name as material_name 
+       FROM material m 
+       WHERE m.material_id = $1`,
+      [scrap.material_id]
+    );
+    
+    const material = materialRes.rows[0] || { material_code: 'UNKNOWN', material_name: 'Unknown Material' };
+    
+    const scrapEntry = {
+      materialId: validateField(scrap.material_id, 'scrap_material_id'),
+      materialName: validateField(material.material_name, 'material_name'),
+      quantity: validateField(scrap.weight_kg, 'scrap_weight_kg'),
+      unit: 'kg',
+      reason: 'cutting loss',
+      suggestedAction: scrap.status === 'AVAILABLE' ? 'reuse' : 'scrap',
+      estimatedSalvageValue: 0,
+      dimensions: {
+        width: validateField(scrap.width_mm, 'scrap_width_mm'),
+        length: validateField(scrap.length_mm, 'scrap_length_mm'),
+        thickness: validateField(scrap.thickness_mm, 'scrap_thickness_mm')
+      }
+    };
+    
+    scrapDetails.push(scrapEntry);
+    
+    const materialKey = material.material_name;
+    if (!scrapSummary[materialKey]) {
+      scrapSummary[materialKey] = {
+        materialId: scrap.material_id,
+        materialName: material.material_name,
+        totalQuantity: 0,
+        totalValue: 0,
+        entries: []
+      };
+    }
+    
+    scrapSummary[materialKey].totalQuantity += typeof scrap.weight_kg === 'number' ? scrap.weight_kg : 0;
+    scrapSummary[materialKey].totalValue += scrapEntry.estimatedSalvageValue;
+    scrapSummary[materialKey].entries.push(scrapEntry);
+  }
+  
+  return {
+    productId,
+    scrapDetails,
+    consolidatedSummary: Object.values(scrapSummary)
+  };
+};
+
 // Get scrap/leftover materials for a product
 export const getScrapManagement = async (req, res) => {
   try {
     const { productId } = req.params;
     
-    // Get all scrap inventory entries that could be leftover from this product
-    const scrapEntries = await scrapInventoryModel.findByProductId(productId);
+    const result = await fetchScrapManagement(productId);
     
-    // Group scrap by material for consolidated summary
-    const scrapSummary = {};
-    const scrapDetails = [];
-    
-    for (const scrap of scrapEntries) {
-      // Get material details
-      const materialRes = await db.query(
-        `SELECT m.material_code, m.name as material_name 
-         FROM material m 
-         WHERE m.material_id = $1`,
-        [scrap.material_id]
-      );
-      
-      const material = materialRes.rows[0] || { material_code: 'UNKNOWN', material_name: 'Unknown Material' };
-      
-      const scrapEntry = {
-        materialId: validateField(scrap.material_id, 'scrap_material_id'),
-        materialName: validateField(material.material_name, 'material_name'),
-        quantity: validateField(scrap.weight_kg, 'scrap_weight_kg'),
-        unit: 'kg',
-        reason: 'cutting loss', // Default reason, could be enhanced
-        suggestedAction: scrap.status === 'AVAILABLE' ? 'reuse' : 'scrap',
-        estimatedSalvageValue: 0, // TODO: Calculate based on material value
-        dimensions: {
-          width: validateField(scrap.width_mm, 'scrap_width_mm'),
-          length: validateField(scrap.length_mm, 'scrap_length_mm'),
-          thickness: validateField(scrap.thickness_mm, 'scrap_thickness_mm')
-        }
-      };
-      
-      scrapDetails.push(scrapEntry);
-      
-      // Add to summary
-      const materialKey = material.material_name;
-      if (!scrapSummary[materialKey]) {
-        scrapSummary[materialKey] = {
-          materialId: scrap.material_id,
-          materialName: material.material_name,
-          totalQuantity: 0,
-          totalValue: 0,
-          entries: []
-        };
-      }
-      
-      scrapSummary[materialKey].totalQuantity += typeof scrap.weight_kg === 'number' ? scrap.weight_kg : 0;
-      scrapSummary[materialKey].totalValue += scrapEntry.estimatedSalvageValue;
-      scrapSummary[materialKey].entries.push(scrapEntry);
-    }
-    
-    const result = {
-      productId,
-      scrapDetails,
-      consolidatedSummary: Object.values(scrapSummary)
-    };
-    
-    logger.info({ product_id: productId, scrap_entries_count: scrapEntries.length }, 'Scrap management data retrieved');
+    logger.info({ product_id: productId, scrap_entries_count: result.scrapDetails.length }, 'Scrap management data retrieved');
     return res.json({ data: result });
   } catch (err) {
     logger.error({ err, product_id: req.params.productId }, 'Failed to get scrap management data');
     return res.status(500).json({ error: 'Failed to retrieve scrap management data. Please try again.' });
+  }
+};
+
+export const createNewVersion = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const newVersion = await bomModel.createNewVersion(productId);
+    logger.info({ product_id: productId, new_version: newVersion }, 'New BOM version created');
+    return res.json({ success: true, version: newVersion });
+  } catch (err) {
+    logger.error({ err, product_id: req.params.productId }, 'Failed to create new BOM version');
+    return res.status(500).json({ error: 'Failed to create new BOM version. Please try again.' });
   }
 };

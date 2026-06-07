@@ -7,7 +7,7 @@ export const findByProductId = async (productId) => {
      FROM bom b
      JOIN material m ON b.material_id = m.material_id
      LEFT JOIN uom u ON m.uom_id = u.uom_id
-     WHERE b.product_id = $1
+     WHERE b.product_id = $1 AND b.is_active = true
      ORDER BY b.material_id`,
     [productId]
   );
@@ -65,7 +65,7 @@ export const findByProductIdWithSubAssemblies = async (productId) => {
      FROM bom b
      JOIN material m ON b.material_id = m.material_id
      LEFT JOIN uom u ON b.uom_id = u.uom_id
-     WHERE b.product_id = $1
+     WHERE b.product_id = $1 AND b.is_active = true
      ORDER BY b.step_sequence, b.sub_assembly_name, b.material_id`,
     [productId]
   );
@@ -138,6 +138,36 @@ export const getProcessFlowByProductId = async (productId) => {
   return res.rows;
 };
 
+export const createNewVersion = async (productId) => {
+  // Get current active version items
+  const currentItems = await db.query(
+    `SELECT * FROM bom WHERE product_id = $1 AND is_active = true`,
+    [productId]
+  );
+  
+  if (currentItems.rows.length === 0) return 1;
+  
+  const currentVersion = currentItems.rows[0].version || 1;
+  const newVersion = currentVersion + 1;
+  
+  // Set existing to inactive
+  await db.query(
+    `UPDATE bom SET is_active = false WHERE product_id = $1`,
+    [productId]
+  );
+  
+  // Insert new version
+  for (const item of currentItems.rows) {
+    await db.query(
+      `INSERT INTO bom (bom_id, product_id, material_id, quantity, sub_assembly_name, step_sequence, is_optional, uom_id, version, is_active)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, true)`,
+      [productId, item.material_id, item.quantity, item.sub_assembly_name, item.step_sequence, item.is_optional, item.uom_id, newVersion]
+    );
+  }
+  
+  return newVersion;
+};
+
 // Maximum BOM functionality
 export const getMaximumBom = async (productId) => {
   console.log('🔍 Getting Maximum BOM for product:', productId);
@@ -148,7 +178,7 @@ export const getMaximumBom = async (productId) => {
      FROM bom b
      JOIN material m ON b.material_id = m.material_id
      LEFT JOIN uom u ON b.uom_id = u.uom_id
-     WHERE b.product_id = $1
+     WHERE b.product_id = $1 AND b.is_active = true
      ORDER BY b.step_sequence, b.sub_assembly_name, b.material_id`,
     [productId]
   );
@@ -165,7 +195,7 @@ export const checkMaterialAvailability = async (productId, requiredQuantity = 1)
     `SELECT b.*, m.material_code, m.name as material_name, m.unit_cost
      FROM bom b
      JOIN material m ON b.material_id = m.material_id
-     WHERE b.product_id = $1 AND b.is_optional = false
+     WHERE b.product_id = $1 AND b.is_optional = false AND b.is_active = true
      ORDER BY b.step_sequence`,
     [productId]
   );

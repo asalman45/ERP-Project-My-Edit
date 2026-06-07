@@ -106,6 +106,27 @@ export async function executeProductionBackflushAndCogs(woId) {
       VALUES ($1, 'PRODUCT', $2, 'RECEIVE', $3, $4, $5, $6, 'SmartERP', CURRENT_TIMESTAMP)
     `, [uuidv4(), wo.product_id, wo.quantity, (finalCogs / wo.quantity), finalCogs, `Auto-FG-Cap for WO ${wo.wo_no}`]);
 
+    // Update/create physical finished goods inventory record
+    const fgInvResult = await client.query(
+      'SELECT inventory_id, quantity FROM inventory WHERE product_id = $1 LIMIT 1',
+      [wo.product_id]
+    );
+
+    if (fgInvResult.rows.length > 0) {
+      const existingInv = fgInvResult.rows[0];
+      const newFgQty = parseFloat(existingInv.quantity) + parseFloat(wo.quantity);
+      await client.query(
+        'UPDATE inventory SET quantity = $1, updated_at = CURRENT_TIMESTAMP WHERE inventory_id = $2',
+        [newFgQty, existingInv.inventory_id]
+      );
+    } else {
+      await client.query(
+        `INSERT INTO inventory (inventory_id, product_id, quantity, status, created_at, updated_at)
+         VALUES ($1, $2, $3, 'AVAILABLE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [uuidv4(), wo.product_id, wo.quantity]
+      );
+    }
+
     await client.query('COMMIT');
     logger.info({ woId, finalCogs }, 'Successfully ran Auto-Backflush and Smart COGS');
 

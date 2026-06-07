@@ -66,6 +66,9 @@ const ERPSidebar: React.FC<ERPSidebarProps> = ({ isCollapsed, onToggle }) => {
         { label: 'Sales Orders', path: '/sales-orders' },
         { label: 'Dispatch', path: '/sales/dispatch' },
         { label: 'Invoicing & Payments', path: '/sales/invoicing' },
+        { label: 'Lead Center', path: '/crm/leads' },
+        { label: 'CRM Pipeline', path: '/crm/pipeline' },
+        { label: 'Quotation Center', path: '/crm/quotations' },
       ],
     },
     {
@@ -75,6 +78,7 @@ const ERPSidebar: React.FC<ERPSidebarProps> = ({ isCollapsed, onToggle }) => {
       roles: ['admin', 'finance', 'production', 'procurement', 'sales'],
       submenu: [
         { label: 'Products', path: '/master-data' },
+        { label: 'Customers', path: '/master-data/customers' },
         { label: 'Materials', path: '/raw-materials' },
         { label: 'Suppliers', path: '/suppliers' },
       ],
@@ -109,8 +113,7 @@ const ERPSidebar: React.FC<ERPSidebarProps> = ({ isCollapsed, onToggle }) => {
       submenu: [
         { label: 'Planned Production', path: '/planned-production' },
         { label: 'MRP Planning', path: '/planning/mrp-planning' },
-        { label: 'Work Orders', path: '/work-orders-management' },
-        { label: 'Production Tracking', path: '/production-tracking' },
+        { label: 'Work Orders & Tracking', path: '/work-orders-management' },
         { label: 'Process Flow', path: '/process-flow' },
         { label: 'Quality Standards', path: '/qc/standards' },
         { label: 'QC Inspections', path: '/qc/inspections' },
@@ -130,12 +133,13 @@ const ERPSidebar: React.FC<ERPSidebarProps> = ({ isCollapsed, onToggle }) => {
     },
     {
       key: 'hr',
-      icon: Workflow,
+      icon: Users,
       label: 'HR & Payroll',
-      roles: ['admin', 'finance'],
+      roles: ['admin', 'finance', 'hr'],
       submenu: [
         { label: 'Employee Registry', path: '/hr/employees' },
-        { label: 'Payroll Portal', path: '/hr/payroll' },
+        { label: 'Payroll & Salary', path: '/hr/payroll' },
+        { label: 'Leave Management', path: '/hr/leave' }
       ],
     },
     {

@@ -5,7 +5,7 @@ import {
   getBOMWithSubAssemblies, calculateMaterialConsumption, getProcessFlow,
   addSubAssembly, getReusableMaterials, optimizeMaterialUsage,
   importBOMFromSpreadsheet, exportBOMData, exportScrapData, getBOMInStandardFormat,
-  getScrapManagement
+  getScrapManagement, createNewVersion
 } from '../controllers/bom.controller.js';
 
 const router = express.Router();
@@ -24,8 +24,8 @@ router.post('/:productId/calculate-consumption', calculateMaterialConsumption);
 router.get('/:productId/process-flow', getProcessFlow);
 router.get('/:productId/reusable-materials', getReusableMaterials);
 router.post('/:productId/optimize-usage', optimizeMaterialUsage);
-
 // New standardized BOM format routes
+router.post('/:productId/new-version', createNewVersion);
 router.get('/:productId/standard-format', getBOMInStandardFormat);
 router.get('/:productId/scrap-management', getScrapManagement);
 router.post('/import/spreadsheet', importBOMFromSpreadsheet);

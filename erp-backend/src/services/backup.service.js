@@ -50,20 +50,38 @@ export function runBackup() {
         const env = { ...process.env, PGPASSWORD: dbPassword };
         const cmd = `pg_dump -h ${dbHost} -p ${dbPort} -U ${dbUser} -d ${dbName} -F p -f "${filePath}"`;
 
-        logger.info({ cmd: `pg_dump -> ${fileName}` }, 'Starting database backup...');
+        const maxRetries = 3;
+        const retryDelay = 5000; // 5 seconds
 
-        exec(cmd, { env, timeout: 300000 }, (error, stdout, stderr) => {
-            if (error) {
-                logger.error({ error: error.message, stderr }, 'Database backup FAILED');
-                reject(error);
-                return;
-            }
+        const executeWithRetry = (attempt) => {
+            logger.info({ cmd: `pg_dump -> ${fileName}`, attempt }, `Starting database backup (attempt ${attempt}/${maxRetries})...`);
 
-            const stats = fs.statSync(filePath);
-            const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
-            logger.info({ file: fileName, sizeMB }, 'Database backup completed successfully');
-            resolve({ fileName, filePath, sizeMB });
-        });
+            exec(cmd, { env, timeout: 300000 }, (error, stdout, stderr) => {
+                if (error) {
+                    logger.error({ error: error.message, stderr, attempt }, `Database backup attempt ${attempt} FAILED`);
+                    if (attempt < maxRetries) {
+                        logger.info(`Retrying backup in ${retryDelay / 1000} seconds...`);
+                        setTimeout(() => {
+                            executeWithRetry(attempt + 1);
+                        }, retryDelay);
+                    } else {
+                        reject(error);
+                    }
+                    return;
+                }
+
+                try {
+                    const stats = fs.statSync(filePath);
+                    const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
+                    logger.info({ file: fileName, sizeMB }, 'Database backup completed successfully');
+                    resolve({ fileName, filePath, sizeMB });
+                } catch (statError) {
+                    reject(statError);
+                }
+            });
+        };
+
+        executeWithRetry(1);
     });
 }
 

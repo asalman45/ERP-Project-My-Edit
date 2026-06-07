@@ -21,6 +21,14 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
+# Configure npm for resilience: longer timeout + retries (prevents ECONNRESET on slow networks)
+RUN npm config set fetch-retry-mintimeout 20000 \
+    && npm config set fetch-retry-maxtimeout 120000 \
+    && npm config set fetch-retries 5 \
+    && npm config set fetch-timeout 120000
+# Use a mirror for Prisma engines to prevent network reset on large binaries
+ENV PRISMA_ENGINES_MIRROR=https://npmmirror.com/mirrors/prisma
+ENV PRISMA_BINARIES_MIRROR=https://npmmirror.com/mirrors/prisma
 # Install ALL deps (including dev) so prisma CLI is available
 RUN npm ci
 

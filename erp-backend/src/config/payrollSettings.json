@@ -1,0 +1,9 @@
+{
+  "taxBrackets": [
+    { "minGross": 100000, "rate": 0.20, "label": "High Income (>= 100,000)" },
+    { "minGross": 50000, "rate": 0.10, "label": "Medium Income (>= 50,000)" },
+    { "minGross": 0, "rate": 0.05, "label": "Base Rate (< 50,000)" }
+  ],
+  "updatedAt": "2026-06-04T00:00:00Z",
+  "updatedBy": "System"
+}

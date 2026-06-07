@@ -51,6 +51,7 @@ export async function createJournalEntry(req, res) {
         entry_date: entry_date ? new Date(entry_date) : new Date(),
         reference,
         description,
+        status: 'POSTED',
         lines: {
           create: lines.map(line => ({
             account_id: line.account_id,

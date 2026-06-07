@@ -582,7 +582,55 @@ export async function completeWorkOrderOperation(workOrderId, completedBy) {
         'Could not auto-advance SO status after WO completion');
     }
 
+    // --- QC AUTO-TRIGGER: Create pending QC inspection on WO completion ---
+    try {
+      const woProductRes = await client.query(
+        `SELECT product_id FROM work_order WHERE wo_id = $1 LIMIT 1`,
+        [workOrderId]
+      );
+      const productId = woProductRes.rows[0]?.product_id;
+
+      if (productId) {
+        const existingStd = await client.query(
+          `SELECT standard_id FROM qc_standard WHERE product_id = $1 LIMIT 1`,
+          [productId]
+        );
+
+        let standardId;
+        if (existingStd.rows.length > 0) {
+          standardId = existingStd.rows[0].standard_id;
+        } else {
+          const prodInfo = await client.query(
+            `SELECT part_name FROM product WHERE product_id = $1 LIMIT 1`,
+            [productId]
+          );
+          const prodName = prodInfo.rows[0]?.part_name || productId;
+          const newStdRes = await client.query(
+            `INSERT INTO qc_standard (standard_id, product_id, name, description, created_at)
+             VALUES (gen_random_uuid(), $1, $2, 'Auto-created on WO completion', NOW())
+             RETURNING standard_id`,
+            [productId, `Default Standard — ${prodName}`]
+          );
+          standardId = newStdRes.rows[0]?.standard_id;
+          logger.info({ productId, standardId }, 'Auto-created QC standard for product on WO completion');
+        }
+
+        if (standardId) {
+          await client.query(
+            `INSERT INTO qc_inspection (inspection_id, standard_id, reference_id, result, notes, inspected_at)
+             VALUES (gen_random_uuid(), $1, $2, 'PENDING', $3, NOW())`,
+            [standardId, workOrderId, `Auto-triggered QC on WO ${workOrderId} completion`]
+          );
+          logger.info({ standardId, workOrderId }, 'QC Inspection auto-created on WO completion');
+        }
+      }
+    } catch (qcErr) {
+      logger.error({ error: qcErr.message, workOrderId }, 'QC auto-trigger failed on WO completion (non-blocking)');
+    }
+    // --- END QC AUTO-TRIGGER ---
+
     await client.query('COMMIT');
+
 
     logger.info({ workOrderId, completedBy }, 'Work order operation completed');
 

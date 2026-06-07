@@ -304,7 +304,12 @@ const PayrollPortal: React.FC = () => {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-indigo-600">
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      className="h-8 w-8 text-slate-400 hover:text-indigo-600"
+                      onClick={() => window.open(\`/api/hr/payroll/\${p.payroll_id}/pdf\`, '_blank')}
+                    >
                       <Printer className="w-4 h-4" />
                     </Button>
                   </TableCell>

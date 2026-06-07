@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Package,
   Box,
@@ -29,6 +29,7 @@ const RealisticDashboard: React.FC = () => {
   const [inventorySummary, setInventorySummary] = useState<InventorySummary | null>(null);
   const [workOrderStatus, setWorkOrderStatus] = useState<WorkOrderStatus | null>(null);
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
+  const [lowStockAlerts, setLowStockAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,18 +40,20 @@ const RealisticDashboard: React.FC = () => {
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         console.log('Starting dashboard data fetch...');
-        const [statsData, inventoryData, workOrderData, activitiesData] = await Promise.all([
+        const [statsData, inventoryData, workOrderData, activitiesData, alertsData] = await Promise.all([
           dashboardService.getDashboardStats(),
           dashboardService.getInventorySummary(),
           dashboardService.getWorkOrderStatus(),
-          dashboardService.getRecentActivities()
+          dashboardService.getRecentActivities(),
+          dashboardService.getLowStockAlerts()
         ]);
 
-        console.log('Dashboard data fetched successfully:', { statsData, inventoryData, workOrderData, activitiesData });
+        console.log('Dashboard data fetched successfully:', { statsData, inventoryData, workOrderData, activitiesData, alertsData });
         setStats(statsData);
         setInventorySummary(inventoryData);
         setWorkOrderStatus(workOrderData);
         setRecentActivities(activitiesData);
+        setLowStockAlerts(alertsData);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -437,6 +440,52 @@ const RealisticDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Low Stock Alerts */}
+      <div className="animate-in slide-in-from-bottom-4 duration-700 delay-1150">
+        <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-2xl p-6 border border-red-200/50 shadow-lg">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-3">
+              <AlertTriangle className="w-6 h-6 text-red-600" />
+              <h3 className="text-xl font-bold text-red-800">Low Stock Alerts</h3>
+            </div>
+            <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-semibold">
+              {lowStockAlerts.length} Critical Items
+            </span>
+          </div>
+          
+          {loading ? (
+             <div className="space-y-4">
+              {[1, 2].map((i) => (
+                <div key={i} className="flex justify-between items-center p-4 bg-white/50 rounded-xl animate-pulse">
+                  <div className="w-1/3 h-4 bg-red-100 rounded"></div>
+                  <div className="w-1/4 h-4 bg-red-100 rounded"></div>
+                </div>
+              ))}
+             </div>
+          ) : lowStockAlerts.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {lowStockAlerts.slice(0, 6).map((alert: any) => (
+                <div key={alert.inventory_id} className="bg-white/80 p-4 rounded-xl border border-red-100 flex justify-between items-center shadow-sm">
+                  <div>
+                    <h4 className="font-semibold text-gray-800">{alert.item_name}</h4>
+                    <p className="text-sm text-gray-500">Min: {alert.min_stock}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-bold text-red-600">{alert.quantity}</span>
+                    <p className="text-xs text-red-400 font-medium">{alert.urgency}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center p-8 bg-white/50 rounded-xl">
+              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+              <p className="text-gray-600 font-medium">All stock levels are optimal</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
