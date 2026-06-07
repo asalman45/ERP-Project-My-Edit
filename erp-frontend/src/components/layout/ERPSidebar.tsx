@@ -23,7 +23,8 @@ import {
   Package2,
   Ship,
   Activity,
-  Wrench
+  Wrench,
+  Users
 } from 'lucide-react';
 
 interface ERPSidebarProps {
