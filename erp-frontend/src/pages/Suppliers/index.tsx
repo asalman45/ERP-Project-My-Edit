@@ -324,6 +324,7 @@ const SupplierLedgerModal: React.FC<{ supplier: Supplier; onClose: () => void }>
 // ─── Main Suppliers Page ──────────────────────────────────────────────────────
 const SuppliersPage: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [showImportModal, setShowImportModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
@@ -360,6 +361,17 @@ const SuppliersPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ["supplier-summaries"] });
       setShowCreateModal(false);
       toast({ title: "Supplier created successfully" });
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const updateSupplierMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => supplierApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["supplier-summaries"] });
+      setShowCreateModal(false);
+      setEditingSupplier(null);
+      toast({ title: "Supplier updated successfully" });
     },
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -471,6 +483,18 @@ const SuppliersPage: React.FC = () => {
             onClick={() => row && setSelectedLedgerSupplier(row)}
           >
             <BookOpen className="w-3 h-3" /> Ledger
+          </Button>
+          <Button
+            variant="outline" size="sm"
+            className="gap-1 text-xs hover:bg-amber-50 hover:border-amber-300 hover:text-amber-600"
+            onClick={() => {
+              if (row) {
+                setEditingSupplier(row);
+                setShowCreateModal(true);
+              }
+            }}
+          >
+            <Edit className="w-3 h-3" /> Edit
           </Button>
           <Button
             variant="outline" size="sm"
@@ -625,9 +649,19 @@ const SuppliersPage: React.FC = () => {
       {/* Modals */}
       <CreateSupplierModal
         isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onSubmit={createSupplierMutation.mutate}
-        isLoading={createSupplierMutation.isPending}
+        onClose={() => {
+          setShowCreateModal(false);
+          setEditingSupplier(null);
+        }}
+        onSubmit={(data) => {
+          if (editingSupplier) {
+            updateSupplierMutation.mutate({ id: editingSupplier.supplier_id, data });
+          } else {
+            createSupplierMutation.mutate(data);
+          }
+        }}
+        isLoading={createSupplierMutation.isPending || updateSupplierMutation.isPending}
+        supplier={editingSupplier}
       />
       {showImportModal && (
         <SupplierImportModal
@@ -660,14 +694,45 @@ interface CreateSupplierModalProps {
   onClose: () => void;
   onSubmit: (data: any) => void;
   isLoading: boolean;
+  supplier?: Supplier | null;
 }
 
-const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ isOpen, onClose, onSubmit, isLoading }) => {
+const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ isOpen, onClose, onSubmit, isLoading, supplier }) => {
   const [form, setForm] = useState({
     code: "", name: "", contact: "", phone: "", email: "", address: "",
     lead_time_days: "", ntn: "", strn: "", bank_name: "", bank_branch: "",
     bank_account: "", bank_iban: "", bank_account_title: "", bank_account_type: "",
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      if (supplier) {
+        setForm({
+          code: supplier.code || "",
+          name: supplier.name || "",
+          contact: supplier.contact || "",
+          phone: supplier.phone || "",
+          email: supplier.email || "",
+          address: supplier.address || "",
+          lead_time_days: supplier.lead_time_days?.toString() || "",
+          ntn: supplier.ntn || "",
+          strn: supplier.strn || "",
+          bank_name: supplier.bank_name || "",
+          bank_branch: supplier.bank_branch || "",
+          bank_account: supplier.bank_account || "",
+          bank_iban: supplier.bank_iban || "",
+          bank_account_title: supplier.bank_account_title || "",
+          bank_account_type: supplier.bank_account_type || "",
+        });
+      } else {
+        setForm({
+          code: "", name: "", contact: "", phone: "", email: "", address: "",
+          lead_time_days: "", ntn: "", strn: "", bank_name: "", bank_branch: "",
+          bank_account: "", bank_iban: "", bank_account_title: "", bank_account_type: "",
+        });
+      }
+    }
+  }, [isOpen, supplier]);
 
   const upd = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
 
@@ -684,7 +749,7 @@ const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ isOpen, onClo
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Supplier</DialogTitle>
+          <DialogTitle>{supplier ? "Edit Supplier" : "Add New Supplier"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Basic Info */}
@@ -693,7 +758,7 @@ const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ isOpen, onClo
               <Building2 className="w-4 h-4" /> Basic Information
             </h3>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Code *</Label><Input value={form.code} onChange={e => upd("code", e.target.value)} required placeholder="SUP-001" /></div>
+              <div><Label>Code *</Label><Input value={form.code} onChange={e => upd("code", e.target.value)} required placeholder="SUP-001" disabled={!!supplier} /></div>
               <div><Label>Name *</Label><Input value={form.name} onChange={e => upd("name", e.target.value)} required placeholder="Company Name" /></div>
               <div><Label>Contact Person</Label><Input value={form.contact} onChange={e => upd("contact", e.target.value)} placeholder="Full Name" /></div>
               <div><Label>Phone</Label><Input value={form.phone} onChange={e => upd("phone", e.target.value)} placeholder="+92 21 ..." /></div>
@@ -738,7 +803,7 @@ const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ isOpen, onClo
 
           <div className="flex justify-end gap-3 pt-2 border-t">
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={isLoading}>{isLoading ? "Adding…" : "Add Supplier"}</Button>
+            <Button type="submit" disabled={isLoading}>{isLoading ? "Saving…" : (supplier ? "Save Changes" : "Add Supplier")}</Button>
           </div>
         </form>
       </DialogContent>

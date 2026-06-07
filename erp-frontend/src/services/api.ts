@@ -157,7 +157,7 @@ export const oemApi = {
   // Update OEM
   update: (id: string, data: Partial<{ oem_name: string; country: string }>): Promise<any> =>
     apiRequest(`/oems/${id}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(data),
     }),
 
@@ -189,7 +189,7 @@ export const modelApi = {
   // Update model
   update: (id: string, data: Partial<{ model_name: string; oem_id: string; year: string }>): Promise<any> =>
     apiRequest(`/models/${id}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(data),
     }),
 
@@ -218,13 +218,63 @@ export const uomApi = {
   // Update UOM
   update: (id: string, data: Partial<{ code: string; name: string }>): Promise<any> =>
     apiRequest(`/uoms/${id}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(data),
     }),
 
   // Delete UOM
   delete: (id: string): Promise<void> =>
     apiRequest(`/uoms/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+// Customer API functions
+export const customerApi = {
+  getAll: (params?: { limit?: number; offset?: number; search?: string }): Promise<any[]> => {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.set('limit', params.limit.toString());
+    if (params?.offset) searchParams.set('offset', params.offset.toString());
+    if (params?.search) searchParams.set('search', params.search);
+    const queryString = searchParams.toString();
+    return apiRequest(`/customers${queryString ? `?${queryString}` : ''}`);
+  },
+
+  getById: (id: string): Promise<any> => apiRequest(`/customers/${id}`),
+
+  create: (data: {
+    name: string;
+    customer_code?: string;
+    company_name?: string;
+    contact_person?: string;
+    address?: string;
+    billing_address?: string;
+    shipping_address?: string;
+    city?: string;
+    state?: string;
+    postal_code?: string;
+    country?: string;
+    phone?: string;
+    mobile?: string;
+    email?: string;
+    ntn?: string;
+    strn?: string;
+    payment_terms?: string;
+    credit_limit?: number;
+  }): Promise<any> =>
+    apiRequest('/customers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: Record<string, any>): Promise<any> =>
+    apiRequest(`/customers/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string): Promise<void> =>
+    apiRequest(`/customers/${id}`, {
       method: 'DELETE',
     }),
 };
@@ -270,7 +320,7 @@ export const productApi = {
     category: string;
   }>): Promise<any> =>
     apiRequest(`/products/${id}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(data),
     }),
 
@@ -1250,20 +1300,24 @@ export const supplierApi = {
 
   // Update supplier
   update: (id: string, data: Partial<{
-    supplier_name: string;
-    contact_person: string;
-    email: string;
+    code: string;
+    name: string;
+    contact: string;
     phone: string;
+    email: string;
     address: string;
-    city: string;
-    state: string;
-    country: string;
-    pincode: string;
-    gst_no: string;
-    payment_terms: string;
+    lead_time_days: number;
+    ntn: string;
+    strn: string;
+    bank_name: string;
+    bank_branch: string;
+    bank_account: string;
+    bank_iban: string;
+    bank_account_title: string;
+    bank_account_type: string;
   }>): Promise<any> =>
     apiRequest(`/suppliers/${id}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(data),
     }),
 
