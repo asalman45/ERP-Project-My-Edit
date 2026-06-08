@@ -65,7 +65,12 @@ const MasterData: React.FC = () => {
     { key: "code", header: "Product Code", sortable: true },
     { key: "partName", header: "Part Name", sortable: true },
     { key: "oemName", header: "OEM", sortable: true },
-    { key: "modelName", header: "Model", sortable: true },
+    { 
+      key: "modelNames", 
+      header: "Model", 
+      sortable: false,
+      render: (_, row) => row.modelNames && row.modelNames.length > 0 ? row.modelNames.join(", ") : "N/A"
+    },
     { key: "uomCode", header: "UOM", sortable: true },
     {
       key: "standardCost",
@@ -110,7 +115,7 @@ const MasterData: React.FC = () => {
   };
 
   // Product handlers
-  const handleSaveProduct = async (productData: Omit<Product, "id" | "createdAt" | "oemName" | "modelName" | "uomCode">) => {
+  const handleSaveProduct = async (productData: Omit<Product, "id" | "createdAt" | "oemName" | "modelNames" | "uomCode">) => {
     try {
       if (editingProduct) {
         // Update existing product

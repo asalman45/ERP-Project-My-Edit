@@ -23,7 +23,7 @@ import { useOEMs, useModels, useUOMs } from "@/hooks/useMasterData";
 interface ProductModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (productData: Omit<Product, "id" | "createdAt" | "oemName" | "modelName" | "uomCode">) => Promise<void>;
+  onSave: (productData: Omit<Product, "id" | "createdAt" | "oemName" | "modelNames" | "uomCode">) => Promise<void>;
   editingProduct?: Product | null;
 }
 
