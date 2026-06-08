@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Product, OEM, Model, UOM, ProductCategory } from "@/types";
 import { useOEMs, useModels, useUOMs } from "@/hooks/useMasterData";
 
@@ -40,7 +41,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
     code: "",
     partName: "",
     oemId: "",
-    modelId: "",
+    modelIds: [] as string[],
     uomId: "",
     standardCost: "",
     hsCode: "",
@@ -58,7 +59,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
           code: editingProduct.code,
           partName: editingProduct.partName,
           oemId: editingProduct.oemId,
-          modelId: editingProduct.modelId,
+          modelIds: editingProduct.modelIds || [],
           uomId: editingProduct.uomId,
           standardCost: editingProduct.standardCost?.toString() || "",
           hsCode: editingProduct.hsCode || "",
@@ -70,7 +71,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
           code: "",
           partName: "",
           oemId: "",
-          modelId: "",
+          modelIds: [],
           uomId: "",
           standardCost: "",
           hsCode: "",
@@ -107,8 +108,8 @@ const ProductModal: React.FC<ProductModalProps> = ({
       newErrors.oemId = "OEM is required";
     }
 
-    if (!formData.modelId) {
-      newErrors.modelId = "Model is required";
+    if (formData.modelIds.length === 0) {
+      newErrors.modelIds = "At least one model is required";
     }
 
     if (!formData.uomId) {
@@ -135,7 +136,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
         code: formData.code.trim(),
         partName: formData.partName.trim(),
         oemId: formData.oemId,
-        modelId: formData.modelId,
+        modelIds: formData.modelIds,
         uomId: formData.uomId,
         standardCost: formData.standardCost ? Number(formData.standardCost) : undefined,
         hsCode: formData.hsCode.trim() || undefined,
@@ -208,7 +209,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
                 value={formData.oemId}
                 onValueChange={(value) => {
                   handleInputChange("oemId", value);
-                  handleInputChange("modelId", ""); // Reset model when OEM changes
+                  setFormData(prev => ({ ...prev, modelIds: [] })); // Reset models when OEM changes
                 }}
               >
                 <SelectTrigger className={errors.oemId ? "border-red-500" : ""}>
@@ -229,25 +230,35 @@ const ProductModal: React.FC<ProductModalProps> = ({
 
             {/* Model Selection */}
             <div className="space-y-2">
-              <Label htmlFor="modelId">Model *</Label>
-              <Select
-                value={formData.modelId}
-                onValueChange={(value) => handleInputChange("modelId", value)}
-                disabled={!formData.oemId}
-              >
-                <SelectTrigger className={errors.modelId ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Select Model" />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredModels.map((model) => (
-                    <SelectItem key={model.id} value={model.id}>
-                      {model.name} {model.year && `(${model.year})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.modelId && (
-                <p className="text-sm text-red-500">{errors.modelId}</p>
+              <Label htmlFor="modelIds">Models *</Label>
+              <div className={`border rounded-md p-4 space-y-2 max-h-40 overflow-y-auto ${errors.modelIds ? "border-red-500" : ""}`}>
+                {filteredModels.length === 0 ? (
+                  <p className="text-sm text-gray-500">Select an OEM first</p>
+                ) : (
+                  filteredModels.map((model) => (
+                    <div key={model.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`model-${model.id}`}
+                        checked={formData.modelIds.includes(model.id)}
+                        onCheckedChange={(checked) => {
+                          const newModelIds = checked
+                            ? [...formData.modelIds, model.id]
+                            : formData.modelIds.filter((id) => id !== model.id);
+                          handleInputChange("modelIds", newModelIds as any);
+                        }}
+                      />
+                      <label
+                        htmlFor={`model-${model.id}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        {model.name} {model.year && `(${model.year})`}
+                      </label>
+                    </div>
+                  ))
+                )}
+              </div>
+              {errors.modelIds && (
+                <p className="text-sm text-red-500">{errors.modelIds}</p>
               )}
             </div>
           </div>

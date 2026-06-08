@@ -449,7 +449,12 @@ export const fetchStandardizedBOM = async (productId) => {
   const productRes = await db.query(
     `SELECT p.*, m.model_name, o.oem_name 
      FROM product p 
-     LEFT JOIN model m ON p.model_id = m.model_id 
+     LEFT JOIN (
+        SELECT pm.product_id, string_agg(DISTINCT m.model_name, ', ') as model_name
+        FROM product_model pm
+        JOIN model m ON pm.model_id = m.model_id
+        GROUP BY pm.product_id
+      ) m ON p.product_id = m.product_id
      LEFT JOIN oem o ON m.oem_id = o.oem_id 
      WHERE p.product_id = $1`,
     [productId]

@@ -1026,7 +1026,12 @@ export async function exportWorkOrders(req, res) {
       FROM work_order wo
       LEFT JOIN product p ON wo.product_id = p.product_id
       LEFT JOIN oem o ON p.oem_id = o.oem_id
-      LEFT JOIN model m ON p.model_id = m.model_id
+      LEFT JOIN (
+        SELECT pm.product_id, string_agg(DISTINCT m.model_name, ', ') as model_name
+        FROM product_model pm
+        JOIN model m ON pm.model_id = m.model_id
+        GROUP BY pm.product_id
+      ) m ON p.product_id = m.product_id
       LEFT JOIN uom u ON wo.uom_id = u.uom_id
     `;
 

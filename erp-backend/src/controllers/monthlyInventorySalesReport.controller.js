@@ -69,7 +69,12 @@ export const generateMonthlyInventorySalesReport = async (req, res) => {
         u.code as uom_code,
         u.name as uom_name
       FROM product p
-      LEFT JOIN model m ON p.model_id = m.model_id
+      LEFT JOIN (
+        SELECT pm.product_id, string_agg(DISTINCT m.model_name, ', ') as model_name, MIN(m.model_id) as model_id
+        FROM product_model pm
+        JOIN model m ON pm.model_id = m.model_id
+        GROUP BY pm.product_id
+      ) m ON p.product_id = m.product_id
       LEFT JOIN oem o ON p.oem_id = o.oem_id
       LEFT JOIN uom u ON p.uom_id = u.uom_id
       ${whereClause}
@@ -292,7 +297,12 @@ export const getProductsByModel = async (req, res) => {
         o.oem_name,
         u.code as uom_code
       FROM product p
-      LEFT JOIN model m ON p.model_id = m.model_id
+      LEFT JOIN (
+        SELECT pm.product_id, string_agg(DISTINCT m.model_name, ', ') as model_name, MIN(m.model_id) as model_id
+        FROM product_model pm
+        JOIN model m ON pm.model_id = m.model_id
+        GROUP BY pm.product_id
+      ) m ON p.product_id = m.product_id
       LEFT JOIN oem o ON p.oem_id = o.oem_id
       LEFT JOIN uom u ON p.uom_id = u.uom_id
       WHERE p.model_id = $1

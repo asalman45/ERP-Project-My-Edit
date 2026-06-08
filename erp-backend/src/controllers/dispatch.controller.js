@@ -761,7 +761,12 @@ export async function generateDispatchInvoicePDF(req, res) {
       FROM dispatch_item di
       LEFT JOIN product p ON di.product_id = p.product_id
       LEFT JOIN oem o ON p.oem_id = o.oem_id
-      LEFT JOIN model m ON p.model_id = m.model_id
+      LEFT JOIN (
+        SELECT pm.product_id, string_agg(DISTINCT m.model_name, ', ') as model_name
+        FROM product_model pm
+        JOIN model m ON pm.model_id = m.model_id
+        GROUP BY pm.product_id
+      ) m ON p.product_id = m.product_id
       LEFT JOIN sales_order_item soi ON (
         soi.sales_order_id = $2
         AND (
@@ -786,7 +791,12 @@ export async function generateDispatchInvoicePDF(req, res) {
       FROM dispatch_item di
       LEFT JOIN product p ON di.product_id = p.product_id
       LEFT JOIN oem o ON p.oem_id = o.oem_id
-      LEFT JOIN model m ON p.model_id = m.model_id
+      LEFT JOIN (
+        SELECT pm.product_id, string_agg(DISTINCT m.model_name, ', ') as model_name
+        FROM product_model pm
+        JOIN model m ON pm.model_id = m.model_id
+        GROUP BY pm.product_id
+      ) m ON p.product_id = m.product_id
       LEFT JOIN uom u ON di.uom_id = u.uom_id
       WHERE di.dispatch_id = $1
     `;

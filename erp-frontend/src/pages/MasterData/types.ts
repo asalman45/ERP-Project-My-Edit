@@ -28,8 +28,8 @@ export interface Product {
   partName: string;
   oemId: string;
   oemName: string;
-  modelId: string;
-  modelName: string;
+  modelIds: string[];
+  modelNames: string[];
   uomId: string;
   uomCode: string;
   standardCost?: number;

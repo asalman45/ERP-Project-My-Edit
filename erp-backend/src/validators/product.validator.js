@@ -6,6 +6,7 @@ const createSchema = Joi.object({
   part_name: Joi.string().trim().min(1).required(),
   oem_id: Joi.string().guid({ version: 'uuidv4' }).allow(null),
   model_id: Joi.string().guid({ version: 'uuidv4' }).allow(null),
+  model_ids: Joi.array().items(Joi.string().guid({ version: 'uuidv4' })).optional(),
   uom_id: Joi.string().guid({ version: 'uuidv4' }).required(),
   standard_cost: Joi.number().precision(2).positive().allow(null),
   category: Joi.string().valid('RAW_MATERIAL', 'SEMI_FINISHED', 'FINISHED_GOOD').optional(),
