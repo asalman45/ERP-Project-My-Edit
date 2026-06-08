@@ -28,13 +28,6 @@ const RouteWrapper: React.FC<RouteWrapperProps> = ({
   return (
     <ErrorBoundary
       key={location.pathname} // Force remount on route change
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-background">
-          <div className="text-center">
-            <LoadingSpinner size="lg" text="Loading page..." />
-          </div>
-        </div>
-      }
     >
       <Suspense fallback={fallback}>
         {children}
