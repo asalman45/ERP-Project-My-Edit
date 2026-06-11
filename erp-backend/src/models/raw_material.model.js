@@ -91,7 +91,7 @@ export const update = async (rawMaterialId, payload) => {
     
     // Update the Material record
     const materialKeys = Object.keys(payload).filter(key => 
-      ['name', 'description', 'uom_id', 'hs_code'].includes(key)
+      ['material_code', 'name', 'description', 'uom_id', 'hs_code'].includes(key)
     );
     
     if (materialKeys.length > 0) {

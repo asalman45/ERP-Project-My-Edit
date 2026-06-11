@@ -113,9 +113,8 @@ const RawMaterial: React.FC = () => {
     
     try {
       if (editingMaterial) {
-        // Update existing material - exclude material_code as it's not allowed in updates
-        const { material_code, ...updateData } = formData;
-        await rawMaterialApi.update(editingMaterial.raw_material_id, updateData);
+        // Update existing material
+        await rawMaterialApi.update(editingMaterial.raw_material_id, formData);
         toast({
           title: "Success",
           description: "Raw material updated successfully",
@@ -443,7 +442,6 @@ const RawMaterial: React.FC = () => {
                     onChange={(e) => setFormData({...formData, material_code: e.target.value})}
                     placeholder="e.g., RM001"
                     required
-                    disabled={!!editingMaterial}
                   />
                 </div>
                 <div>

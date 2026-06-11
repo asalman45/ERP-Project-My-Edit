@@ -18,18 +18,22 @@ function signToken(user, expiresIn = JWT_EXPIRES_IN) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn });
 }
 
-// Helper: auto-seed an enterprise user if not yet in DB
+// Helper: auto-seed enterprise users if not yet in DB
+// Credentials are strong — no default username+123 pattern allowed
 async function seedEnterpriseUser(username, password) {
-  const roles = {
-    admin: 'Admin',
-    finance: 'Finance',
-    production: 'Production',
-    procurement: 'Procurement',
-    sales: 'Sales',
-    hr: 'HR',
+  // Map username -> { role, securePassword }
+  const users = {
+    'Administrator@2026': { role: 'Admin',       name: 'Administrator',    password: 'SalmanERP@2026@' },
+    finance:              { role: 'Finance',     name: 'Finance User',     password: 'SalmanERP@2026@' },
+    production:           { role: 'Production',  name: 'Production User',  password: 'SalmanERP@2026@' },
+    procurement:          { role: 'Procurement', name: 'Procurement User', password: 'SalmanERP@2026@' },
+    sales:                { role: 'Sales',       name: 'Sales User',       password: 'SalmanERP@2026@' },
+    hr:                   { role: 'HR',          name: 'HR User',          password: 'SalmanERP@2026@' },
   };
 
-  if (!roles[username] || password !== `${username}123`) return null;
+  const entry = users[username];
+  // Only seed if the username is recognised AND the supplied password matches exactly
+  if (!entry || password !== entry.password) return null;
 
   const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   const q = await db.query(
@@ -37,7 +41,7 @@ async function seedEnterpriseUser(username, password) {
      VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW())
      ON CONFLICT (username) DO NOTHING
      RETURNING *`,
-    [username, hash, `${roles[username]} User`, roles[username]]
+    [username, hash, entry.name, entry.role]
   );
   return q.rows[0] || null;
 }
@@ -69,7 +73,7 @@ export const login = async (req, res) => {
         return res.status(401).json({ success: false, message: 'Invalid credentials.' });
       }
     } else {
-      // 3. Verify password — support both bcrypt hashes and legacy plain-text (migrate on the fly)
+      // 3. Verify password — only bcrypt hashes accepted (no plain-text fallback)
       const hash = user.password_hash;
       let passwordOk = false;
 
@@ -77,15 +81,8 @@ export const login = async (req, res) => {
         // Modern bcrypt hash
         passwordOk = await bcrypt.compare(password, hash);
       } else {
-        // Legacy plain-text — accept and upgrade to bcrypt immediately
-        passwordOk = (hash === password) || (password === `${username}123`);
-        if (passwordOk) {
-          const newHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-          await db.query(
-            'UPDATE app_user SET password_hash = $1, updated_at = NOW() WHERE user_id = $2',
-            [newHash, user.user_id]
-          );
-        }
+        // Old plain-text stored — reject and force a reset via admin
+        return res.status(401).json({ success: false, message: 'Your account requires a password reset. Please contact your administrator.' });
       }
 
       if (!passwordOk) {

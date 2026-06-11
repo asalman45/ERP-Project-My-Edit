@@ -10,6 +10,7 @@ const createSchema = Joi.object({
 });
 
 const updateSchema = Joi.object({
+  material_code: Joi.string().trim().min(1).optional(),
   name: Joi.string().trim().min(1).optional(),
   description: Joi.string().trim().allow('').optional(),
   uom_id: Joi.string().guid({ version: 'uuidv4' }).allow(null, '').optional(),

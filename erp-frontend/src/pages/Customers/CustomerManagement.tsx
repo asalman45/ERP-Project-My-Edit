@@ -15,6 +15,7 @@ interface Customer {
   country?: string;
   ntn?: string;
   strn?: string;
+  cnic?: string;
   payment_terms?: string;
   credit_limit?: number | string;
   address?: string;
@@ -29,7 +30,7 @@ const emptyForm = (): Partial<Customer> => ({
   customer_code: '', name: '', company_name: '', contact_person: '',
   email: '', phone: '', mobile: '', address: '', billing_address: '',
   shipping_address: '', city: '', state: '', postal_code: '',
-  country: 'Pakistan', ntn: '', strn: '', payment_terms: 'NET 30',
+  country: 'Pakistan', ntn: '', strn: '', cnic: '', payment_terms: 'NET 30',
   credit_limit: '' as any,
 });
 
@@ -328,6 +329,7 @@ const CustomerManagement: React.FC = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                   <Field label="NTN Number" name="ntn" value={form.ntn} onChange={handleChange} />
                   <Field label="STRN / GST Number" name="strn" value={form.strn} onChange={handleChange} />
+                  <Field label="CNIC" name="cnic" value={form.cnic} onChange={handleChange} />
                   <div>
                     <label style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12, fontWeight: 500, display: 'block', marginBottom: 6 }}>Payment Terms</label>
                     <select

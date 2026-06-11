@@ -903,6 +903,7 @@ model Customer {
   tax_id           String?
   ntn              String?
   strn             String?
+  cnic             String?
   payment_terms    String?  @default("NET 30")
   credit_limit     Decimal? @db.Decimal(15, 2)
   created_at       DateTime @default(now())

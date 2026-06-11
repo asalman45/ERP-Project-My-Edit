@@ -50,7 +50,7 @@ export const create = async (payload) => {
   const {
     customer_code, name, company_name, contact_person, address,
     billing_address, shipping_address, city, state, postal_code,
-    country, phone, mobile, email, tax_id, ntn, strn,
+    country, phone, mobile, email, tax_id, ntn, strn, cnic,
     payment_terms, credit_limit
   } = payload;
 
@@ -58,11 +58,11 @@ export const create = async (payload) => {
     `INSERT INTO customer (
        customer_id, customer_code, code, name, company_name, contact_person,
        address, billing_address, shipping_address, city, state, postal_code,
-       country, phone, mobile, email, tax_id, ntn, strn, payment_terms, credit_limit
+       country, phone, mobile, email, tax_id, ntn, strn, cnic, payment_terms, credit_limit
      ) VALUES (
        gen_random_uuid(), $1, $1, $2, $3, $4,
        $5, $6, $7, $8, $9, $10,
-       $11, $12, $13, $14, $15, $16, $17, $18, $19
+       $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
      ) RETURNING *`,
     [
       cleanString(customer_code),
@@ -82,6 +82,7 @@ export const create = async (payload) => {
       cleanString(tax_id),
       cleanString(ntn),
       cleanString(strn),
+      cleanString(cnic),
       cleanString(payment_terms) || 'NET 30',
       credit_limit ? parseFloat(credit_limit) : null
     ]
@@ -96,7 +97,7 @@ export const update = async (customerId, payload) => {
   const nullableFields = [
     'company_name', 'contact_person', 'address', 'billing_address',
     'shipping_address', 'city', 'state', 'postal_code', 'phone',
-    'mobile', 'email', 'tax_id', 'ntn', 'strn'
+    'mobile', 'email', 'tax_id', 'ntn', 'strn', 'cnic'
   ];
 
   const setClauses = [];
