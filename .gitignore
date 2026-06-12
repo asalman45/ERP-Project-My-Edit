@@ -55,3 +55,7 @@ tmp/
 temp/
 *.tmp
 
+# Private server credentials
+server_credentials.txt
+
+
