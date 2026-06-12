@@ -447,15 +447,15 @@ export const exportScrapData = async (req, res) => {
 export const fetchStandardizedBOM = async (productId) => {
   // Get product details with model information
   const productRes = await db.query(
-    `SELECT p.*, m.model_name, o.oem_name 
+    `SELECT p.*, models.model_name, o.oem_name 
      FROM product p 
      LEFT JOIN (
-        SELECT pm.product_id, string_agg(DISTINCT m.model_name, ', ') as model_name
+        SELECT pm.product_id, string_agg(DISTINCT mdl.model_name, ', ') as model_name
         FROM product_model pm
-        JOIN model m ON pm.model_id = m.model_id
+        JOIN model mdl ON pm.model_id = mdl.model_id
         GROUP BY pm.product_id
-      ) m ON p.product_id = m.product_id
-     LEFT JOIN oem o ON m.oem_id = o.oem_id 
+      ) models ON p.product_id = models.product_id
+     LEFT JOIN oem o ON p.oem_id = o.oem_id 
      WHERE p.product_id = $1`,
     [productId]
   );
