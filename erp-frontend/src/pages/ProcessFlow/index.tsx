@@ -62,7 +62,7 @@ export default function ProcessFlowPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch('/api/mrp-api/products');
+        const res = await fetch('/api/products?limit=1000');
         const data = await res.json();
         const list: ProductOption[] = (Array.isArray(data) ? data : data?.data || []).map((p: any) => ({
           product_id: p.product_id,
