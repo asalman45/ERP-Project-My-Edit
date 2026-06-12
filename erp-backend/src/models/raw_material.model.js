@@ -2,22 +2,28 @@
 import db from '../utils/db.js';
 
 export const findAll = async (opts = {}) => {
-  const { limit = 100, offset = 0 } = opts;
-  const res = await db.query(
-    `SELECT rm.*, u.code as uom_code, u.name as uom_name, m.material_id
+  const { limit = 100, offset = 0, sub_category } = opts;
+  let query = `SELECT rm.*, u.code as uom_code, u.name as uom_name, m.material_id, m.sub_category
      FROM raw_material rm
      LEFT JOIN uom u ON rm.uom_id = u.uom_id
-     LEFT JOIN material m ON rm.material_code = m.material_code
-     ORDER BY rm.raw_material_id DESC
-     LIMIT $1 OFFSET $2`,
-    [limit, offset]
-  );
+     LEFT JOIN material m ON rm.material_code = m.material_code`;
+  const params = [];
+  if (sub_category) {
+    query += ` WHERE m.sub_category = $1`;
+    params.push(sub_category);
+    query += ` ORDER BY rm.raw_material_id DESC LIMIT $2 OFFSET $3`;
+    params.push(limit, offset);
+  } else {
+    query += ` ORDER BY rm.raw_material_id DESC LIMIT $1 OFFSET $2`;
+    params.push(limit, offset);
+  }
+  const res = await db.query(query, params);
   return res.rows;
 };
 
 export const findById = async (rawMaterialId) => {
   const res = await db.query(
-    `SELECT rm.*, u.code as uom_code, u.name as uom_name, m.material_id
+    `SELECT rm.*, u.code as uom_code, u.name as uom_name, m.material_id, m.sub_category
      FROM raw_material rm
      LEFT JOIN uom u ON rm.uom_id = u.uom_id
      LEFT JOIN material m ON rm.material_code = m.material_code
@@ -29,7 +35,7 @@ export const findById = async (rawMaterialId) => {
 
 export const findByMaterialCode = async (materialCode) => {
   const res = await db.query(
-    `SELECT rm.*, u.code as uom_code, u.name as uom_name, m.material_id
+    `SELECT rm.*, u.code as uom_code, u.name as uom_name, m.material_id, m.sub_category
      FROM raw_material rm
      LEFT JOIN uom u ON rm.uom_id = u.uom_id
      LEFT JOIN material m ON rm.material_code = m.material_code
@@ -41,29 +47,29 @@ export const findByMaterialCode = async (materialCode) => {
 
 export const create = async (payload) => {
   const {
-    material_code, name, description, uom_id, hs_code
+    material_code, name, description, uom_id, hs_code, sub_category
   } = payload;
   
   try {
     // First, create the Material record with generated UUID
-    const materialRes = await db.query(
-      `INSERT INTO material (material_id, material_code, name, description, hs_code, category, uom_id)
-       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)
+    await db.query(
+      `INSERT INTO material (material_id, material_code, name, description, hs_code, category, uom_id, sub_category)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [material_code, name, description, hs_code || null, 'RAW_MATERIAL', uom_id]
+      [material_code, name, description, hs_code || null, 'RAW_MATERIAL', uom_id, sub_category || null]
     );
     
     // Then, create the RawMaterial record with generated UUID
     const rawMaterialRes = await db.query(
-      `INSERT INTO raw_material (raw_material_id, material_code, name, description, hs_code, uom_id, created_at, updated_at)
-       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW())
+      `INSERT INTO raw_material (raw_material_id, material_code, name, description, hs_code, uom_id, sub_category, created_at, updated_at)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW())
        RETURNING *`,
-      [material_code, name, description, hs_code || null, uom_id]
+      [material_code, name, description, hs_code || null, uom_id, sub_category || null]
     );
     
     // Return the raw material with joined data
     const result = await db.query(
-      `SELECT rm.*, u.code as uom_code, u.name as uom_name, m.material_id
+      `SELECT rm.*, u.code as uom_code, u.name as uom_name, m.material_id, m.sub_category
        FROM raw_material rm
        LEFT JOIN uom u ON rm.uom_id = u.uom_id
        LEFT JOIN material m ON rm.material_code = m.material_code
@@ -89,9 +95,9 @@ export const update = async (rawMaterialId, payload) => {
   try {
     await client.query('BEGIN');
     
-    // Update the Material record
+    // Update the Material record (includes sub_category)
     const materialKeys = Object.keys(payload).filter(key => 
-      ['material_code', 'name', 'description', 'uom_id', 'hs_code'].includes(key)
+      ['material_code', 'name', 'description', 'uom_id', 'hs_code', 'sub_category'].includes(key)
     );
     
     if (materialKeys.length > 0) {
@@ -104,9 +110,9 @@ export const update = async (rawMaterialId, payload) => {
       );
     }
     
-    // Update the RawMaterial record
+    // Update the RawMaterial record (includes sub_category)
     const rawMaterialKeys = Object.keys(payload).filter(key => 
-      ['name', 'description', 'uom_id', 'hs_code'].includes(key)
+      ['name', 'description', 'uom_id', 'hs_code', 'sub_category'].includes(key)
     );
     
     if (rawMaterialKeys.length > 0) {
