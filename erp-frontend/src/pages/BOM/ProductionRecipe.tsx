@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -26,7 +29,9 @@ import {
   Box,
   Calculator,
   TrendingUp,
-  RefreshCw
+  RefreshCw,
+  Check,
+  ChevronsUpDown
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { productApi } from '@/services/api';
@@ -41,6 +46,7 @@ const ProductionRecipe: React.FC = () => {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [productComboOpen, setProductComboOpen] = useState(false);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -507,18 +513,52 @@ const ProductionRecipe: React.FC = () => {
           <div className="flex gap-4">
             <div className="flex-1">
               <Label htmlFor="product">Product</Label>
-              <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-                <SelectTrigger id="product">
-                  <SelectValue placeholder="Select a product..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map(product => (
-                    <SelectItem key={product.product_id} value={product.product_id}>
-                      {product.product_code} - {product.part_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={productComboOpen} onOpenChange={setProductComboOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={productComboOpen}
+                    className="w-full justify-between"
+                  >
+                    {selectedProduct
+                      ? (() => {
+                          const p = products.find((prod) => prod.product_id === selectedProduct);
+                          return p ? `${p.product_code} - ${p.part_name}` : "Select product...";
+                        })()
+                      : "Select a product..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search product code or name..." />
+                    <CommandList>
+                      <CommandEmpty>No product found.</CommandEmpty>
+                      <CommandGroup>
+                        {products.map((product) => (
+                          <CommandItem
+                            key={product.product_id}
+                            value={`${product.product_code} ${product.part_name}`}
+                            onSelect={() => {
+                              setSelectedProduct(product.product_id);
+                              setProductComboOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedProduct === product.product_id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {product.product_code} - {product.part_name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="flex-1">
               <Label htmlFor="search">Search BOM Items</Label>

@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -19,7 +22,9 @@ import {
   CheckCircle, 
   Package,
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  Check,
+  ChevronsUpDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -34,6 +39,7 @@ export default function ProcessFlowPage() {
   const [seq, setSeq] = useState<number>(1);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [productComboOpen, setProductComboOpen] = useState(false);
 
   // Get icon for operation type
   const getOperationIcon = (operation: string) => {
@@ -172,21 +178,58 @@ export default function ProcessFlowPage() {
                 <Package className="w-4 h-4" />
                 Select Product
               </Label>
-              <Select value={selectedProductId} onValueChange={(v) => { setSelectedProductId(v); loadFlow(v); }}>
-                <SelectTrigger id="product-select" className="h-11">
-                  <SelectValue placeholder="Choose a product..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map(p => (
-                    <SelectItem key={p.product_id} value={p.product_id}>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{p.product_code}</span>
-                        <span className="text-xs text-muted-foreground">{p.part_name}</span>
+              <Popover open={productComboOpen} onOpenChange={setProductComboOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={productComboOpen}
+                    className="w-full justify-between h-11"
+                  >
+                    {selectedProduct ? (
+                      <div className="flex flex-col items-start text-left">
+                        <span className="font-medium">{selectedProduct.product_code}</span>
+                        <span className="text-xs text-muted-foreground font-normal">{selectedProduct.part_name}</span>
                       </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    ) : (
+                      "Choose a product..."
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search product code or name..." />
+                    <CommandList>
+                      <CommandEmpty>No product found.</CommandEmpty>
+                      <CommandGroup>
+                        {products.map(p => (
+                          <CommandItem
+                            key={p.product_id}
+                            value={`${p.product_code} ${p.part_name}`}
+                            onSelect={() => {
+                              setSelectedProductId(p.product_id);
+                              loadFlow(p.product_id);
+                              setProductComboOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedProductId === p.product_id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <div className="flex flex-col">
+                              <span className="font-medium">{p.product_code}</span>
+                              <span className="text-xs text-muted-foreground">{p.part_name}</span>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* Add Operation Form */}
