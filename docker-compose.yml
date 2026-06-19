@@ -64,12 +64,29 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # ─── Postgres Database ────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: empcl-erp-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: empcl_user
+      POSTGRES_PASSWORD: EmPcL2026SecureERP
+      POSTGRES_DB: erp_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - empcl-erp_postgres_data:/var/lib/postgresql/data
+    networks:
+      - erp-network
+      - empclerp_empcl-network
+
 networks:
-  # Internal network for frontend ↔ backend communication
   erp-network:
     driver: bridge
-
-  # External network where your existing Postgres container lives
-  # If your Postgres is on a different network name, update this accordingly.
   empclerp_empcl-network:
+    external: true
+
+volumes:
+  empcl-erp_postgres_data:
     external: true
