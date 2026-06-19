@@ -10,11 +10,11 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
-      DATABASE_URL: postgresql://empcl_user:empcl_pass123@empcl-erp-postgres:5432/erp_db
+      DATABASE_URL: postgresql://empcl_user:EmPcL2026SecureERP@empcl-erp-postgres:5432/erp_db
       DB_HOST: empcl-erp-postgres
       DB_PORT: 5432
       DB_USER: empcl_user
-      DB_PASSWORD: empcl_pass123
+      DB_PASSWORD: EmPcL2026SecureERP
       DB_NAME: erp_db
       PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
       PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
