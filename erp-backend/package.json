@@ -7,6 +7,7 @@
     "node": ">=18"
   },
   "scripts": {
+    "postinstall": "node -e \"import('fs').then(fs => { const p='node_modules/@makeorbreakshop/any-nest/package.json'; if(fs.existsSync(p)){ const d=JSON.parse(fs.readFileSync(p)); d.type='module'; fs.writeFileSync(p, JSON.stringify(d, null, 2)); } })\"",
     "dev": "cross-env NODE_ENV=development npx tsx watch src/index.js",
     "start": "cross-env NODE_ENV=production node --experimental-specifier-resolution=node src/index.js",
     "migrate": "node migrations/run-migrations.js",
