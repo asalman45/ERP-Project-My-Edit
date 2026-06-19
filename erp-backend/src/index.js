@@ -32,6 +32,7 @@ import scrapRoutes from './routes/scrap.routes.js';
 import wastageRoutes from './routes/wastage.routes.js';
 import scrapReuseRoutes from './routes/scrapReuse.routes.js';
 import stockAdjustmentRoutes from './routes/stockAdjustment.routes.js';
+import advancedNestingRoutes from './routes/api/advancedNesting.routes.js';
 import productionTrackingRoutes from './routes/productionTracking.routes.js';
 import reportsRoutes from './routes/reports.routes.js';
 import monthlyInventorySalesReportRoutes from './routes/monthlyInventorySalesReport.routes.js';
@@ -161,6 +162,7 @@ app.use('/api/batch-tracking', batchTrackingRoutes);
 app.use('/api/bom-api', bomApiRoutes);
 app.use('/api/mrp', mrpApiRoutes);
 app.use('/api/mrp-api', mrpApiRoutes);
+app.use('/api/advanced-nesting', advancedNestingRoutes);
 app.use('/api/production', productionApiRoutes);
 
 // Upload & Document Management routes

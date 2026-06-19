@@ -1,6 +1,5 @@
 import React, { lazy } from "react";
 import { Toaster } from "@/components/ui/sonner";
-import { CommandPalette } from "@/components/CommandPalette";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -30,6 +29,7 @@ const EnhancedReports = lazy(() => import("@/pages/EnhancedReports"));
 const Reports = lazy(() => import("@/pages/Reports"));
 const MonthlyInventorySalesReport = lazy(() => import("@/pages/Reports/MonthlyInventorySalesReport"));
 const BOMStandardDisplay = lazy(() => import("@/pages/BOM/BOMStandardDisplay"));
+const AdvancedNestingDisplay = lazy(() => import("@/pages/BOM/AdvancedNestingDisplay"));
 const BOMScrapManagement = lazy(() => import("@/pages/BOM/ScrapManagement"));
 const ProductionRecipe = lazy(() => import("@/pages/BOM/ProductionRecipe"));
 const MRPPlanning = lazy(() => import("@/pages/Planning/MRPPlanning"));
@@ -88,7 +88,6 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <CommandPalette />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route
@@ -268,6 +267,15 @@ const App = () => (
                 element={
                   <RouteWrapper>
                     <BOMStandardDisplay />
+                  </RouteWrapper>
+                }
+              />
+              {/* Force Vite reload */}
+              <Route
+                path="bom/advanced-nesting"
+                element={
+                  <RouteWrapper>
+                    <AdvancedNestingDisplay />
                   </RouteWrapper>
                 }
               />

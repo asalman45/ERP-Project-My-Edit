@@ -128,6 +128,7 @@ const ERPSidebar: React.FC<ERPSidebarProps> = ({ isCollapsed, onToggle }) => {
       roles: ['admin', 'production'],
       submenu: [
         { label: 'BOM Standard Display', path: '/bom/standard-display' },
+        { label: 'Advanced Nesting', path: '/bom/advanced-nesting' },
         { label: 'Production Recipe BOM', path: '/bom/production-recipe' },
         { label: 'Scrap Management', path: '/bom/scrap-management' },
       ],
