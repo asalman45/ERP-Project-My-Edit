@@ -53,6 +53,7 @@ import invoiceRoutes from './routes/invoice.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import auditTrailRoutes from './routes/auditTrail.routes.js';
 import batchTrackingRoutes from './routes/batchTracking.routes.js';
+import ecnRoutes from './routes/ecn.routes.js';
 
 // Dual-BOM API routes
 import bomApiRoutes from './routes/bomApi.routes.js';
@@ -157,6 +158,7 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/audit-trail', auditTrailRoutes);
 app.use('/api/batch-tracking', batchTrackingRoutes);
+app.use('/api/ecn', ecnRoutes);
 
 // Dual-BOM API routes
 app.use('/api/bom-api', bomApiRoutes);

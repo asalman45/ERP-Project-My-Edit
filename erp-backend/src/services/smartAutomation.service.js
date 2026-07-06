@@ -319,3 +319,111 @@ export async function autoPostSalesInvoice(invoiceId) {
     client.release();
   }
 }
+
+/**
+ * Phase 4: Cost Roll-up
+ * Calculates and updates standard cost for a product based on BOM, Routing, and Overhead
+ */
+export async function calculateProductCost(productId, overheadPercentage = 15) {
+  logger.info({ productId }, 'Calculating Product Cost Roll-up');
+  const client = await db.pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // 1. Get Active BOM
+    const bomResult = await client.query('SELECT * FROM bom WHERE product_id = $1 AND is_active = true', [productId]);
+    let totalMaterialCost = 0;
+
+    for (const bom of bomResult.rows) {
+      // Find material cost from standard_cost_ledger
+      const costRes = await client.query(`
+        SELECT standard_cost FROM standard_cost_ledger 
+        WHERE material_id = $1 ORDER BY effective_date DESC LIMIT 1
+      `, [bom.material_id]);
+      
+      let unitCost = 0;
+      if (costRes.rows.length > 0) {
+        unitCost = parseFloat(costRes.rows[0].standard_cost);
+      } else {
+        // Fallback to material.standard_cost if exists
+        const matRes = await client.query('SELECT standard_cost FROM material WHERE material_id = $1', [bom.material_id]);
+        if (matRes.rows.length > 0) {
+          unitCost = parseFloat(matRes.rows[0].standard_cost || 0);
+        }
+      }
+      
+      const qty = parseFloat(bom.quantity);
+      const scrapAllowance = parseFloat(bom.scrap_allowance_pct || 0);
+      const finalQty = qty * (1 + (scrapAllowance / 100));
+      
+      totalMaterialCost += (unitCost * finalQty);
+    }
+
+    // 2. Get Routing Costs
+    const routingsResult = await client.query('SELECT * FROM routing WHERE product_id = $1', [productId]);
+    let totalLaborCost = 0;
+
+    for (const routing of routingsResult.rows) {
+      // Find Work center rate
+      const rateResult = await client.query(`
+        SELECT hourly_labor_rate, hourly_overhead_rate 
+        FROM work_center_rate 
+        WHERE process_name ILIKE $1 
+        ORDER BY effective_date DESC LIMIT 1
+      `, [`%${routing.operation}%`]);
+
+      let laborRate = 0;
+      let machineOverheadRate = 0;
+
+      if (rateResult.rows.length > 0) {
+        laborRate = parseFloat(rateResult.rows[0].hourly_labor_rate || 0);
+        machineOverheadRate = parseFloat(rateResult.rows[0].hourly_overhead_rate || 0);
+      } else {
+        // Fallback to cost_rate on routing step
+        laborRate = parseFloat(routing.cost_rate || 0);
+      }
+
+      const durationHours = routing.duration ? (parseFloat(routing.duration) / 60.0) : 0;
+      totalLaborCost += (laborRate + machineOverheadRate) * durationHours;
+    }
+
+    // 3. Calculate Overhead
+    const overheadCost = (totalMaterialCost + totalLaborCost) * (overheadPercentage / 100.0);
+
+    // 4. Total Cost
+    const totalManufacturingCost = totalMaterialCost + totalLaborCost + overheadCost;
+
+    // 5. Update standard_cost_ledger
+    await client.query(`
+      INSERT INTO standard_cost_ledger 
+      (cost_id, product_id, standard_cost, effective_date)
+      VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+    `, [uuidv4(), productId, totalManufacturingCost]);
+
+    // Update product table standard_cost
+    await client.query(`
+      UPDATE product SET standard_cost = $1 WHERE product_id = $2
+    `, [totalManufacturingCost, productId]);
+
+    await client.query('COMMIT');
+    logger.info({ productId, totalManufacturingCost, totalMaterialCost, totalLaborCost, overheadCost }, 'Successfully rolled up product cost');
+    
+    return {
+      success: true,
+      productId,
+      totalManufacturingCost,
+      breakdown: {
+        material: totalMaterialCost,
+        labor: totalLaborCost,
+        overhead: overheadCost
+      }
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    logger.error({ error, productId }, 'Failed to calculate product cost roll-up');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
