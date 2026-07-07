@@ -1,6 +1,6 @@
 import express from 'express';
 import * as ecnController from '../controllers/ecn.controller.js';
-import { verifyToken } from '../middleware/auth.middleware.js';
+import { authenticate } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
@@ -9,7 +9,7 @@ const router = express.Router();
  */
 
 // Apply auth middleware to all ECN routes
-router.use(verifyToken);
+router.use(authenticate);
 
 // Create ECN
 router.post('/', ecnController.createECN);
